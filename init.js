@@ -10,7 +10,7 @@ import { logger } from "./logger";
 
 dotenv.config();
 
-const PORT = process.env.PORT || 6370;
+const PORT = process.env.PORT || 7606;
 const is_https = process.env.HTTPS;
 
 const handleListening = () => {
