@@ -1,0 +1,10 @@
+extends layouts/main
+
+block content
+    .form-container
+        form(action=`/story${routes.registerStory}`, method="post", enctype="multipart/form-data")
+            label(for="file") Title Image
+            input(type="file", id="file", name="titleFile", accept=".png, .jpg")
+            input(type="text", placeholder="타이틀", name="title")
+            input(type="submit", value="Register Story")
+        
