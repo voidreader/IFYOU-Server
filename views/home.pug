@@ -1,0 +1,11 @@
+extends layouts/main
+include mixins/storyBlock
+
+block content
+    .stories
+        each item in stories
+            +storyBlock({
+                id:item.id,
+                title:item.title,
+                titleImageURL: item.titleImageURL
+            })
