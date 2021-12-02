@@ -312,6 +312,7 @@ SELECT a.episode_id
      , a.first_reward_currency
      , a.first_reward_quantity
      , a.sortkey 
+     , a.chapter_number
      , fn_check_episode_in_progress(?, a.episode_id) in_progress
      , fn_check_episode_in_history(?, a.episode_id) in_history
      , fn_get_design_info(a.square_image_id, 'url') title_image_url
@@ -352,6 +353,7 @@ SELECT a.episode_id
      , a.first_reward_currency
      , a.first_reward_quantity
      , a.sortkey 
+     , a.chapter_number
      , 0 in_progress
      , TRIM(fn_get_episode_title_lang(a.episode_id, 'KO')) indexed_title
      , fn_get_design_info(a.square_image_id, 'url') title_image_url
