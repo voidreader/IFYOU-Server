@@ -454,7 +454,7 @@ WHERE ls.project_id = ?
 AND ls.episode_id = ?
 AND (ls.emoticon_expression IS NOT NULL AND ls.emoticon_expression <> '')
 AND (ls.speaker IS NOT NULL AND ls.speaker <> '')
-AND ls.template IN (SELECT z.code FROM list_standard z WHERE z.standard_class = 'talking_template')
+AND ls.template IN (SELECT z.code FROM list_standard z WHERE z.standard_class IN ('talking_template', 'message_template'))
 AND ls.project_id = lem.project_id 
 AND lem.emoticon_owner = ls.speaker
 AND les.emoticon_master_id = lem.emoticon_master_id 
