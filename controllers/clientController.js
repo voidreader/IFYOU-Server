@@ -42,6 +42,7 @@ import {
   getUserEpisodeHistory,
   requestFreeCharge,
   requestExchangeOneTimeTicketWithCoin,
+  updateUserEpisodePlayRecordVer2, 
 } from "./accountController";
 import { logger } from "../logger";
 import {
@@ -62,6 +63,7 @@ import { respondDB } from "../respondent";
 import {
   updateSelectionProgress,
   updateUserProjectCurrent,
+  updateUserSelectionCurrent,
 } from "../com/userProject";
 import {
   getAllProductList,
@@ -894,6 +896,8 @@ export const clientHome = (req, res) => {
   else if (func === "requestPromotionList") getPromotionList(req, res); 
   else if (func === "getCoinProductList") getCoinProductList(req, res); 
   else if (func === "userCoinPurchase") userCoinPurchase(req, res);
+  else if (func === "updateUserSelectionCurrent") updateUserSelectionCurrent(req, res);
+  else if (func === "updateUserEpisodePlayRecordVer2") updateUserEpisodePlayRecordVer2(req,res);
   else {
     //  res.status(400).send(`Wrong Func : ${func}`);
     logger.error(`clientHome Error`);

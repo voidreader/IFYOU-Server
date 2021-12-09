@@ -386,6 +386,8 @@ SELECT ls.script_no
      , ls.dev_comment
      , ls.project_id
      , ifnull(ls.control, '') control
+     , ls.selection_group
+     , ls.selection_no
  FROM list_script ls
 WHERE ls.episode_id = ?
   AND ls.lang = 'KO'
