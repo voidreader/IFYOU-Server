@@ -1290,6 +1290,7 @@ export const updateUserEpisodePlayRecord = async (req, res) => {
   // * 2021.07 : 사이드 에피소드의 해금을 체크해야한다.(unlockSide)
   // * 2021.08 : 미션 해금을 체크한다.(unlockMission)
   // * 2021.08.09 : OneTime. 1회 플레이에 대한 처리를 진행한다. (user_episode_purchase, episodePurchase 갱신 필요)
+  // * 2021.12.12 : ending 선택지 로그 히스토리 때문에 sp_insert_user_ending 프로시저에 일부 추가 - JE
   const {
     body: { userkey, project_id, episodeID, nextEpisodeID = -1 },
   } = req;
@@ -1299,7 +1300,7 @@ export const updateUserEpisodePlayRecord = async (req, res) => {
 
   const histQuery = `CALL sp_insert_user_episode_hist(?, ?, ?);`;
   const progressQuery = `CALL sp_update_user_episode_done(?, ?, ?);`;
-  const endingQuery = `CALL sp_insert_user_ending(?,?)`;
+  const endingQuery = `CALL sp_insert_user_ending(?,?);`;
 
   // * 2021.09.18 첫 클리어 보상을 위한 추가 로직
   // * 첫 클리어 보상 정보 가져온다.
@@ -1432,160 +1433,6 @@ export const updateUserEpisodePlayRecord = async (req, res) => {
   // 이 시점에 클리어 후에 처리를 위한 로그 추가
   logAction(userkey, "episode_clear_after", responseData);
 };
-
-export const updateUserEndingRecord = async (req, res) => {
-  // * nextEpisodeID가 ending의 경우는 user_ending에 따로 추가로 수집한다.
-  // * 플레이 기록은 에피소드 플레이 완료시에 쌓이기 때문에
-  // * 엔딩의 플레이를 완료하지 않아도 엔딩정보를 수집해야 한다.
-
-  // * 2021.07 : 사이드 에피소드의 해금을 체크해야한다.(unlockSide)
-  // * 2021.08 : 미션 해금을 체크한다.(unlockMission)
-  // * 2021.08.09 : OneTime. 1회 플레이에 대한 처리를 진행한다. (user_episode_purchase, episodePurchase 갱신 필요)
-  // * 2021.12.09 : 엔딩에도 선택지 로그가 필요해서 따로 버전2 만듬 
-  const {
-    body: { userkey, project_id, episodeID, nextEpisodeID = -1 },
-  } = req;
-
-  logger.info(`updateUserEpisodePlayRecord [${JSON.stringify(req.body)}]`);
-  req.body.episode_id = episodeID;
-
-  const histQuery = `CALL sp_insert_user_episode_hist(?, ?, ?);`;
-  const progressQuery = `CALL sp_update_user_episode_done(?, ?, ?);`;
-  const endingQuery = `CALL sp_insert_user_ending_new(?, ?, ?);`;
-
-  // * 2021.09.18 첫 클리어 보상을 위한 추가 로직
-  // * 첫 클리어 보상 정보 가져온다.
-  let firstClearResult = await getEpisodeFisrtClearReward(userkey, episodeID);
-
-  const histResult = await DB(histQuery, [userkey, project_id, episodeID]); // 히스토리 입력
-  const progressResult = await DB(progressQuery, [
-    userkey,
-    project_id,
-    episodeID,
-  ]); // 진행도 입력
-
-  // ! 2021.08.26 projectCurrent
-  // * nextEpisodeID가 0보다 작은 경우는 막다른 길이다.
-  // * 스페셜 에피소드는 다음 에피소드 지정이 되지 않는다.
-  // * 엔딩에서도 다음 에피소드 지정이 되지 않는다.
-  // * 파라매터로 막다른 길임을 알려준다.
-  const updateCurrentParam = {
-    userkey,
-    project_id,
-    episodeID: nextEpisodeID < 0 ? episodeID : nextEpisodeID, // 다음 에피소드 설정이 있을때만 다음 에피소드 ID로 지정
-    is_final: nextEpisodeID < 0 ? 1 : 0, // 다음 에피소드 설정이 없으면 1로 처리 (엔딩이나 설정 문제)
-  };
-
-  logger.info(`updateCurrentParam : ${JSON.stringify(updateCurrentParam)}`);
-
-  // 플레이 위치 저장 (배열로 받음)
-  const projectCurrent = await requestUpdateProjectCurrent(updateCurrentParam);
-
-  // 배열로 받은 projectCurrent를 responseData.projectCurrent에 넣어준다.
-  const responseData = { projectCurrent }; // * response 값
-
-  // console.log(`responseData Check : `, responseData);
-
-  // 히스토리 처리
-  if (histResult.state && histResult.row[0].length > 0) {
-    responseData.episodeHistory = [];
-    histResult.row[0].forEach((element) => {
-      responseData.episodeHistory.push(element.episode_id);
-    });
-  } else {
-    logger.error(
-      `updateUserEpisodePlayRecord error in episode hist ${histResult.error}`
-    );
-    respondDB(res, 80026, histResult.error);
-    return;
-  }
-
-  // 진행도 처리
-  // TODO 업데이트 전까지 배열과 object 배열을 함께준다.
-  if (progressResult.state) {
-    responseData.episodeProgress = [];
-    progressResult.row[0].forEach((element) => {
-      responseData.episodeProgress.push(element.episode_id);
-    });
-
-    // ! 버전 2 (완료 여부까지 함께)
-    // TODO 왜 ... ver2를 만들었는지 기억이 안난다...
-    // responseData.episodeProgressVer2 = progressResult.row[0];
-  } else {
-    logger.error(`updateUserEpisodePlayRecord Error 1 ${progressResult.error}`);
-    respondDB(res, 80026, progressResult.error);
-    return;
-  }
-
-  // 이 시점에 클리어 로그
-  logAction(userkey, "episode_clear", req.body);
-
-  // 엔딩 수집 추가 처리 (2021.07.05) -
-  const endingResult = await DB(endingQuery, [userkey, nextEpisodeID, project_id]);
-  if (!endingResult.state) {
-    logger.error(`updateUserEpisodePlayRecord Error 2 ${endingResult.error}`); // 로그만 남긴다.
-  }
-
-  // * 사이드 에피소드 해금 처리(2021.07.05)
-  responseData.unlockSide = await checkSideUnlockByEpisode(req.body);
-
-  // scene Count 정보(2021.08.05)
-  responseData.playedSceneCount = await getEpisodeSceneCount(
-    userkey,
-    episodeID
-  );
-
-  // * 미션 해금 정보(2021.08.06)
-  responseData.unlockMission = await checkMissionByEpisode(req.body);
-
-  // * 1회권 처리 - 1회권으로 플레이를 했는지 체크한다.
-  const needOneTimePlayCount = await getEpisodeOneTimePlayable(
-    userkey,
-    episodeID
-  );
-
-  // * 1회권 차감, 에피소드 1회 플레이 했음을 처리.
-  if (needOneTimePlayCount) {
-    // 차감 처리 한다.
-    logger.info(
-      `It's OneTime Episode. [{$episodeID}] play count is set to zero :)`
-    );
-    await setZeroEpisodeOneTimePlayCount(userkey, episodeID);
-  }
-  // ? 1회권 처리 끝
-
-  // * 2021.09.18 처리할꺼 다 하고, 첫 클리어 보상 입력처리.
-  const rewardPromise = [];
-  firstClearResult = firstClearResult.filter((reward) => reward.quantity > 0);
-  firstClearResult.forEach((reward) => {
-    console.log("first clear : ", reward);
-    rewardPromise.push(
-      addUserProperty(userkey, reward.currency, reward.quantity, "first_clear")
-    );
-  });
-
-  await Promise.all(rewardPromise)
-    .then((values) => {
-      console.log(values);
-    })
-    .catch((err) => {
-      console.log(err);
-      logger.error(err);
-    });
-
-  // * 2021.09.18 첫결제 보상 추가되면서 bank 추가
-  // 첫 결제 보상 정보
-  responseData.firstClearResult = firstClearResult;
-  // bank 정보 refresh
-  responseData.bank = await getUserBankInfo(req.body);
-
-  res.status(200).json(responseData);
-
-  // 이 시점에 클리어 후에 처리를 위한 로그 추가
-  logAction(userkey, "episode_clear_after", responseData);
-};
-
-
 
 // 말풍선 세트 재배열
 const arrangeBubbleSet = (allBubbleSet) => {
@@ -2114,54 +1961,17 @@ export const updateUserScriptMission = async (req, res) => {
   res.status(200).json(result);
 };
 
-// * 유저 에피소드 진행도 초기화
+// ! 유저 에피소드 진행도 초기화
 export const resetUserEpisodeProgress = async (req, res) => {
   logger.info(`resetUserEpisodeProgress [${JSON.stringify(req.body)}]`);
+  
+  // * 2021.12.12 : 선택지 로그 추가로 sp_reset_user_episode_progress_new 프로시저로 변경 - JE
 
   const {
     body: { userkey, project_id, episodeID, isFree = false },
   } = req;
 
-  const resetResult = await DB(
-    `
-    CALL sp_reset_user_episode_progress(?, ?, ?);
-    `,
-    [userkey, project_id, episodeID]
-  );
-
-  if (!resetResult.state) {
-    logger.error(`resetUserEpisodeProgress Error ${resetResult.error}`);
-    respondDB(res, 80026, resetResult.error);
-    return;
-  }
-
-  // ! 재조회 refresh nextEpisode, currentEpisode, episodeProgress, episodeSceneProgress...
-  const responseData = {};
-
-  responseData.episodeProgress = await getUserEpisodeProgress(req.body); // * 유저 에피소드 진행도
-  responseData.sceneProgress = await getUserEpisodeSceneProgress(req.body); // * 유저 사건ID 진행도
-
-  // * 2021.08.27
-  responseData.projectCurrent = await getUserProjectCurrent(req.body); // 프로젝트 현재 플레이 지점 !
-  responseData.selectionProgress = await getUserProjectSelectionProgress(
-    req.body
-  ); // 프로젝트 선택지 Progress
-
-  res.status(200).json(responseData);
-
-  logAction(userkey, "reset_progress", req.body);
-}; // * End of resetUserEpisodeProgress
-
-
-// * 유저 에피소드 진행도 초기화 Ver2 (2021.12.09)
-export const resetUserEpisodeProgressVer2 = async (req, res) => {
-  logger.info(`resetUserEpisodeProgress [${JSON.stringify(req.body)}]`);
-
-  const {
-    body: { userkey, project_id, episodeID, isFree = false },
-  } = req;
-
-  // ! 플레이 건수 확인 
+  // 플레이 건수 확인 
   const playResult = await DB(`
   SELECT ifnull(MAX(play_count),0) max_count 
   FROM user_selection_hist 
