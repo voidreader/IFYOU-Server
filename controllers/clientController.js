@@ -42,7 +42,6 @@ import {
   getUserEpisodeHistory,
   requestFreeCharge,
   requestExchangeOneTimeTicketWithCoin,
-  updateUserEpisodePlayRecordVer2, 
 } from "./accountController";
 import { logger } from "../logger";
 import {
@@ -64,6 +63,8 @@ import {
   updateSelectionProgress,
   updateUserProjectCurrent,
   updateUserSelectionCurrent,
+  getTop3SelectionList,
+  getEndingSelectionList,
 } from "../com/userProject";
 import {
   getAllProductList,
@@ -896,8 +897,9 @@ export const clientHome = (req, res) => {
   else if (func === "requestPromotionList") getPromotionList(req, res); 
   else if (func === "getCoinProductList") getCoinProductList(req, res); 
   else if (func === "userCoinPurchase") userCoinPurchase(req, res);
-  else if (func === "updateUserSelectionCurrent") updateUserSelectionCurrent(req, res);
-  else if (func === "updateUserEpisodePlayRecordVer2") updateUserEpisodePlayRecordVer2(req,res);
+  else if (func === "updateUserSelectionCurrent") updateUserSelectionCurrent(req, res); // 선택지 업데이트 
+  else if (func === "getTop3SelectionList") getTop3SelectionList(req, res);  // 선택지 로그 리스트
+  else if (func === "getEndingSelectionList") getEndingSelectionList(req, res); // 엔딩 선택지 로그 리스트 
   else {
     //  res.status(400).send(`Wrong Func : ${func}`);
     logger.error(`clientHome Error`);

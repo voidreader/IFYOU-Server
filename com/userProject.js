@@ -164,13 +164,14 @@ export const updateUserSelectionCurrent = async (req, res) => {
       userkey, 
       project_id, 
       episodeID, 
-      target_scene_id, 
-      selection_group, 
-      selection_no,
+      target_scene_id = -1, 
+      selection_group = 0, 
+      selection_no = 0,
     }
   } = req;
 
-  const result = await DB(`CALL pier.sp_update_user_selection_current(?, ?, ?, ?, ?, ?);`, [userkey, project_id, episodeID, target_scene_id, selection_group, selection_no]);
+  const result = await DB(`CALL pier.sp_update_user_selection_current(?, ?, ?, ?, ?, ?);`, 
+  [userkey, project_id, episodeID, target_scene_id, selection_group, selection_no]);
 
   if (!result.state) {
     logger.error(result.error);
@@ -181,5 +182,214 @@ export const updateUserSelectionCurrent = async (req, res) => {
   res.status(200).json(responseData);
 };
 
+//! 선택지 로그 top3 리스트 
+export const getTop3SelectionList = async(req, res) =>{
+  logger.info(`getTop3SelectionList : ${JSON.stringify(req.body)}`);
+  
+  const {
+    body:{
+      userkey, 
+      project_id,
+      lang = "KO", 
+    }
+  } = req;
+
+  let result = ``;
+  
+  //* 엔딩 해금 확인 
+  result = await DB(`SELECT * 
+  FROM user_selection_ending 
+  WHERE userkey = ? AND project_id = ?;
+  ;`, [userkey, project_id]);
+  if(!result.state || result.row.length === 0){
+    respondDB(res, 80095);
+    return;
+  }
+
+  //* 현재 셀렉션(user_selection_current) 값이 있는지 확인 
+  let historyCheck = true; 
+  result = await DB(`SELECT * FROM user_selection_current 
+  WHERE userkey = ? AND project_id =?;
+  `, [userkey, project_id]);
+  if(!result.state || result.row.length === 0) historyCheck = false; 
+
+  //* 플레이 횟수 가장 큰 값 가져오기
+  result = await DB(`
+  SELECT MAX(play_count) play_count
+  FROM user_selection_hist
+  WHERE userkey = ? AND project_id = ?;
+  `, [userkey, project_id]);
+  const maxPlayCount = result.row[0].play_count;
+  let minPlayCount = 0;
+
+  const responseData = {}; 
+  const selection = {};
+  const ending = {}; 
+  //* 셀력센 리스트 
+  if(!historyCheck){   //현재 셀렉션에 값이 없으면 히스토리에서 3개 가져옴
+    minPlayCount = maxPlayCount - 2 < 0 ? 0 : maxPlayCount -2;
+    
+    result = await DB(`
+    SELECT a.episode_id episodeId 
+    , fn_get_episode_title_lang(a.episode_id, ?) title
+    , a.selection_group selectionGroup
+    , a.selection_no selectionNo
+    , a.selection_order selectionOrder
+    , ${lang} selection_content
+    , CASE WHEN a.selection_group = b.selection_group AND a.selection_no = b.selection_no 
+    THEN 'O' ELSE 'X' END selected
+    , (SELECT sortkey FROM list_episode WHERE episode_id = a.episode_id) sortkey
+    , play_count
+    , DATE_FORMAT(origin_action_date, '%Y-%m-%d %T') action_date  
+    FROM list_selection a LEFT OUTER JOIN user_selection_hist b 
+    ON a.project_id = b.project_id AND a.episode_id AND a.selection_group = b.selection_group
+    WHERE userkey = ? 
+    AND a.project_id = ?
+    AND play_count BETWEEN ? AND ?
+    ORDER BY play_count, sortkey, a.episode_id, a.selection_group, a.selection_order;
+    `, [lang, userkey, project_id, minPlayCount, maxPlayCount]);
+  }else{
+    minPlayCount = maxPlayCount - 1 < 0 ? 0 : maxPlayCount -1;
+
+    result = await DB(`
+    SELECT a.episode_id episodeId  
+    , fn_get_episode_title_lang(a.episode_id, ?) title
+    , a.selection_group selectionGroup
+    , a.selection_no selectionNo
+    , a.selection_order selectionOrder
+    , ${lang} selection_content
+    , CASE WHEN a.selection_group = b.selection_group AND a.selection_no = b.selection_no 
+    THEN 'O' ELSE 'X' END selected
+    , (SELECT sortkey FROM list_episode WHERE episode_id = a.episode_id) sortkey  
+    , ${maxPlayCount+1} play_count
+    ,  DATE_FORMAT(action_date, '%Y-%m-%d %T') action_date  
+    FROM list_selection a LEFT OUTER JOIN user_selection_current b 
+    on a.project_id = b.project_id AND a.episode_id = b.episode_id AND a.selection_group = b.selection_group
+    WHERE userkey = ? 
+    AND a.project_id = ?
+    UNION ALL 
+    SELECT a.episode_id episodeId  
+    , fn_get_episode_title_lang(a.episode_id, ?) title
+    , a.selection_group selectionGroup
+    , a.selection_no selectionNo
+    , a.selection_order selectionOrder
+    , ${lang} selection_content
+    , CASE WHEN a.selection_group = b.selection_group AND a.selection_no = b.selection_no 
+    THEN 'O' ELSE 'X' END selected
+    , (SELECT sortkey FROM list_episode WHERE episode_id = a.episode_id) sortkey  
+    , play_count
+    , DATE_FORMAT(origin_action_date, '%Y-%m-%d %T') action_date  
+    FROM list_selection a LEFT OUTER JOIN user_selection_hist b 
+    on a.project_id = b.project_id AND a.episode_id = b.episode_id AND a.selection_group = b.selection_group
+    WHERE userkey = ? 
+    AND a.project_id = ?
+    AND play_count BETWEEN ? AND ? 
+    ORDER BY play_count, sortkey, episodeId, selectionGroup, selectionOrder;     
+    `, [lang, userkey, project_id, lang, userkey, project_id, minPlayCount, maxPlayCount]);
+  }
+  // eslint-disable-next-line no-restricted-syntax
+  for(const item of result.row) {
+    let playCount = item.play_count.toString(); 
+    if (!Object.prototype.hasOwnProperty.call(selection, playCount)) {
+      selection[playCount] = []; 
+    }
+    selection[playCount].push({
+      episode_id : item.episodeId, 
+      title : item.title, 
+      selection_group : item.selectionGroup, 
+      selection_no : item.selectionNo,
+      selection_order : item.selectionOrder, 
+      selection_content : item.selection_content, 
+      selected : item.selected, 
+    });
+
+    if (!Object.prototype.hasOwnProperty.call(ending, playCount)) {
+      ending[playCount] = []; 
+      playCount = 0; 
+    }
+    if(parseInt(playCount,10) !== item.play_count){  
+      playCount = item.play_count.toString();
+      // eslint-disable-next-line no-await-in-loop
+      const endingResult = await DB(`
+      SELECT
+      ending_id
+      , ifnull(fn_get_episode_title_lang(ending_id, ?), '') ending_title 
+      FROM user_selection_ending 
+      WHERE userkey = ? 
+      AND project_id = ?
+      AND episode_id = ?
+      AND origin_action_date = ?;
+      `, [lang, userkey, project_id, item.episodeId, item.action_date]);
+      if(!endingResult.state || endingResult.row.length === 0){
+        ending[playCount].push({});  
+      }else{
+        ending[playCount].push({
+          ending_id : endingResult.row[0].ending_id,
+          ending_title : endingResult.row[0].ending_title, 
+        });          
+      }
+    }
+  }
+  
+  responseData.selection = selection; 
+  responseData.ending = ending;
+  
+  res.status(200).json(responseData);
+};
+
+//! 엔딩 선택지 로그 
+export const getEndingSelectionList = async(req, res) => {
+  
+  const {
+    body:{
+      userkey, 
+      project_id, 
+      ending_id, 
+      lang = "KO",
+    }
+  } = req;
+
+  let result = ``;
+
+  //* 최근 엔딩 가져오기
+  result = await DB(`
+  SELECT MAX(DATE_FORMAT(update_date, '%Y-%m-%d %T')) update_date
+  FROM user_selection_ending 
+  WHERE episode_id = (
+    SELECT episode_id 
+    FROM list_episode 
+    WHERE project_id = ?
+    ORDER BY sortkey, episode_id 
+    LIMIT 1)
+  AND selection_group = 1 
+  ;
+  `, [project_id]);
+
+  const max_update_date = result.row[0].update_date; 
+
+  //console.log(max_action_date);
+
+  //* 엔딩 선택지 로그
+  result = await DB(`
+  SELECT a.episode_id 
+  , fn_get_episode_title_lang(a.episode_id, ?) title
+  , a.selection_group
+  , a.selection_no
+  , a.selection_order
+  , ${lang} selection_content
+  , CASE WHEN a.selection_group = b.selection_group AND a.selection_no = b.selection_no 
+  THEN 'O' ELSE 'X' END selected
+  , (SELECT sortkey FROM list_episode WHERE episode_id = a.episode_id) sortkey
+  FROM list_selection a LEFT OUTER JOIN user_selection_ending b
+  ON a.project_id = b.project_id AND a.episode_id = b.episode_id AND a.selection_group = b.selection_group
+  WHERE userkey = ?
+  AND a.project_id = ?
+  AND ending_id = ?
+  AND update_date >= ? 
+  ORDER BY sortkey, a.episode_id, a.selection_group, a.selection_order;
+  `, [lang, userkey, project_id, ending_id, max_update_date]);
+
+  res.status(200).json(result.row);
+};
 
 ///////////////////// 새로운 선택지 로그 끝 ///////////////////////
