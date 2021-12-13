@@ -112,23 +112,6 @@ export const Q_UPDATE_USER_MISSION_HISTORY = `
 CALL sp_update_user_mission_hist(?, ?);
 `;
 
-export const UQ_PROJECT_MISSION_LIST = `
- SELECT a.mission_id
-     , a.mission_name 
-     , a.mission_hint 
-     , a.mission_type 
-     , a.is_hidden 
-     , a.reward_currency 
-     , a.reward_quantity 
-     , a.reward_exp 
-     , a.image_url 
-     , a.image_key 
-     , b.unlock_state 
-  FROM list_mission a 
-  LEFT OUTER JOIN user_mission b ON a.mission_id = b.mission_id AND b.userkey = ?
- WHERE a.project_id = ?;
- `;
-
 // 호감도
 export const Q_SELECT_USER_FAVOR_HISTORY = `
 SELECT a.favor_hist_no 
