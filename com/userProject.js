@@ -174,6 +174,7 @@ export const updateUserSelectionCurrent = async (req, res) => {
   [userkey, project_id, episodeID, target_scene_id, selection_group, selection_no]);
 
   if (!result.state) {
+    logger.error(`updateUserSelectionCurrent error`);
     logger.error(result.error);
   }
 
@@ -340,6 +341,7 @@ export const getTop3SelectionList = async(req, res) =>{
 
 //! 엔딩 선택지 로그 
 export const getEndingSelectionList = async(req, res) => {
+  logger.info(`getEndingSelectionList : ${JSON.stringify(req.body)}`);
   
   const {
     body:{
@@ -351,6 +353,18 @@ export const getEndingSelectionList = async(req, res) => {
   } = req;
 
   let result = ``;
+
+
+   //* 엔딩 해금 확인 
+   result = await DB(`SELECT * 
+   FROM user_selection_ending 
+   WHERE userkey = ? AND project_id = ?;
+   ;`, [userkey, project_id]);
+   if(!result.state || result.row.length === 0){
+     logger.error(`getEndingSelectionList error`);
+     respondDB(res, 80095);
+     return;
+   } 
 
   //* 최근 엔딩 가져오기
   result = await DB(`
