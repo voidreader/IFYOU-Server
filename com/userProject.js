@@ -202,6 +202,7 @@ export const getTop3SelectionList = async(req, res) =>{
   WHERE userkey = ? AND project_id = ?;
   ;`, [userkey, project_id]);
   if(!result.state || result.row.length === 0){
+    logger.error(`getTop3SelectionList error`);
     respondDB(res, 80095);
     return;
   }
@@ -293,7 +294,7 @@ export const getTop3SelectionList = async(req, res) =>{
     if (!Object.prototype.hasOwnProperty.call(selection, playCount)) {
       selection[playCount] = []; 
     }
-    selection[playCount].push({
+    selection[playCount].push({       //선택지 
       episode_id : item.episodeId, 
       title : item.title, 
       selection_group : item.selectionGroup, 
@@ -307,7 +308,7 @@ export const getTop3SelectionList = async(req, res) =>{
       ending[playCount] = []; 
       playCount = 0; 
     }
-    if(parseInt(playCount,10) !== item.play_count){  
+    if(parseInt(playCount,10) !== item.play_count){  //엔딩
       playCount = item.play_count.toString();
       // eslint-disable-next-line no-await-in-loop
       const endingResult = await DB(`
@@ -320,7 +321,7 @@ export const getTop3SelectionList = async(req, res) =>{
       AND episode_id = ?
       AND origin_action_date = ?;
       `, [lang, userkey, project_id, item.episodeId, item.action_date]);
-      if(!endingResult.state || endingResult.row.length === 0){
+      if(!endingResult.state || endingResult.row.length === 0){  //없으면 빈값
         ending[playCount].push({});  
       }else{
         ending[playCount].push({
