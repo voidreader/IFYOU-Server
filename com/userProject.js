@@ -242,7 +242,6 @@ export const getTop3SelectionList = async(req, res) =>{
   const responseData = {}; 
   const selection = {};
   const ending = {}; 
-  const key = [];
   let minPlayCount = 0;
 
   //* 셀력센 리스트 
@@ -264,6 +263,7 @@ export const getTop3SelectionList = async(req, res) =>{
     , DATE_FORMAT(origin_action_date, '%Y-%m-%d %T') action_date  
     , ending_id
     , ifnull(fn_get_episode_title_lang(ending_id, ?), '') ending_title 
+    , fn_get_script_data(a.episode_id, a.selection_group, a.selection_no) script_data
     FROM list_selection a LEFT OUTER JOIN user_selection_ending b 
     ON a.project_id = b.project_id AND a.episode_id AND a.selection_group = b.selection_group
     WHERE userkey = ? 
@@ -289,6 +289,7 @@ export const getTop3SelectionList = async(req, res) =>{
     , DATE_FORMAT(action_date, '%Y-%m-%d %T') action_date  
     , 0 ending_id
     , fn_get_episode_title_lang(0, '${lang}') ending_title
+    , fn_get_script_data(a.episode_id, a.selection_group, a.selection_no) script_data
     FROM list_selection a LEFT OUTER JOIN user_selection_current b 
     on a.project_id = b.project_id AND a.episode_id = b.episode_id AND a.selection_group = b.selection_group
     WHERE userkey = ${userkey}
@@ -307,6 +308,7 @@ export const getTop3SelectionList = async(req, res) =>{
     , DATE_FORMAT(origin_action_date, '%Y-%m-%d %T') action_date    
     , ending_id
     , fn_get_episode_title_lang(ending_id, '${lang}') ending_title
+    , fn_get_script_data(a.episode_id, a.selection_group, a.selection_no) script_data
     FROM list_selection a LEFT OUTER JOIN user_selection_ending b 
     on a.project_id = b.project_id AND a.episode_id = b.episode_id AND a.selection_group = b.selection_group
     WHERE userkey = ${userkey}
@@ -320,16 +322,21 @@ export const getTop3SelectionList = async(req, res) =>{
     let playCount = item.play_count.toString();
     if (!Object.prototype.hasOwnProperty.call(selection, playCount)) {
       selection[playCount] = {}; 
-      key.push(playCount);
     }
 
     if (
       !Object.prototype.hasOwnProperty.call(selection[playCount], item.title)
     ) {
-      selection[playCount][item.title] = []; // 없으면 빈 배열 생성
+      selection[playCount][item.title] = {}; 
     }
 
-    selection[playCount][item.title].push({       //선택지  
+    if (
+      !Object.prototype.hasOwnProperty.call(selection[playCount][item.title], item.script_data)
+    ) {
+      selection[playCount][item.title][item.script_data] = []; // 없으면 빈 배열 생성
+    }  
+
+    selection[playCount][item.title][item.script_data].push({       //선택지  
       selection_group : item.selectionGroup, 
       selection_no : item.selectionNo,
       selection_order : item.selectionOrder, 
@@ -404,14 +411,15 @@ export const getEndingSelectionList = async(req, res) => {
   , fn_get_episode_title_lang(a.episode_id, ?) title
   , a.selection_group
   , a.selection_no
-  , a.selection_order
   , ${lang} selection_content
-  , CASE WHEN a.selection_group = b.selection_group AND a.selection_no = b.selection_no 
-  THEN '1' ELSE '0' END selected
   , (SELECT sortkey FROM list_episode WHERE episode_id = a.episode_id) sortkey
-  FROM list_selection a LEFT OUTER JOIN user_selection_ending b
-  ON a.project_id = b.project_id AND a.episode_id = b.episode_id AND a.selection_group = b.selection_group
-  WHERE userkey = ?
+  , fn_get_script_data(a.episode_id, a.selection_group, a.selection_no) script_data
+  FROM list_selection a, user_selection_ending b
+  WHERE a.project_id = b.project_id 
+  AND a.episode_id = b.episode_id 
+  AND a.selection_group = b.selection_group 
+  AND a.selection_no = b.selection_no  
+  AND userkey = ?
   AND a.project_id = ?
   AND ending_id = ?
   AND play_count = ?
@@ -429,6 +437,7 @@ export const getEndingSelectionList = async(req, res) => {
       selection_order : item.selection_order, 
       selection_content : item.selection_content, 
       selected : item.selected, 
+      script_data : item.script_data,
     });
   }
 
