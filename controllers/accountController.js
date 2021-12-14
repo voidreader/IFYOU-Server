@@ -1217,7 +1217,7 @@ export const insertUserEpisodeStartRecord = async (req, res) => {
     body: { userkey, project_id, episodeID },
   } = req;
 
-  const progressQuery = `CALL sp_insert_user_episode_progress(?, ?, ?)`;
+  const progressQuery = `CALL sp_insert_user_episode_progress(?, ?, ?);`;
   const progressResult = await DB(progressQuery, [
     userkey,
     project_id,
@@ -1303,6 +1303,7 @@ export const updateUserEpisodePlayRecord = async (req, res) => {
   // * 2021.07 : 사이드 에피소드의 해금을 체크해야한다.(unlockSide)
   // * 2021.08 : 미션 해금을 체크한다.(unlockMission)
   // * 2021.08.09 : OneTime. 1회 플레이에 대한 처리를 진행한다. (user_episode_purchase, episodePurchase 갱신 필요)
+  // * 2021.12.12 : ending 선택지 로그 히스토리 때문에 sp_insert_user_ending_new 프로시저로 변경 - JE
   const {
     body: { userkey, project_id, episodeID, nextEpisodeID = -1 },
   } = req;
@@ -1312,7 +1313,7 @@ export const updateUserEpisodePlayRecord = async (req, res) => {
 
   const histQuery = `CALL sp_insert_user_episode_hist(?, ?, ?);`;
   const progressQuery = `CALL sp_update_user_episode_done(?, ?, ?);`;
-  const endingQuery = `CALL sp_insert_user_ending(?,?)`;
+  const endingQuery = `CALL sp_insert_user_ending_new(?,?,?,?);`;
 
   // * 2021.09.18 첫 클리어 보상을 위한 추가 로직
   // * 첫 클리어 보상 정보 가져온다.
@@ -1382,7 +1383,16 @@ export const updateUserEpisodePlayRecord = async (req, res) => {
   logAction(userkey, "episode_clear", req.body);
 
   // 엔딩 수집 추가 처리 (2021.07.05) -
-  const endingResult = await DB(endingQuery, [userkey, nextEpisodeID]);
+
+  // 플레이 회차 확인  
+  const playResult = await DB(`
+  SELECT DISTINCT play_count 
+  FROM user_selection_current
+  WHERE userkey = ? AND project_id = ?;
+  `, [userkey, project_id]);
+  const playCount = playResult.row[0].play_count; 
+  
+  const endingResult = await DB(endingQuery, [userkey, nextEpisodeID, project_id, playCount]);
   if (!endingResult.state) {
     logger.error(`updateUserEpisodePlayRecord Error 2 ${endingResult.error}`); // 로그만 남긴다.
   }
@@ -1973,9 +1983,11 @@ export const updateUserScriptMission = async (req, res) => {
   res.status(200).json(result);
 };
 
-// * 유저 에피소드 진행도 초기화
+// ! 유저 에피소드 진행도 초기화
 export const resetUserEpisodeProgress = async (req, res) => {
   logger.info(`resetUserEpisodeProgress [${JSON.stringify(req.body)}]`);
+  
+  // * 2021.12.12 : 선택지 로그 추가로 sp_reset_user_episode_progress 프로시저로 일부 수정 - JE
 
   const {
     body: { userkey, project_id, episodeID, isFree = false },
