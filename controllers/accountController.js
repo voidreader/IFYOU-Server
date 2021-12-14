@@ -40,7 +40,6 @@ import {
   Q_USER_ENDING_COUNT,
   UQ_SELECT_USER_MINICUT_HISTORY,
   UQ_GET_PROJECT_USER_PROPERTY,
-  UQ_PROJECT_MISSION_LIST,
   UQ_SELECT_USER_MAIN_EPISODE,
   UQ_INSERT_USER_TIMEDEAL,
 } from "../USERQStore";
@@ -1020,10 +1019,24 @@ const getUserMissionHistory = async (userInfo) => {
 // 프로젝트의 모든 도전과제 리스트
 // * user_mission과 조인해서 주는것으로 변경 (2021.08.13)
 const getProjectAllMission = async (userInfo) => {
-  const result = await DB(UQ_PROJECT_MISSION_LIST, [
-    userInfo.userkey,
-    userInfo.project_id,
-  ]);
+  const result = await DB(
+    `
+  SELECT a.mission_id
+  , fn_get_mission_name(a.mission_id, '${userInfo.lang}') mission_name
+  , fn_get_mission_hint(a.mission_id, '${userInfo.lang}') mission_hint
+  , a.mission_type 
+  , a.is_hidden 
+  , a.reward_currency 
+  , a.reward_quantity 
+  , a.reward_exp 
+  , a.image_url 
+  , a.image_key 
+  , b.unlock_state 
+FROM list_mission a 
+LEFT OUTER JOIN user_mission b ON a.mission_id = b.mission_id AND b.userkey = ${userInfo.userkey}
+WHERE a.project_id = ${userInfo.project_id};
+  `
+  );
 
   if (result.state) return result.row;
   else return [];
@@ -2167,6 +2180,7 @@ export const getUserSelectedStory = async (req, res) => {
       project_id,
       userBubbleVersion = 0,
       clientBubbleSetID = -1,
+      lang = "KO",
     },
   } = req;
 
@@ -2176,6 +2190,7 @@ export const getUserSelectedStory = async (req, res) => {
     project_id,
     userBubbleVersion,
     clientBubbleSetID,
+    lang,
   };
 
   // 프로젝트에 연결된 BubbleSet ID, Version 정보 추가
@@ -2208,8 +2223,11 @@ export const getUserSelectedStory = async (req, res) => {
   storyInfo.selectionProgress = await getUserProjectSelectionProgress(userInfo); // 프로젝트 선택지 Progress
   storyInfo.missions = await getProjectAllMission(userInfo); // 프로젝트의 모든 도전과제
   storyInfo.currency = await getProjectCurrency(userInfo.project_id); // 화폐정보 추가
-  storyInfo.voiceHistory = await getUserVoiceHistory(userInfo); // 유저 보이스 히스토리
-  storyInfo.rawVoiceHistory = await getUserVoiceHistory(userInfo, true); // 유저 보이스 히스토리(raw)
+
+  const voiceData = await getUserVoiceHistory(userInfo);
+  storyInfo.voiceHistory = voiceData.voiceHistory; // 화자별로 포장된 보이스
+  storyInfo.rawVoiceHistory = voiceData.rawVoiceHistory; // 리스트 그대로 형태의 보이스
+
   storyInfo.progress = await getUserCollectionProgress(userInfo); // 수집요소 진행률
   storyInfo.nametag = await requestProjectNametag(userInfo); // nametag 추가 2021.06.29
 
@@ -2246,8 +2264,6 @@ export const getUserSelectedStory = async (req, res) => {
   storyInfo.liveObjects = await getProjectLiveObjects(userInfo); // 프로젝트의 모든 라이브 오브젝트
   storyInfo.liveIllusts = await getProjectLiveIllusts(userInfo); // 프로젝트의 모든 라이브 일러스트
   storyInfo.dressCode = await getProjectDressCode(userInfo); // 프로젝트 의상 기준정보
-  // storyInfo.missionProgress = await getUserMissionHistory(userInfo); // 유저 도전과제 진행도.
-  storyInfo.missionProgress = []; // * 사용하지 않음 1.0.11 부터.
 
   storyInfo.galleryBanner = await getProjectGalleryBannerInfo(userInfo); // 갤러리 상단 배너
   storyInfo.bgmBanner = await getProjectBgmBannerInfo(userInfo); // BGM 배너

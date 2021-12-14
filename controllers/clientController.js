@@ -1,3 +1,4 @@
+/* eslint-disable no-restricted-syntax */
 import { restart } from "nodemon";
 import { DB, logAction } from "../mysqldb";
 import {
@@ -30,7 +31,6 @@ import {
   resetUserEpisodeProgress,
   accquireUserConsumableCurrency,
   consumeUserCurrency,
-  purchaseEpisode,
   getUserEndingList,
   updateUserMinicutHistory,
   purchaseEpisodeType2,
@@ -86,10 +86,7 @@ import {
   addressDetail,
 } from "./prizeController";
 import { getProjectEpisodeProgressCount } from "./statController";
-import {
-  getCoinProductList, 
-  userCoinPurchase,
-} from "./coinController"; 
+import { getCoinProductList, userCoinPurchase } from "./coinController";
 
 // * 클라이언트에서 호출하는 프로젝트 크레딧 리스트
 const getProjectCreditList = async (req, res) => {
@@ -152,10 +149,10 @@ const getClientNoticeList = async (req, res) => {
   res.status(200).json(noticeResult.row);
 };
 
-//* 프로모션 리스트 
-export const getPromotionList = async (req, res) =>{
-
-  const promotionResult = await DB(`
+//* 프로모션 리스트
+export const getPromotionList = async (req, res) => {
+  const promotionResult = await DB(
+    `
   SELECT 
   promotion_no
   , title
@@ -167,9 +164,12 @@ export const getPromotionList = async (req, res) =>{
   WHERE is_public > 0 
   AND NOW() BETWEEN start_date AND end_date 
   ORDER BY sortkey; 
-  `, []);
+  `,
+    []
+  );
 
-  const detailResult = await DB(`
+  const detailResult = await DB(
+    `
   SELECT 
   b.promotion_no 
   , lang
@@ -181,8 +181,9 @@ export const getPromotionList = async (req, res) =>{
   AND is_public > 0 
   AND NOW() BETWEEN start_date AND end_date
   ORDER BY sortkey;  
-  `, []);
-
+  `,
+    []
+  );
 
   promotionResult.row.forEach((promotion) => {
     if (!Object.prototype.hasOwnProperty.call(promotion, "detail")) {
@@ -449,13 +450,69 @@ const getImageResourceData = async (req, res) => {
   res.status(200).send(result);
 }; // getImageResourceData 끝
 
-// ? 로비의 프로젝트 리스트 조회
+// * 프로젝트 카테고리
+const getDistinctProjectGenre = async (req, res) => {
+  const {
+    body: {
+      userkey = 0,
+      build = "pier.make.story",
+      country = "KR",
+      lang = "KO",
+    },
+  } = req;
+
+  const result = await DB(
+    `
+  SELECT DISTINCT fn_get_localize_text(ls.text_id, ?) genre_name
+    FROM list_project_genre genre
+      , list_project_master ma
+      , list_standard ls 
+  WHERE ma.project_id = genre.project_id
+    AND ma.is_public > 0
+    AND ls.standard_class = 'genre'
+    AND ls.code = genre.genre_code 
+    AND ma.service_package LIKE CONCAT('%', ?, '%')
+  ;`,
+    [lang, build]
+  );
+
+  res.status(200).json(result.row);
+};
+
+// * 프로젝트의 장르 조회하기
+const getProjectGenre = async (project_id, lang) => {
+  const result = await DB(`
+  SELECT lpg.genre_code
+       , fn_get_localize_text(ls.text_id, '${lang}') genre_name
+    FROM list_project_genre lpg
+      , list_standard ls
+    WHERE ls.standard_class = 'genre'
+    AND ls.code  = lpg.genre_code
+    AND lpg.project_id = ${project_id}
+    ORDER BY lpg.sortkey;  
+  `);
+
+  const responseData = [];
+
+  result.row.forEach((item) => {
+    responseData.push(item.genre_name);
+  });
+
+  return responseData;
+};
+
+// ! 로비의 프로젝트 리스트 조회
 const selectLobbyProjectList = async (req, res) => {
   // build identifier, country 전달
   // 국가와 빌드ID 전달받아서 조건으로 사용
   // 일단 빌드ID만!
   const {
-    body: { userkey = 0, build = "pier.make.story", country = "KR" },
+    body: {
+      userkey = 0,
+      build = "pier.make.story",
+      country = "KR",
+      lang = "KO",
+    },
   } = req;
 
   // ! 2021.07.06 list_project => list_project_master로 테이블 변경
@@ -471,22 +528,20 @@ const selectLobbyProjectList = async (req, res) => {
   , a.favor_use 
   , a.challenge_use 
   , a.is_credit 
-  , fn_get_design_info(b.main_banner_id, 'url') title_image_url
-  , fn_get_design_info(b.main_banner_id, 'key') title_image_key
-  , fn_get_design_info(b.main_thumbnail_id , 'url') main_thumbnail_url 
-  , fn_get_design_info(b.main_thumbnail_id , 'key') main_thumbnail_key
   , fn_get_design_info(b.ifyou_banner_id, 'url') ifyou_image_url
   , fn_get_design_info(b.ifyou_banner_id, 'key') ifyou_image_key
+  , fn_get_design_info(b.ifyou_thumbnail_id, 'url') ifyou_thumbnail_url
+  , fn_get_design_info(b.ifyou_thumbnail_id, 'key') ifyou_thumbnail_key
+  , fn_get_design_info(b.circle_image_id, 'url') circle_image_url
+  , fn_get_design_info(b.circle_image_id, 'key') circle_image_key
   , a.banner_model_id -- 메인배너 Live2D 모델ID
   , a.is_lock
   , a.color_rgb
   , fn_get_episode_progress_value(${userkey}, a.project_id) project_progress
   , fn_check_exists_project_play_record(${userkey}, a.project_id) is_playing
  FROM list_project_master a
-LEFT OUTER JOIN list_project_detail b ON b.project_id = a.project_id AND b.lang ='KO'
+LEFT OUTER JOIN list_project_detail b ON b.project_id = a.project_id AND b.lang ='${lang}'
 WHERE a.is_public > 0
-AND b.main_banner_id > 0
-AND b.main_thumbnail_id > 0
 AND a.service_package LIKE CONCAT('%', ?, '%')
 AND (a.service_country IS NULL OR a.service_country = ?)
 ORDER BY a.sortkey;
@@ -497,6 +552,11 @@ ORDER BY a.sortkey;
     logger.error(`selectLobbyProjectList Error ${result.error}`);
     respondDB(res, 80026, result.error);
     return;
+  }
+
+  // * 장르 추가
+  for await (const item of result.row) {
+    item.genre = await getProjectGenre(item.project_id, lang);
   }
 
   res.status(200).send(result.row);
@@ -893,13 +953,15 @@ export const clientHome = (req, res) => {
   else if (func === "getProjectEpisodeProgressCount")
     getProjectEpisodeProgressCount(req, res);
   else if (func === "requestFreeCharge") requestFreeCharge(req, res);
-  else if (func === "requestExchangeOneTimeTicketWithCoin") requestExchangeOneTimeTicketWithCoin(req, res);
-  else if (func === "requestPromotionList") getPromotionList(req, res); 
-  else if (func === "getCoinProductList") getCoinProductList(req, res); 
+  else if (func === "requestExchangeOneTimeTicketWithCoin")
+    requestExchangeOneTimeTicketWithCoin(req, res);
+  else if (func === "requestPromotionList") getPromotionList(req, res);
+  else if (func === "getCoinProductList") getCoinProductList(req, res);
   else if (func === "userCoinPurchase") userCoinPurchase(req, res);
   else if (func === "updateUserSelectionCurrent") updateUserSelectionCurrent(req, res); // 선택지 업데이트 
   else if (func === "getTop3SelectionList") getTop3SelectionList(req, res);  // 선택지 로그 리스트
   else if (func === "getEndingSelectionList") getEndingSelectionList(req, res); // 엔딩 선택지 로그 리스트 
+  else if (func === "getDistinctProjectGenre") getDistinctProjectGenre(req, res); //작품 장르 
   else {
     //  res.status(400).send(`Wrong Func : ${func}`);
     logger.error(`clientHome Error`);
