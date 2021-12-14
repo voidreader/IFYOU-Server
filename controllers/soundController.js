@@ -16,7 +16,7 @@ import {
   respondError,
   respondRedirect,
   respondDB,
-  adminLogInsert, 
+  adminLogInsert,
 } from "../respondent";
 import { logger } from "../logger";
 import { RecordPrviousS3Object, uploadZipResources } from "../com/com";
@@ -24,8 +24,11 @@ import { RecordPrviousS3Object, uploadZipResources } from "../com/com";
 
 // ! 유저 관련 처리 /////////////////////////////////////////////////////////////////
 
-// 유저 보이스 히스토리 조회
-export const getUserVoiceHistory = async (userInfo, isRaw = false) => {
+// * 유저 보이스 히스토리 조회
+// * 2021.12.10 rawVoiceHistory, VoiceHistory를 둘다 주는 형태로 변경
+export const getUserVoiceHistory = async (userInfo) => {
+  const voiceData = {};
+
   const result = await DB(
     `
     SELECT ls.sound_id
@@ -54,10 +57,8 @@ ORDER BY ls.speaker, le.episode_type, le.sortkey;
     [userInfo.userkey, userInfo.project_id]
   );
 
-  // 포장되지 않은 리스트를 원할때는 여기서 종료
-  if (isRaw) {
-    return result.row;
-  }
+  // 포장되지 않은 형태
+  voiceData.rawVoiceHistory = result.row;
 
   // * 보이스 배너를 사용하는 캐릭터 네임태그
   // * 엑스트라 보이스 분리용도.
@@ -102,7 +103,10 @@ ORDER BY ls.speaker, le.episode_type, le.sortkey;
     voices[speakerName][item.title].push(item); // 푸시푸시베이비
   });
 
-  return voices;
+  // 포장된 상태
+  voiceData.voiceHistory = voices;
+
+  return voiceData;
 };
 
 // 유저 보이스 오픈 히스토리
@@ -160,11 +164,6 @@ export const updateUserVoiceHistory = async (req, res) => {
       return;
     }
   }
-
-  /*
-  const respondData = {};
-  respondData.voiceHistory = await getUserVoiceHistory(req.body);
-  */
 
   // * 이 메소드는 너무 많이 호출되기 때문에, 부하를 최소하하기 위해 성공시에는 사운드 이름만 전달.
   res.status(200).send(sound_name);
@@ -242,7 +241,6 @@ export const postInsertProjectSoundResource = async (req, res) => {
     "postInsertProjectSoundResource",
     80005
   );
-
 };
 
 // 프로젝트 사운드 리소스 업데이트
@@ -320,7 +318,7 @@ export const postUpdateProjectSoundResource = async (req, res) => {
     previousS3.row[0].bucket != null
   ) {
     RecordPrviousS3Object(previousS3.row[0]);
-  } 
+  }
 };
 
 // 프로젝트 사운드 리소스 삭제
@@ -341,8 +339,6 @@ export const postDeleteProjectSoundResource = async (req, res) => {
     result,
     "postDeleteProjectSoundResource"
   );
-
-  
 };
 
 // * sound zip 에서 사용되는 create, replace 프로시저
@@ -367,7 +363,6 @@ const createOrReplaceSoundQuery = (id, title, location, key, bucket, body) => {
 
 // * 사운드 zip 파일 업로드
 export const uploadSoundZip = async (req, res) => {
-
   if (req.body.sound_type !== "voice") req.body.speaker = null;
 
   req.body.folder = `sounds`; // 폴더 지정
