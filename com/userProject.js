@@ -263,7 +263,7 @@ export const getTop3SelectionList = async(req, res) =>{
     , DATE_FORMAT(origin_action_date, '%Y-%m-%d %T') action_date  
     , ending_id
     , ifnull(fn_get_episode_title_lang(ending_id, ?), '') ending_title 
-    , fn_get_script_data(a.episode_id, a.selection_group, a.selection_no) script_data
+    , fn_get_script_data(a.episode_id, a.selection_group, a.selection_no, '${lang}') script_data
     FROM list_selection a LEFT OUTER JOIN user_selection_ending b 
     ON a.project_id = b.project_id AND a.episode_id AND a.selection_group = b.selection_group
     WHERE userkey = ? 
@@ -289,7 +289,7 @@ export const getTop3SelectionList = async(req, res) =>{
     , DATE_FORMAT(action_date, '%Y-%m-%d %T') action_date  
     , 0 ending_id
     , fn_get_episode_title_lang(0, '${lang}') ending_title
-    , fn_get_script_data(a.episode_id, a.selection_group, a.selection_no) script_data
+    , fn_get_script_data(a.episode_id, a.selection_group, a.selection_no, '${lang}') script_data
     FROM list_selection a LEFT OUTER JOIN user_selection_current b 
     on a.project_id = b.project_id AND a.episode_id = b.episode_id AND a.selection_group = b.selection_group
     WHERE userkey = ${userkey}
@@ -308,14 +308,14 @@ export const getTop3SelectionList = async(req, res) =>{
     , DATE_FORMAT(origin_action_date, '%Y-%m-%d %T') action_date    
     , ending_id
     , fn_get_episode_title_lang(ending_id, '${lang}') ending_title
-    , fn_get_script_data(a.episode_id, a.selection_group, a.selection_no) script_data
+    , fn_get_script_data(a.episode_id, a.selection_group, a.selection_no, '${lang}') script_data
     FROM list_selection a LEFT OUTER JOIN user_selection_ending b 
     on a.project_id = b.project_id AND a.episode_id = b.episode_id AND a.selection_group = b.selection_group
     WHERE userkey = ${userkey}
     AND a.project_id = ${project_id}
     AND play_count BETWEEN ${minPlayCount} AND ${maxPlayCount} 
     ORDER BY play_count DESC, sortkey, episodeId, selectionGroup, selectionOrder;
-    ;`);
+    `);
   }
   // eslint-disable-next-line no-restricted-syntax
   for(const item of result.row) {
@@ -413,7 +413,7 @@ export const getEndingSelectionList = async(req, res) => {
   , a.selection_no
   , ${lang} selection_content
   , (SELECT sortkey FROM list_episode WHERE episode_id = a.episode_id) sortkey
-  , fn_get_script_data(a.episode_id, a.selection_group, a.selection_no) script_data
+  , fn_get_script_data(a.episode_id, a.selection_group, a.selection_no, '${lang}') script_data
   FROM list_selection a, user_selection_ending b
   WHERE a.project_id = b.project_id 
   AND a.episode_id = b.episode_id 
