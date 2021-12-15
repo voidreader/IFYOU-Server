@@ -390,7 +390,7 @@ SELECT ls.script_no
      , ls.selection_no
  FROM list_script ls
 WHERE ls.episode_id = ?
-  AND ls.lang = 'KO'
+  AND ls.lang = ?
 ORDER BY script_no;
 `;
 
@@ -405,6 +405,7 @@ FROM list_script ls
 , list_bg lb 
 WHERE ls.project_id = ?
 AND ls.episode_id = ?
+AND ls.lang = ?
 AND lb.project_id = ls.project_id 
 AND ls.template IN ('background', 'move_in')
 AND substring_index(ls.script_data, ':', 1) = lb.image_name
@@ -423,6 +424,7 @@ FROM list_script ls
 , list_minicut lm 
 WHERE ls.project_id = ?
 AND ls.episode_id = ?
+AND ls.lang = ?
 AND lm.project_id = ls.project_id 
 AND ls.template IN ('image', 'message_image')
 AND ls.script_data = lm.image_name;
@@ -437,6 +439,7 @@ FROM list_script ls
 , list_illust li 
 WHERE ls.project_id = ?
 AND ls.episode_id = ?
+AND ls.lang = ?
 AND li.project_id = ls.project_id 
 AND ls.template = 'illust'
 AND ls.script_data = li.image_name;
@@ -454,6 +457,7 @@ FROM list_script ls
 , list_emoticon_slave les 
 WHERE ls.project_id = ?
 AND ls.episode_id = ?
+AND ls.lang = ?
 AND (ls.emoticon_expression IS NOT NULL AND ls.emoticon_expression <> '')
 AND (ls.speaker IS NOT NULL AND ls.speaker <> '')
 AND ls.template IN (SELECT z.code FROM list_standard z WHERE z.standard_class IN ('talking_template', 'message_template'))
@@ -476,6 +480,7 @@ SELECT DISTINCT sound.sound_id
      , list_sound sound
  WHERE ls.project_id = ?
    AND ls.episode_id = ?
+   AND ls.lang = ?
    AND (ls.voice IS NOT NULL AND ls.voice <> '') 
    AND sound.project_id = ls.project_id 
    AND sound.sound_type = 'voice'
@@ -495,6 +500,7 @@ SELECT DISTINCT sound.sound_id
      , list_sound sound
  WHERE ls.project_id = ?
    AND ls.episode_id = ?
+   AND ls.lang = ?
    AND (ls.sound_effect IS NOT NULL AND ls.sound_effect <> '') 
    AND sound.project_id = ls.project_id 
    AND sound.sound_type = 'se'
@@ -514,6 +520,7 @@ SELECT DISTINCT sound.sound_id
      , list_sound sound
  WHERE ls.project_id = ?
    AND ls.episode_id = ?
+   AND ls.lang = ?
    AND ls.template = 'bgm'
    AND sound.project_id = ls.project_id 
    AND sound.sound_type = 'bgm'
