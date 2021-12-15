@@ -301,47 +301,65 @@ const getEpisodeScriptWithResources = async (req, res) => {
   logger.info(`getEpisodeScriptWithResources ${userInfo}`);
 
   const result = {};
+  
+  // eslint-disable-next-line prefer-destructuring
+  let lang = userInfo.lang; 
+
+  // lang이 있는지 확인
+  const langCheck = await DB(`
+  SELECT * FROM list_script 
+  WHERE episode_id = ? 
+  AND lang = ?; 
+  `, [userInfo.episode_id, lang]);
+  if(!langCheck.state || langCheck.row.length === 0) lang = 'KO';
 
   // 스크립트
-  const sc = await DB(Q_SCRIPT_SELECT_WITH_DIRECTION, [userInfo.episode_id]);
+  const sc = await DB(Q_SCRIPT_SELECT_WITH_DIRECTION, [userInfo.episode_id, lang]);
 
   // 배경
   const background = await DB(Q_SCRIPT_RESOURCE_BG, [
     userInfo.project_id,
     userInfo.episode_id,
+    lang, 
   ]);
   // 이미지
   const image = await DB(Q_SCRIPT_RESOURCE_IMAGE, [
     userInfo.project_id,
     userInfo.episode_id,
+    lang, 
   ]);
   // 일러스트
   const illust = await DB(Q_SCRIPT_RESOURCE_ILLUST, [
     userInfo.project_id,
     userInfo.episode_id,
+    lang, 
   ]);
   // 이모티콘
   const emoticon = await DB(Q_SCRIPT_RESOURCE_EMOTICON, [
     userInfo.project_id,
     userInfo.episode_id,
+    lang, 
   ]);
 
   // BGM
   const bgm = await DB(Q_SCRIPT_RESOURCE_BGM, [
     userInfo.project_id,
     userInfo.episode_id,
+    lang, 
   ]);
 
   // 음성
   const voice = await DB(Q_SCRIPT_RESOURCE_VOICE, [
     userInfo.project_id,
     userInfo.episode_id,
+    lang, 
   ]);
 
   // 효과음
   const se = await DB(Q_SCRIPT_RESOURCE_SE, [
     userInfo.project_id,
     userInfo.episode_id,
+    lang, 
   ]);
 
   // 현재 에피소드에서 활성화된 로딩 중 랜덤하게 하나 가져온다.
