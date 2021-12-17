@@ -1384,15 +1384,24 @@ export const updateUserEpisodePlayRecord = async (req, res) => {
 
   // 엔딩 수집 추가 처리 (2021.07.05) -
 
-  // 플레이 회차 확인  
-  const playResult = await DB(`
-  SELECT DISTINCT play_count 
+  // 플레이 회차 확인
+  const playResult = await DB(
+    `
+  SELECT DISTINCT ifnull(play_count 
   FROM user_selection_current
   WHERE userkey = ? AND project_id = ?;
-  `, [userkey, project_id]);
-  const playCount = playResult.row[0].play_count; 
-  
-  const endingResult = await DB(endingQuery, [userkey, nextEpisodeID, project_id, playCount]);
+  `,
+    [userkey, project_id]
+  );
+  let playCount = 0;
+  if (playResult.row[0].play_count) playCount = playResult.row[0].play_count;
+
+  const endingResult = await DB(endingQuery, [
+    userkey,
+    nextEpisodeID,
+    project_id,
+    playCount,
+  ]);
   if (!endingResult.state) {
     logger.error(`updateUserEpisodePlayRecord Error 2 ${endingResult.error}`); // 로그만 남긴다.
   }
@@ -1986,7 +1995,7 @@ export const updateUserScriptMission = async (req, res) => {
 // ! 유저 에피소드 진행도 초기화
 export const resetUserEpisodeProgress = async (req, res) => {
   logger.info(`resetUserEpisodeProgress [${JSON.stringify(req.body)}]`);
-  
+
   // * 2021.12.12 : 선택지 로그 추가로 sp_reset_user_episode_progress 프로시저로 일부 수정 - JE
 
   const {
