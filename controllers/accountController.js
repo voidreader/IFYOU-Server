@@ -1394,7 +1394,7 @@ export const updateUserEpisodePlayRecord = async (req, res) => {
     [userkey, project_id]
   );
   let playCount = 0;
-  if (playResult.row[0].play_count) playCount = playResult.row[0].play_count;
+  if (playResult.row.length > 0) playCount = playResult.row[0].play_count;
 
   const endingResult = await DB(endingQuery, [
     userkey,
