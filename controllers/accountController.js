@@ -1387,7 +1387,7 @@ export const updateUserEpisodePlayRecord = async (req, res) => {
   // 플레이 회차 확인
   const playResult = await DB(
     `
-  SELECT DISTINCT ifnull(play_count 
+  SELECT DISTINCT play_count 
   FROM user_selection_current
   WHERE userkey = ? AND project_id = ?;
   `,
