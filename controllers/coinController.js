@@ -38,13 +38,143 @@ const modifyCoinProductInfo = async (userkey, row) => {
         });
         currencys = currencys.slice(0, -1); 
         const currencyList = await getCurrencyInfo(userkey, currencys);
-        row.currency = currencyList;
+        row.currency = currencyList;u
     }
 
     const langResult = await DB(`SELECT lang, name FROM com_coin_product_detail WHERE coin_product_id = ?;`, [row.coin_product_id]);
     row.lang = langResult.row;
 
     return row;
+};
+
+const getCurrencyList = async (lang, startData, endDate, currency) =>{
+
+    let whereQuery = ``; 
+    if(currency === "set"){
+        whereQuery += ` AND currency = '' `; 
+    }else{
+        whereQuery += ` AND currency LIKE '%${currency}%' `; 
+    }
+    const result = await DB(`
+    SELECT coin_product_id 
+    , fn_get_coin_product_name(coin_product_id, ?) name 
+    , price
+    , sale_price
+    , sale_kind 
+    , thumbnail_id 
+    , fn_get_design_info(thumbnail_id, 'url') thumbnail_url
+    , fn_get_design_info(thumbnail_id, 'key') thumbnail_key 
+    FROM com_coin_product 
+    WHERE coin_product_id > 0  
+    AND is_public > 0 
+    AND sale_price > 0
+    AND start_date >= ? AND end_date <= ? 
+    ${whereQuery}
+    ORDER BY coin_product_id DESC;
+    `, [lang, startData, endDate]); 
+
+    return result.row; 
+};
+
+//! 메인화면 
+export const getCoinProductMainList = async (req, res) =>{
+    logger.info(`coinMainList`);
+
+    const {
+        body: {
+            lang = "KO", 
+        }
+    } = req;
+
+    const responseData = {}; 
+
+    //* 기간 한정 시작일, 끝일 가져오기 
+    const result = await DB(`
+    SELECT 
+    ifnull(DATE_FORMAT(min(start_date), '%Y-%m-%d %T'), now()) start_date
+    , ifnull(DATE_FORMAT(max(end_date), '%Y-%m-%d %T'), now()) end_date
+    FROM com_coin_product
+    WHERE coin_product_id > 0 
+    AND is_public > 0 
+    AND sale_price > 0
+    AND now() <= end_date 
+    AND end_date <> '9999-12-31';
+    `, []);
+
+    const startDate = result.row[0].start_date; 
+    const endDate = result.row[0].end_date; 
+
+    responseData.set = await getCurrencyList(lang, startDate, endDate, 'set'); //세트상품
+    responseData.photo = await getCurrencyList(lang, startDate, endDate, 'photo'); //프로필사진
+    responseData.frame = await getCurrencyList(lang, startDate, endDate, 'frame'); //프로필 테두리
+    responseData.background = await getCurrencyList(lang, startDate, endDate, 'background');  //프로필 배경
+    responseData.badge = await getCurrencyList(lang, startDate, endDate, 'badge'); //프로필 뱃지
+
+    res.status(200).json(responseData); 
+
+};
+
+//! 검색 리스트 
+export const getCoinProductSearch = async(req, res) =>{
+    logger.info(`getCoinProductSearch`);
+
+    const {
+        body: {
+            userkey, 
+        }
+    } = req;    
+
+    const result = await DB(`
+    SELECT search_word
+    FROM user_coin_search
+    WHERE userkey = ? 
+    ORDER BY update_date DESC
+    LIMIT 10;
+    `, [userkey]);
+
+    res.status(200).json(result.row); 
+};
+
+//! 검색 상세 
+export const getCoinProductSearchDetail = async(req, res) =>{
+    logger.info(`getCoinProductSearchDetail`);
+
+    const {
+        body: {
+            lang = "KO", 
+        }
+    } = req;   
+
+    const responseData = {};
+    const startDate = 'now()'; 
+    const endDate = '9999-12-31';
+
+    //세트상품 
+    let result = await getCurrencyList(lang, startDate, endDate, 'set');
+    responseData.setCount = result.row.length; 
+    responseData.set = result;  
+
+    //프로필사진
+    result = await getCurrencyList(lang, startDate, endDate, 'photo');
+    responseData.photoCount = result.row.length; 
+    responseData.photo = result; 
+
+    //프로필 테두리
+    result = await getCurrencyList(lang, startDate, endDate, 'frame');
+    responseData.frameCount = result.row.length; 
+    responseData.frame = result; 
+
+    //프로필 배경
+    result = await getCurrencyList(lang, startDate, endDate, 'background');
+    responseData.bgCount = result.row.length; 
+    responseData.bg = result;  
+
+    //프로필 뱃지
+    result = await getCurrencyList(lang, startDate, endDate, 'badge');
+    responseData.badgeCount = result.row.length; 
+    responseData.badge = result;
+
+    res.status(200).json(responseData); 
 };
 
 //! 판매중인 리스트 
@@ -63,7 +193,7 @@ export const getCoinProductList = async (req, res) => {
     , fn_get_design_info(detail_page_id, 'key') detail_page_key 
     , price 
     , sale_price 
-    , sale_kind
+    , sale_kind.
     , currency 
     , CASE WHEN currency = '' THEN '1' ELSE '0' END is_set 
     FROM com_coin_product 
@@ -89,6 +219,14 @@ export const getCoinProductList = async (req, res) => {
     res.status(200).json(finalResult);
 
 };
+
+
+//! 서치 
+
+//! 서치 상세 
+
+//! 서브 페이지 
+
 
 //! 구매 
 export const userCoinPurchase = async (req, res) => {
