@@ -267,6 +267,9 @@ SELECT a.illust_id
      , a.image_key
      , fn_get_design_info(a.thumbnail_id, 'url') thumbnail_url
      , fn_get_design_info(a.thumbnail_id, 'key') thumbnail_key
+     , a.is_public 
+     , a.appear_episode
+     , fn_get_illust_localized_text(a.illust_id, 'illust', ?, 'name') public_name
   FROM list_illust a
  WHERE a.project_id = ?
  ORDER BY sortkey, illust_id ;

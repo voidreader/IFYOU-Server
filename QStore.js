@@ -765,12 +765,18 @@ SELECT a.serial_no
 
 // 프로젝트 모델파일 모두 조회 (getUSerSelectedStory)
 export const Q_SELECT_PROJECT_MODEL_ALL_FILES = `
-
-SELECT m.model_name, lms.*, fn_get_motion_name(lms.model_id, lms.file_key) motion_name, m.offset_x, m.offset_y, m.game_scale, m.model_ver, m.direction
+SELECT m.model_name
+     , lms.*
+     , fn_get_motion_name(lms.model_id, lms.file_key) motion_name
+     , m.offset_x
+     , m.offset_y
+     , m.game_scale
+     , m.model_ver
+     , m.direction
   FROM list_model_master m
     LEFT OUTER JOIN list_model_slave lms ON lms.model_id = m.model_id 
  WHERE m.project_id = ?
- ORDER BY m.model_id , lms.model_slave_id 
+ ORDER BY m.model_id , lms.model_slave_id ; 
 ;
 `;
 
@@ -868,6 +874,57 @@ WHERE a.illust_id = ?;
 
 // 사운드 관리 끝
 // ===================================
+
+export const Q_SELECT_PROJECT_BGM = `
+SELECT a.sound_id   
+, a.sound_url 
+, a.sound_key 
+, a.game_volume
+, a.public_name sound_name
+FROM list_sound a 
+WHERE a.project_id = ?
+AND a.sound_type  = 'bgm'
+AND a.is_public = 1
+ORDER BY sound_id;
+`;
+
+export const Q_SELECT_PROJECT_NAME_TAG = `
+SELECT nt.speaker 
+, nt.main_color 
+, nt.sub_color 
+, nt.KO 
+, nt.EN 
+, nt.JA 
+, nt.ZH
+, nt.SC 
+, fn_get_design_info(nt.voice_banner_id, 'url') banner_url
+, fn_get_design_info(nt.voice_banner_id, 'key') banner_key
+FROM list_nametag nt
+WHERE nt.project_id = ?;
+`;
+
+export const Q_SELECT_PROJECT_DETAIL = `
+SELECT a.project_id 
+, ifnull(b.title, a.title) title
+, ifnull(b.summary, a.summary) summary 
+, ifnull(b.writer , a.writer) writer 
+, a.sortkey 
+, a.bubble_set_id
+, a.favor_use 
+, a.challenge_use 
+, a.is_credit 
+, a.is_complete
+, fn_get_main_episode_count(a.project_id) episode_count
+, fn_get_design_info(b.ifyou_banner_id, 'url') ifyou_image_url
+, fn_get_design_info(b.ifyou_banner_id, 'key') ifyou_image_key
+, fn_get_design_info(b.ifyou_thumbnail_id, 'url') ifyou_thumbnail_url
+, fn_get_design_info(b.ifyou_thumbnail_id, 'key') ifyou_thumbnail_key
+, a.color_rgb
+, b.original
+FROM list_project_master a
+LEFT OUTER JOIN list_project_detail b ON b.project_id = a.project_id AND b.lang = ?
+WHERE a.project_id = ?;
+`;
 
 // ===================================
 // 템플릿 시작

@@ -1,6 +1,8 @@
+/* eslint-disable prefer-destructuring */
 /* eslint-disable no-plusplus */
 import mysql from "mysql2/promise";
 import dotenv from "dotenv";
+import { response } from "express";
 import { DB, logAction, logDB, transactionDB } from "../mysqldb";
 import {
   Q_CLIENT_LOGIN_BY_DEVICE,
@@ -13,6 +15,9 @@ import {
   Q_REGISTER_CLIENT_ACCOUNT_WITH_GAMEBASE,
   Q_UPDATE_CLIENT_ACCOUNT_WITH_GAMEBASE,
   Q_CLIENT_LOGIN_BY_USERKEY,
+  Q_SELECT_PROJECT_BGM,
+  Q_SELECT_PROJECT_NAME_TAG,
+  Q_SELECT_PROJECT_DETAIL,
 } from "../QStore";
 
 import {
@@ -2173,6 +2178,77 @@ const getEpisodeLoadingList = async (project_id) => {
   return result.row;
 };
 
+// * 2021.12.19 프로젝트 리소스 한번에 가져오기
+// * 쿼리 통합
+const getProjectResources = async (project_id, lang) => {
+  const responseData = {};
+
+  let query = "";
+
+  query += mysql.format(Q_SELECT_PROJECT_DETAIL, [lang, project_id]); // 0. detail 프로젝트 상세정보
+  query += mysql.format(Q_SELECT_PROJECT_DRESS_CODE, [project_id]); // 1. dressCode 의상정보
+  query += mysql.format(Q_SELECT_PROJECT_NAME_TAG, [project_id]); // 2. nametag 네임태그
+  query += mysql.format(Q_SELECT_PROJECT_BGM, [project_id]); // 3. bgms. BGM
+  query += mysql.format(Q_SELECT_PROJECT_ALL_ILLUST, [lang, project_id]); // 4. illusts 일러스트
+  query += mysql.format(Q_SELECT_PROJECT_MODEL_ALL_FILES, [project_id]); // 5. models 캐릭터 모델
+  query += mysql.format(Q_SELECT_PROJECT_LIVE_OBJECT_ALL_FILES, [project_id]); // 6. liveObjects 라이브 오브제
+  query += mysql.format(Q_SELECT_PROJECT_LIVE_ILLUST_ALL_FILES, [project_id]); // 7. liveIllusts 라이브 일러스트
+
+  const result = await DB(query);
+
+  if (!result.state) {
+    logger.error(result.error);
+    return null;
+  }
+
+  // 캐릭터 모델 파일 포장하기
+  const models = {};
+  const modelfile = result.row[5];
+  modelfile.forEach((item) => {
+    if (!Object.prototype.hasOwnProperty.call(models, item.model_name)) {
+      models[item.model_name] = [];
+    }
+
+    models[item.model_name].push(item); // 배열에 추가
+  }); // 캐릭터 모델 포장 끝.
+
+  // 라이브 오브제 파일 포장하기
+  const liveObjects = {};
+  const liveObjectFile = result.row[6];
+  liveObjectFile.forEach((item) => {
+    if (
+      !Object.prototype.hasOwnProperty.call(liveObjects, item.live_object_name)
+    ) {
+      liveObjects[item.live_object_name] = [];
+    }
+
+    liveObjects[item.live_object_name].push(item); // 배열에 추가
+  }); // 라이브 오브제 포장 끝
+
+  // 라이브 일러스트
+  const liveIllusts = {};
+  const liveIllustFile = result.row[7];
+  liveIllustFile.forEach((item) => {
+    // 키 없으면 추가해준다.
+    if (
+      !Object.prototype.hasOwnProperty.call(liveIllusts, item.live_illust_name)
+    ) {
+      liveIllusts[item.live_illust_name] = [];
+    }
+
+    liveIllusts[item.live_illust_name].push(item); // 배열에 추가한다.
+  }); // 라이브 일러스트 포장 끝
+
+  responseData.detail = result.row[0];
+  responseData.dressCode = result.row[1];
+  responseData.nametag = result.row[2];
+  responseData.bgms = result.row[3];
+  responseData.illusts = result.row[4];
+  responseData.models = models;
+  responseData.liveObjects = liveObjects;
+  responseData.liveIllusts = liveIllusts;
+};
+
 ///////////////////////////////////////////////////////////////////////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////////////////////
@@ -2238,7 +2314,6 @@ export const getUserSelectedStory = async (req, res) => {
   storyInfo.rawVoiceHistory = voiceData.rawVoiceHistory; // 리스트 그대로 형태의 보이스
 
   storyInfo.progress = await getUserCollectionProgress(userInfo); // 수집요소 진행률
-  storyInfo.nametag = await requestProjectNametag(userInfo); // nametag 추가 2021.06.29
 
   // * 사건 정보
   storyInfo.sceneProgress = await getUserEpisodeSceneProgress(userInfo); // 유저 사건ID 진행도
@@ -2260,26 +2335,23 @@ export const getUserSelectedStory = async (req, res) => {
   storyInfo.episodePurchase = await getUserEpisodePurchaseInfo(userInfo); // 에피소드 구매 정보
 
   // * 기준정보
-  storyInfo.models = await getProjectModels(userInfo); // 프로젝트의 모델들.
-  storyInfo.illusts = await getProjectAllIllust(userInfo); // 프로젝트의 모든 일러스트
 
   // 작품 기준정보
-  storyInfo.bubbleMaster = bubbleMaster; // 말풍선 마스터 정보
-  storyInfo.detail = await requestProjectDetail(userInfo); // 프로젝트 상세정보
-  // storyInfo.hashtag = await requestProjectHashtag(userInfo); // 프로젝트 해시태그 정보
-
-  storyInfo.bgms = await getProjectBGMs(userInfo); // 프로젝트 BGM
-
-  storyInfo.liveObjects = await getProjectLiveObjects(userInfo); // 프로젝트의 모든 라이브 오브젝트
-  storyInfo.liveIllusts = await getProjectLiveIllusts(userInfo); // 프로젝트의 모든 라이브 일러스트
-  storyInfo.dressCode = await getProjectDressCode(userInfo); // 프로젝트 의상 기준정보
-
   storyInfo.galleryBanner = await getProjectGalleryBannerInfo(userInfo); // 갤러리 상단 배너
   storyInfo.bgmBanner = await getProjectBgmBannerInfo(userInfo); // BGM 배너
   storyInfo.freepassBanner = await getProjectFreepassBannerInfo(userInfo); // 프리패스 배너
   storyInfo.freepassTitle = await getProjectFreepassTitleInfo(userInfo); // 프리패스 타이틀
-
   storyInfo.bubbleSprite = await getProjectBubbleSprite(userInfo); // 프로젝트 말풍선 스프라이트 정보
+  storyInfo.bubbleMaster = bubbleMaster; // 말풍선 마스터 정보
+
+  storyInfo.liveIllusts = await getProjectLiveIllusts(userInfo); // 프로젝트의 모든 라이브 일러스트
+  storyInfo.liveObjects = await getProjectLiveObjects(userInfo); // 프로젝트의 모든 라이브 오브젝트
+  storyInfo.models = await getProjectModels(userInfo); // 프로젝트의 모델들.
+  storyInfo.nametag = await requestProjectNametag(userInfo); // nametag 추가 2021.06.29
+  storyInfo.illusts = await getProjectAllIllust(userInfo); // 프로젝트의 모든 일러스트
+  storyInfo.dressCode = await getProjectDressCode(userInfo); // 프로젝트 의상 기준정보
+  storyInfo.bgms = await getProjectBGMs(userInfo); // 프로젝트 BGM
+  storyInfo.detail = await requestProjectDetail(userInfo); // 프로젝트 상세정보
 
   // * 말풍선 상세 정보 (버전체크를 통해서 필요할때만 내려준다)
   // 버전 + 같은 세트 ID인지도 체크하도록 추가.
