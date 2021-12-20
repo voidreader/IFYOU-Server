@@ -86,7 +86,7 @@ export const insertMission = async (req, res) => {
     file.key,
   ]);
 
-  adminLogInsert(req, "mission_insert"); 
+  adminLogInsert(req, "mission_insert");
   respondRedirect(req, res, selectAdminMissionList, result, "insertMission");
 };
 
@@ -134,7 +134,7 @@ export const updateMission = async (req, res) => {
     lang,
   ]);
 
-  adminLogInsert(req, "mission_update"); 
+  adminLogInsert(req, "mission_update");
   respondRedirect(req, res, selectAdminMissionList, result, "updateMission");
 }; // 미션 수정 끝!
 
@@ -147,7 +147,7 @@ export const deleteMission = async (req, res) => {
 
   const result = await DB(MQ_ADMIN_DELETE_MISSION, [mission_id, mission_id]);
 
-  adminLogInsert(req, "mission_delete"); 
+  adminLogInsert(req, "mission_delete");
   respondRedirect(req, res, selectAdminMissionList, result, "deleteMission");
 };
 
@@ -164,9 +164,10 @@ export const userMissionList = async (req, res) => {
 //! 미션 받기
 export const userMisionReceive = async (req, res) => {
   const {
-    body: { project_id, mission_id, userkey, reward_currency, reward_quantity },
+    body: { project_id, mission_id, userkey },
   } = req;
 
+  // * 유저가 대상 미션에 대해 보상을 받은적이 있는지 체크한다.
   const checkResult = await DB(MQ_CLIENT_CHECK_MISSION, [mission_id, userkey]);
 
   if (!checkResult.state) {
@@ -180,8 +181,28 @@ export const userMisionReceive = async (req, res) => {
     respondDB(res, 80025, "이미 미션 보상을 받았습니다.");
     return;
   }
+  // ? 보상 히스토리 조회 종료
+
+  // * 대상 미션의 경험치, 보상 조회
+  const missionRewardResult = await DB(`
+    SELECT lm.reward_exp 
+    , lm.reward_currency 
+    , lm.reward_quantity 
+  FROM list_mission lm 
+  WHERE lm.mission_id = ${mission_id};
+  `);
+
+  if (!missionRewardResult.state || missionRewardResult.row.length == 0) {
+    logger.error("No Mission reward data");
+    respondDB(res, 80025, "미션 보상 정보가 없습니다");
+    return;
+  } // ? 미션 보상 정보 조회 종료
 
   let insertQuery = ``;
+  const { reward_currency, reward_quantity, reward_exp } =
+    missionRewardResult.row[0];
+
+  // * 경험치는 추후 처리
 
   //! quantity가 0이 아닌 경우
   if (reward_quantity !== 0) {
@@ -207,7 +228,9 @@ export const userMisionReceive = async (req, res) => {
   const responseData = {};
   responseData.bank = await getUserBankInfo(req.body);
   responseData.userProperty = await getUserProjectProperty(req.body);
-  responseData.userMissionList = (await getUserMissionList(req.body)).row;
+
+  // 리스트 줄 필요 없을듯.
+  //responseData.userMissionList = (await getUserMissionList(req.body)).row;
 
   res.status(200).json(responseData);
 };

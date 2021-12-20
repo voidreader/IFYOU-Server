@@ -1117,7 +1117,7 @@ const getEpisodeSceneCount = async (userkey, episodeID) => {
     [userkey, episodeID, userkey, episodeID]
   );
 
-  return result.row;
+  return result.row[0].played_scene_count;
 };
 
 // 에피소드 첫 클리어 보상 가져오기
