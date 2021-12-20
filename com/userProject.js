@@ -205,22 +205,6 @@ export const getTop3SelectionList = async (req, res) => {
 
   let result = ``;
 
-  //* 엔딩 해금 확인
-  result = await DB(
-    `
-  SELECT * 
-  FROM user_ending 
-  WHERE userkey = ? 
-  AND episode_id IN (SELECT episode_id FROM list_episode WHERE project_id = ? AND episode_type = 'ending');
-  ;`,
-    [userkey, project_id]
-  );
-  if (!result.state || result.row.length === 0) {
-    logger.error(`getTop3SelectionList error`);
-    respondDB(res, 80095);
-    return;
-  }
-
   //* 플레이 횟수 가장 큰 값 가져오기
   result = await DB(
     `
@@ -230,7 +214,8 @@ export const getTop3SelectionList = async (req, res) => {
   `,
     [userkey, project_id]
   );
-  const maxPlayCount = result.row[0].play_count;
+  let maxPlayCount = 0;
+  if (result.row.length > 0) maxPlayCount = result.row[0].play_count;
 
   //* 현재 셀렉션(user_selection_current) 값이 있는지 확인
   let endingCheck = true;
@@ -404,21 +389,6 @@ export const getEndingSelectionList = async (req, res) => {
 
   let result = ``;
 
-  //* 엔딩 해금 확인
-  result = await DB(
-    `
-  SELECT * 
-  FROM user_ending 
-  WHERE userkey = ? AND episode_id = ?;
-  ;`,
-    [userkey, ending_id]
-  );
-  if (!result.state || result.row.length === 0) {
-    logger.error(`getEndingSelectionList error`);
-    respondDB(res, 80095);
-    return;
-  }
-
   //* 최근 엔딩 가져오기(max_play_count)
   result = await DB(
     `
@@ -430,8 +400,8 @@ export const getEndingSelectionList = async (req, res) => {
   `,
     [userkey, project_id]
   );
-
-  const maxPlayCount = result.row[0].max_play_count;
+  let maxPlayCount = 0;
+  if (result.row.length > 0) maxPlayCount = result.row[0].max_play_count;
 
   //* 엔딩 선택지 로그
   const responseData = {};
