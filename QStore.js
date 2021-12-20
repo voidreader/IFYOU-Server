@@ -776,8 +776,7 @@ SELECT m.model_name
   FROM list_model_master m
     LEFT OUTER JOIN list_model_slave lms ON lms.model_id = m.model_id 
  WHERE m.project_id = ?
- ORDER BY m.model_id , lms.model_slave_id ; 
-;
+ ORDER BY m.model_id , lms.model_slave_id; 
 `;
 
 // 프로젝트 라이브 오브젝트 파일 모두 조회
@@ -811,7 +810,6 @@ SELECT a.live_illust_id
 WHERE a.project_id = ?
  AND b.live_illust_id = a.live_illust_id
 ORDER BY a.live_illust_id;
-
 `;
 
 // ===================================
@@ -924,6 +922,30 @@ SELECT a.project_id
 FROM list_project_master a
 LEFT OUTER JOIN list_project_detail b ON b.project_id = a.project_id AND b.lang = ?
 WHERE a.project_id = ?;
+`;
+
+export const Q_SELECT_PROJECT_VOICE = `
+SELECT ls.sound_id
+, ls.sound_name 
+, ls.speaker
+, ls.sound_url 
+, ls.sound_key 
+, script.script_data 
+, le.episode_id 
+, le.title
+, le.sortkey
+, le.episode_type
+, fn_check_voice_unlock(?, ls.project_id, ls.sound_id) is_open
+FROM list_sound ls 
+, list_script script
+, list_episode le 
+WHERE ls.project_id = ?
+AND ls.is_public = 1
+AND script.project_id = ls.project_id 
+AND (script.voice <> '' AND script.voice IS NOT NULL)
+AND script.voice = ls.sound_name 
+AND le.episode_id = script.episode_id 
+ORDER BY ls.speaker, le.episode_type, le.sortkey;
 `;
 
 // ===================================
