@@ -1489,27 +1489,22 @@ export const accquireUserConsumableCurrency = async (req, res) => {
 export const purchaseEpisodeType2 = async (req, res) => {
   const {
     // 클라이언트에서 구매타입, 사용화폐, 화폐개수를 같이 받아온다.
-    // 1회 플레이 같은 경우는 티켓과 보석 사용 두가지가 가능하다.
-    // 구매 타입은 3종류다. 대여/1회플레이/소장(영구구매)
-
     body: {
       userkey,
       episodeID,
       purchaseType,
       project_id,
-      currency,
-      currencyQuantity,
+      currency = "none",
+      currencyQuantity = 0,
     },
   } = req;
 
-  // 이전 로직과 다르게 isRent가 파래매터로 오지 않는다.
-  // 3종류의 형태가 있어서 isRent는 삭제.
   logger.info(`purchaseEpisodeType2 start [${JSON.stringify(req.body)}]`);
 
   let useCurrency = currency; // 사용되는 화폐
   let useQuantity = currencyQuantity; // 사용되는 화폐 개수
   let hasFreepass = false; // 자유이용권 갖고 있는지 true/false
-  let freepassCode = ""; // 연결된 작품의 자유이용권
+  let freepassCode = ""; // 연결된 작품의 자유이용권 코드
   let currentPurchaseType = purchaseType; // 입력되는 구매 형태
 
   // 구매 형태(purchase_type은 list_standard.purchase_type 참조)
@@ -1536,8 +1531,8 @@ export const purchaseEpisodeType2 = async (req, res) => {
     currentPurchaseType = "Permanent"; // 프리패스 이용자는 무조건 소장처리
   } // ? 자유이용권 보유 체크 종료
 
+  // * 프리패스(자유이용권) '미'소지자에 대한 처리
   if (!hasFreepass) {
-    // 프리패스(자유이용권) '미'소지자에 대한 처리
     // ! 아직 유효한 구매상태인지 체크한다.
     // 대여기간, 1회 플레이, 소장
     // 이중구매는 막아준다. 400 응답
@@ -1545,9 +1540,7 @@ export const purchaseEpisodeType2 = async (req, res) => {
     const validationCheck = await DB(
       `
       SELECT CASE WHEN uep.permanent = 1 THEN 1
-        WHEN uep.purchase_type = 'Rent' AND now() <= expire_date THEN 1
-        WHEN uep.purchase_type = 'OneTime' AND uep.onetime_playable > 0 THEN 1
-        ELSE 0 END is_purchased
+                  ELSE 0 END is_purchased
         FROM user_episode_purchase uep
         WHERE uep.userkey = ? 
           AND uep.episode_id = ?;
@@ -1567,29 +1560,32 @@ export const purchaseEpisodeType2 = async (req, res) => {
       responseData.userProperty = await getUserProjectProperty(req.body); // 프로젝트 프로퍼티
       res.status(200).json(responseData);
 
-      logger.error(`purchaseEpisodeType2 Error 1`);
-      // respondDB(res, 80023, "이미 구입한 에피소드입니다.");
+      logger.error(`purchaseEpisodeType2 double purchase`);
       return;
-    }
+    } // ? 유효한 구매 체크 종료
 
     // ! 사용하려는 재화의 보유고를 체크한다.
-    // 보유고가 모자라면 400 응답
-    const currentCurrencyCount = await getCurrencyQuantity(
-      userkey,
-      useCurrency
-    );
+    // ! none일때는 제외
+    if (useCurrency !== "none") {
+      // 보유고가 모자라면 400 응답
+      const currentCurrencyCount = await getCurrencyQuantity(
+        userkey,
+        useCurrency
+      );
 
-    // 모자라요!
-    if (currentCurrencyCount < useQuantity) {
-      logger.error(`purchaseEpisodeType2 Error 2`);
-      respondDB(res, 80024, "not enough your property");
-      return;
+      // 모자라요!
+      if (currentCurrencyCount < useQuantity) {
+        logger.error(`purchaseEpisodeType2 Error 2`);
+        respondDB(res, 80024, "not enough your property");
+        return;
+      }
     }
   } // ? 프리패스 미소유자에 대한 처리 끝
 
   logger.info(
     `purchase procedure call ${episodeID}/${useCurrency}/${useQuantity}/${currentPurchaseType}`
   );
+
   // ! 실제 구매 처리(type2)
   const purchaseResult = await DB(
     `
@@ -1613,7 +1609,7 @@ export const purchaseEpisodeType2 = async (req, res) => {
 
   // ! 재화 소모 처리
   // ! 프리패스 이용자는 재화 소모 처리하지 않음.
-  if (!hasFreepass) {
+  if (!hasFreepass || useCurrency !== "none") {
     const consumeResult = await DB(UQ_USE_CURRENCY, [
       userkey,
       useCurrency,
