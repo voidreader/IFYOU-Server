@@ -390,7 +390,7 @@ SELECT ls.script_no
      , ls.selection_no
  FROM list_script ls
 WHERE ls.episode_id = ?
-  AND ls.lang = 'KO'
+  AND ls.lang = ?
 ORDER BY script_no;
 `;
 
@@ -405,6 +405,7 @@ FROM list_script ls
 , list_bg lb 
 WHERE ls.project_id = ?
 AND ls.episode_id = ?
+AND ls.lang = ?
 AND lb.project_id = ls.project_id 
 AND ls.template IN ('background', 'move_in')
 AND substring_index(ls.script_data, ':', 1) = lb.image_name
@@ -423,6 +424,7 @@ FROM list_script ls
 , list_minicut lm 
 WHERE ls.project_id = ?
 AND ls.episode_id = ?
+AND ls.lang = ?
 AND lm.project_id = ls.project_id 
 AND ls.template IN ('image', 'message_image')
 AND ls.script_data = lm.image_name;
@@ -437,6 +439,7 @@ FROM list_script ls
 , list_illust li 
 WHERE ls.project_id = ?
 AND ls.episode_id = ?
+AND ls.lang = ?
 AND li.project_id = ls.project_id 
 AND ls.template = 'illust'
 AND ls.script_data = li.image_name;
@@ -454,6 +457,7 @@ FROM list_script ls
 , list_emoticon_slave les 
 WHERE ls.project_id = ?
 AND ls.episode_id = ?
+AND ls.lang = ?
 AND (ls.emoticon_expression IS NOT NULL AND ls.emoticon_expression <> '')
 AND (ls.speaker IS NOT NULL AND ls.speaker <> '')
 AND ls.template IN (SELECT z.code FROM list_standard z WHERE z.standard_class IN ('talking_template', 'message_template'))
@@ -476,6 +480,7 @@ SELECT DISTINCT sound.sound_id
      , list_sound sound
  WHERE ls.project_id = ?
    AND ls.episode_id = ?
+   AND ls.lang = ?
    AND (ls.voice IS NOT NULL AND ls.voice <> '') 
    AND sound.project_id = ls.project_id 
    AND sound.sound_type = 'voice'
@@ -495,6 +500,7 @@ SELECT DISTINCT sound.sound_id
      , list_sound sound
  WHERE ls.project_id = ?
    AND ls.episode_id = ?
+   AND ls.lang = ?
    AND (ls.sound_effect IS NOT NULL AND ls.sound_effect <> '') 
    AND sound.project_id = ls.project_id 
    AND sound.sound_type = 'se'
@@ -514,6 +520,7 @@ SELECT DISTINCT sound.sound_id
      , list_sound sound
  WHERE ls.project_id = ?
    AND ls.episode_id = ?
+   AND ls.lang = ?
    AND ls.template = 'bgm'
    AND sound.project_id = ls.project_id 
    AND sound.sound_type = 'bgm'
@@ -765,13 +772,18 @@ SELECT a.serial_no
 
 // 프로젝트 모델파일 모두 조회 (getUSerSelectedStory)
 export const Q_SELECT_PROJECT_MODEL_ALL_FILES = `
-
-SELECT m.model_name, lms.*, fn_get_motion_name(lms.model_id, lms.file_key) motion_name, m.offset_x, m.offset_y, m.game_scale, m.model_ver, m.direction
+SELECT m.model_name
+     , lms.*
+     , fn_get_motion_name(lms.model_id, lms.file_key) motion_name
+     , m.offset_x
+     , m.offset_y
+     , m.game_scale
+     , m.model_ver
+     , m.direction
   FROM list_model_master m
     LEFT OUTER JOIN list_model_slave lms ON lms.model_id = m.model_id 
  WHERE m.project_id = ?
- ORDER BY m.model_id , lms.model_slave_id 
-;
+ ORDER BY m.model_id , lms.model_slave_id; 
 `;
 
 // 프로젝트 라이브 오브젝트 파일 모두 조회
@@ -805,7 +817,6 @@ SELECT a.live_illust_id
 WHERE a.project_id = ?
  AND b.live_illust_id = a.live_illust_id
 ORDER BY a.live_illust_id;
-
 `;
 
 // ===================================
@@ -868,6 +879,81 @@ WHERE a.illust_id = ?;
 
 // 사운드 관리 끝
 // ===================================
+
+export const Q_SELECT_PROJECT_BGM = `
+SELECT a.sound_id   
+, a.sound_url 
+, a.sound_key 
+, a.game_volume
+, a.public_name sound_name
+FROM list_sound a 
+WHERE a.project_id = ?
+AND a.sound_type  = 'bgm'
+AND a.is_public = 1
+ORDER BY sound_id;
+`;
+
+export const Q_SELECT_PROJECT_NAME_TAG = `
+SELECT nt.speaker 
+, nt.main_color 
+, nt.sub_color 
+, nt.KO 
+, nt.EN 
+, nt.JA 
+, nt.ZH
+, nt.SC 
+, fn_get_design_info(nt.voice_banner_id, 'url') banner_url
+, fn_get_design_info(nt.voice_banner_id, 'key') banner_key
+FROM list_nametag nt
+WHERE nt.project_id = ?;
+`;
+
+export const Q_SELECT_PROJECT_DETAIL = `
+SELECT a.project_id 
+, ifnull(b.title, a.title) title
+, ifnull(b.summary, a.summary) summary 
+, ifnull(b.writer , a.writer) writer 
+, a.sortkey 
+, a.bubble_set_id
+, a.favor_use 
+, a.challenge_use 
+, a.is_credit 
+, a.is_complete
+, fn_get_main_episode_count(a.project_id) episode_count
+, fn_get_design_info(b.ifyou_banner_id, 'url') ifyou_image_url
+, fn_get_design_info(b.ifyou_banner_id, 'key') ifyou_image_key
+, fn_get_design_info(b.ifyou_thumbnail_id, 'url') ifyou_thumbnail_url
+, fn_get_design_info(b.ifyou_thumbnail_id, 'key') ifyou_thumbnail_key
+, a.color_rgb
+, b.original
+FROM list_project_master a
+LEFT OUTER JOIN list_project_detail b ON b.project_id = a.project_id AND b.lang = ?
+WHERE a.project_id = ?;
+`;
+
+export const Q_SELECT_PROJECT_VOICE = `
+SELECT ls.sound_id
+, ls.sound_name 
+, ls.speaker
+, ls.sound_url 
+, ls.sound_key 
+, script.script_data 
+, le.episode_id 
+, le.title
+, le.sortkey
+, le.episode_type
+, fn_check_voice_unlock(?, ls.project_id, ls.sound_id) is_open
+FROM list_sound ls 
+, list_script script
+, list_episode le 
+WHERE ls.project_id = ?
+AND ls.is_public = 1
+AND script.project_id = ls.project_id 
+AND (script.voice <> '' AND script.voice IS NOT NULL)
+AND script.voice = ls.sound_name 
+AND le.episode_id = script.episode_id 
+ORDER BY ls.speaker, le.episode_type, le.sortkey;
+`;
 
 // ===================================
 // 템플릿 시작
