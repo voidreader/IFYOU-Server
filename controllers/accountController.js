@@ -1,6 +1,8 @@
+/* eslint-disable prefer-destructuring */
 /* eslint-disable no-plusplus */
 import mysql from "mysql2/promise";
 import dotenv from "dotenv";
+import { response } from "express";
 import { DB, logAction, logDB, transactionDB } from "../mysqldb";
 import {
   Q_CLIENT_LOGIN_BY_DEVICE,
@@ -13,6 +15,9 @@ import {
   Q_REGISTER_CLIENT_ACCOUNT_WITH_GAMEBASE,
   Q_UPDATE_CLIENT_ACCOUNT_WITH_GAMEBASE,
   Q_CLIENT_LOGIN_BY_USERKEY,
+  Q_SELECT_PROJECT_BGM,
+  Q_SELECT_PROJECT_NAME_TAG,
+  Q_SELECT_PROJECT_DETAIL,
 } from "../QStore";
 
 import {
@@ -38,14 +43,13 @@ import {
   Q_SELECT_USER_MISSION_HISTORY,
   Q_PROJECT_ENDING_COUNT,
   Q_USER_ENDING_COUNT,
-  UQ_SELECT_USER_MINICUT_HISTORY,
   UQ_GET_PROJECT_USER_PROPERTY,
   UQ_SELECT_USER_MAIN_EPISODE,
   UQ_INSERT_USER_TIMEDEAL,
 } from "../USERQStore";
 
 import { logger } from "../logger";
-import { getProjectBGMs, getUserVoiceHistory } from "./soundController";
+import { getUserVoiceHistory } from "./soundController";
 import {
   checkSideUnlockByEpisode,
   requestProjectNametag,
@@ -55,7 +59,7 @@ import {
   checkMissionByDrop,
   getProjectFreepassPrice,
 } from "./storyController";
-import { respondDB } from "../respondent";
+import { respondDB, respondError } from "../respondent";
 import {
   getUserProjectCurrent,
   getUserProjectSelectionProgress,
@@ -341,17 +345,6 @@ const getUserEpisodePurchaseInfo = async (userInfo) => {
   return result.row;
 };
 
-// ? 유저 미니컷 히스토리 조회
-const getUserMinicutHistory = async (userInfo) => {
-  const result = await DB(UQ_SELECT_USER_MINICUT_HISTORY, [
-    userInfo.userkey,
-    userInfo.project_id,
-    userInfo.project_id,
-  ]);
-
-  return result.row;
-};
-
 // ? 유저 수집요소 달성율
 // 작품상세화면 View
 const getUserCollectionProgress = async (userInfo) => {
@@ -579,13 +572,6 @@ export const updateUserMissionHistory = async (req, res) => {
   ]);
 
   res.status(200).send(refresh.row);
-};
-
-// 프로젝트의 캐릭터 의상 기준정보 조회 하기.
-const getProjectDressCode = async (userInfo) => {
-  const result = await DB(Q_SELECT_PROJECT_DRESS_CODE, [userInfo.project_id]);
-  if (result.state) return result.row;
-  else return [];
 };
 
 // 프로젝트의 유저 의상 진행정보 조회
@@ -848,19 +834,6 @@ const getProjectBubbleSetDetail = async (userInfo) => {
   else return [];
 };
 
-// 프로젝트에서 사용되는 버블 스프라이트
-const getProjectBubbleSprite = async (userInfo) => {
-  const result = await DB(Q_SELECT_PROJECT_BUBBLE_SPRITE, [
-    userInfo.bubbleID,
-    userInfo.bubbleID,
-    userInfo.bubbleID,
-    userInfo.bubbleID,
-  ]);
-
-  if (result.state) return result.row;
-  else return [];
-};
-
 const initBubbleSetObject = () => {
   const bubbleSet = {};
   // 말풍선 세트 초기화
@@ -904,79 +877,6 @@ const initBubbleSetObject = () => {
   bubbleSet.speech.double = [];
 
   return bubbleSet;
-};
-
-// 프로젝트의 라이브 오브젝트 전체!
-const getProjectLiveObjects = async (userInfo) => {
-  const models = {};
-  // 프로젝트에 속한 모든 파일 불러온다.
-  const result = await DB(Q_SELECT_PROJECT_LIVE_OBJECT_ALL_FILES, [
-    userInfo.project_id,
-  ]);
-
-  const modelfile = result.row;
-
-  modelfile.forEach((item) => {
-    // 키 없으면 추가해준다.
-    if (!models.hasOwnProperty(item.live_object_name)) {
-      models[item.live_object_name] = [];
-    }
-
-    models[item.live_object_name].push(item); // 배열에 추가한다.
-  });
-
-  //logger.info(models);
-
-  return models;
-};
-
-// 프로젝트의 라이브 일러스트 전체
-const getProjectLiveIllusts = async (userInfo) => {
-  const models = {};
-  // 프로젝트에 속한 모든 파일 불러온다.
-  const result = await DB(Q_SELECT_PROJECT_LIVE_ILLUST_ALL_FILES, [
-    userInfo.project_id,
-  ]);
-
-  const modelfile = result.row;
-
-  modelfile.forEach((item) => {
-    // 키 없으면 추가해준다.
-    if (!models.hasOwnProperty(item.live_illust_name)) {
-      models[item.live_illust_name] = [];
-    }
-
-    models[item.live_illust_name].push(item); // 배열에 추가한다.
-  });
-
-  //logger.info(models);
-
-  return models;
-};
-
-// 프로젝트의 모델
-const getProjectModels = async (userInfo) => {
-  const models = {};
-  // 프로젝트에 속한 모든 파일 불러온다.
-  const result = await DB(Q_SELECT_PROJECT_MODEL_ALL_FILES, [
-    userInfo.project_id,
-  ]);
-
-  // logger.info(`getProjectModels count [${result.row.length}]`);
-  const modelfile = result.row;
-
-  modelfile.forEach((item) => {
-    // 키 없으면 추가해준다.
-    if (!models.hasOwnProperty(item.model_name)) {
-      models[item.model_name] = [];
-    }
-
-    models[item.model_name].push(item); // 배열에 추가한다.
-  });
-
-  // logger.info(models);
-
-  return models;
 };
 
 // 유저 프로젝트 일러스트 히스토리
@@ -1042,14 +942,6 @@ WHERE a.project_id = ${userInfo.project_id};
   else return [];
 };
 
-// 프로젝트의 모든 일러스트 리스트
-const getProjectAllIllust = async (userInfo) => {
-  const result = await DB(Q_SELECT_PROJECT_ALL_ILLUST, [userInfo.project_id]);
-
-  if (result.state) return result.row;
-  else return [];
-};
-
 // 유저, 프로젝트에서 경험한 모든 사건ID 목록 (삭제나 수정되지 않음)
 export const getUserProjectSceneHistory = async (userInfo) => {
   const result = await DB(
@@ -1104,42 +996,6 @@ const requestProjectMainThumbnail = async (userInfo) => {
  WHERE lpt.project_id = ?
  ;
   `;
-
-  const result = await DB(query, [userInfo.project_id]);
-  if (result.state && result.row.length > 0) return result.row;
-  else return [];
-};
-
-// 프로젝트 상세 정보!
-const requestProjectDetail = async (userInfo) => {
-  // ! list_project에서 list_project_master로 변경했고,
-  // ! thumbnail 및 title 이미지 가져오는 방식 변경
-  const query = `
-  SELECT a.project_id 
-  , ifnull(b.title, a.title) title
-  , ifnull(b.summary, a.summary) summary 
-  , ifnull(b.writer , a.writer) writer 
-  , a.sortkey 
-  , a.bubble_set_id
-  , a.favor_use 
-  , a.challenge_use 
-  , a.is_credit 
-  , fn_get_design_info(b.main_banner_id, 'url') title_image_url
-  , fn_get_design_info(b.main_banner_id, 'key') title_image_key
-  , fn_get_design_info(b.main_thumbnail_id , 'url') thumbnail_url 
-  , fn_get_design_info(b.main_thumbnail_id , 'key') thumbnail_key
-  , a.is_complete
-  , fn_get_main_episode_count(a.project_id) episode_count
-  , fn_get_design_info(b.ifyou_banner_id, 'url') ifyou_image_url
-  , fn_get_design_info(b.ifyou_banner_id, 'key') ifyou_image_key
-  , fn_get_design_info(b.ifyou_thumbnail_id, 'url') ifyou_thumbnail_url
-  , fn_get_design_info(b.ifyou_thumbnail_id, 'key') ifyou_thumbnail_key
-  , a.color_rgb
-  , b.original
-FROM list_project_master a
-LEFT OUTER JOIN list_project_detail b ON b.project_id = a.project_id AND b.lang ='KO'
-WHERE a.project_id = ?
-;`;
 
   const result = await DB(query, [userInfo.project_id]);
   if (result.state && result.row.length > 0) return result.row;
@@ -1261,7 +1117,7 @@ const getEpisodeSceneCount = async (userkey, episodeID) => {
     [userkey, episodeID, userkey, episodeID]
   );
 
-  return result.row;
+  return result.row[0].played_scene_count;
 };
 
 // 에피소드 첫 클리어 보상 가져오기
@@ -1384,15 +1240,24 @@ export const updateUserEpisodePlayRecord = async (req, res) => {
 
   // 엔딩 수집 추가 처리 (2021.07.05) -
 
-  // 플레이 회차 확인  
-  const playResult = await DB(`
+  // 플레이 회차 확인
+  const playResult = await DB(
+    `
   SELECT DISTINCT play_count 
   FROM user_selection_current
   WHERE userkey = ? AND project_id = ?;
-  `, [userkey, project_id]);
-  const playCount = playResult.row[0].play_count; 
-  
-  const endingResult = await DB(endingQuery, [userkey, nextEpisodeID, project_id, playCount]);
+  `,
+    [userkey, project_id]
+  );
+  let playCount = 0;
+  if (playResult.row.length > 0) playCount = playResult.row[0].play_count;
+
+  const endingResult = await DB(endingQuery, [
+    userkey,
+    nextEpisodeID,
+    project_id,
+    playCount,
+  ]);
   if (!endingResult.state) {
     logger.error(`updateUserEpisodePlayRecord Error 2 ${endingResult.error}`); // 로그만 남긴다.
   }
@@ -1624,27 +1489,22 @@ export const accquireUserConsumableCurrency = async (req, res) => {
 export const purchaseEpisodeType2 = async (req, res) => {
   const {
     // 클라이언트에서 구매타입, 사용화폐, 화폐개수를 같이 받아온다.
-    // 1회 플레이 같은 경우는 티켓과 보석 사용 두가지가 가능하다.
-    // 구매 타입은 3종류다. 대여/1회플레이/소장(영구구매)
-
     body: {
       userkey,
       episodeID,
       purchaseType,
       project_id,
-      currency,
-      currencyQuantity,
+      currency = "none",
+      currencyQuantity = 0,
     },
   } = req;
 
-  // 이전 로직과 다르게 isRent가 파래매터로 오지 않는다.
-  // 3종류의 형태가 있어서 isRent는 삭제.
   logger.info(`purchaseEpisodeType2 start [${JSON.stringify(req.body)}]`);
 
   let useCurrency = currency; // 사용되는 화폐
   let useQuantity = currencyQuantity; // 사용되는 화폐 개수
   let hasFreepass = false; // 자유이용권 갖고 있는지 true/false
-  let freepassCode = ""; // 연결된 작품의 자유이용권
+  let freepassCode = ""; // 연결된 작품의 자유이용권 코드
   let currentPurchaseType = purchaseType; // 입력되는 구매 형태
 
   // 구매 형태(purchase_type은 list_standard.purchase_type 참조)
@@ -1671,8 +1531,8 @@ export const purchaseEpisodeType2 = async (req, res) => {
     currentPurchaseType = "Permanent"; // 프리패스 이용자는 무조건 소장처리
   } // ? 자유이용권 보유 체크 종료
 
+  // * 프리패스(자유이용권) '미'소지자에 대한 처리
   if (!hasFreepass) {
-    // 프리패스(자유이용권) '미'소지자에 대한 처리
     // ! 아직 유효한 구매상태인지 체크한다.
     // 대여기간, 1회 플레이, 소장
     // 이중구매는 막아준다. 400 응답
@@ -1680,9 +1540,7 @@ export const purchaseEpisodeType2 = async (req, res) => {
     const validationCheck = await DB(
       `
       SELECT CASE WHEN uep.permanent = 1 THEN 1
-        WHEN uep.purchase_type = 'Rent' AND now() <= expire_date THEN 1
-        WHEN uep.purchase_type = 'OneTime' AND uep.onetime_playable > 0 THEN 1
-        ELSE 0 END is_purchased
+                  ELSE 0 END is_purchased
         FROM user_episode_purchase uep
         WHERE uep.userkey = ? 
           AND uep.episode_id = ?;
@@ -1702,29 +1560,32 @@ export const purchaseEpisodeType2 = async (req, res) => {
       responseData.userProperty = await getUserProjectProperty(req.body); // 프로젝트 프로퍼티
       res.status(200).json(responseData);
 
-      logger.error(`purchaseEpisodeType2 Error 1`);
-      // respondDB(res, 80023, "이미 구입한 에피소드입니다.");
+      logger.error(`purchaseEpisodeType2 double purchase`);
       return;
-    }
+    } // ? 유효한 구매 체크 종료
 
     // ! 사용하려는 재화의 보유고를 체크한다.
-    // 보유고가 모자라면 400 응답
-    const currentCurrencyCount = await getCurrencyQuantity(
-      userkey,
-      useCurrency
-    );
+    // ! none일때는 제외
+    if (useCurrency !== "none") {
+      // 보유고가 모자라면 400 응답
+      const currentCurrencyCount = await getCurrencyQuantity(
+        userkey,
+        useCurrency
+      );
 
-    // 모자라요!
-    if (currentCurrencyCount < useQuantity) {
-      logger.error(`purchaseEpisodeType2 Error 2`);
-      respondDB(res, 80024, "not enough your property");
-      return;
+      // 모자라요!
+      if (currentCurrencyCount < useQuantity) {
+        logger.error(`purchaseEpisodeType2 Error 2`);
+        respondDB(res, 80024, "not enough your property");
+        return;
+      }
     }
   } // ? 프리패스 미소유자에 대한 처리 끝
 
   logger.info(
     `purchase procedure call ${episodeID}/${useCurrency}/${useQuantity}/${currentPurchaseType}`
   );
+
   // ! 실제 구매 처리(type2)
   const purchaseResult = await DB(
     `
@@ -1748,7 +1609,7 @@ export const purchaseEpisodeType2 = async (req, res) => {
 
   // ! 재화 소모 처리
   // ! 프리패스 이용자는 재화 소모 처리하지 않음.
-  if (!hasFreepass) {
+  if (!hasFreepass || useCurrency !== "none") {
     const consumeResult = await DB(UQ_USE_CURRENCY, [
       userkey,
       useCurrency,
@@ -1986,7 +1847,7 @@ export const updateUserScriptMission = async (req, res) => {
 // ! 유저 에피소드 진행도 초기화
 export const resetUserEpisodeProgress = async (req, res) => {
   logger.info(`resetUserEpisodeProgress [${JSON.stringify(req.body)}]`);
-  
+
   // * 2021.12.12 : 선택지 로그 추가로 sp_reset_user_episode_progress 프로시저로 일부 수정 - JE
 
   const {
@@ -2070,7 +1931,6 @@ export const updateUserMinicutHistory = async (req, res) => {
 
   const result = {};
   result.illustHistory = await getUserIllustHistory(req.body);
-  // result.minicutHistory = await getUserMinicutHistory(req.body);
 
   res.status(200).json(result);
 };
@@ -2164,6 +2024,86 @@ const getEpisodeLoadingList = async (project_id) => {
   return result.row;
 };
 
+// * 2021.12.19 프로젝트 리소스 한번에 가져오기
+// * 쿼리 통합
+const getProjectResources = async (project_id, lang, bubbleID) => {
+  const responseData = {};
+
+  let query = "";
+
+  query += mysql.format(Q_SELECT_PROJECT_DETAIL, [lang, project_id]); // 0. detail 프로젝트 상세정보
+  query += mysql.format(Q_SELECT_PROJECT_DRESS_CODE, [project_id]); // 1. dressCode 의상정보
+  query += mysql.format(Q_SELECT_PROJECT_NAME_TAG, [project_id]); // 2. nametag 네임태그
+  query += mysql.format(Q_SELECT_PROJECT_BGM, [project_id]); // 3. bgms. BGM
+  query += mysql.format(Q_SELECT_PROJECT_ALL_ILLUST, [lang, project_id]); // 4. illusts 일러스트
+  query += mysql.format(Q_SELECT_PROJECT_MODEL_ALL_FILES, [project_id]); // 5. models 캐릭터 모델
+  query += mysql.format(Q_SELECT_PROJECT_LIVE_OBJECT_ALL_FILES, [project_id]); // 6. liveObjects 라이브 오브제
+  query += mysql.format(Q_SELECT_PROJECT_LIVE_ILLUST_ALL_FILES, [project_id]); // 7. liveIllusts 라이브 일러스트
+  query += mysql.format(Q_SELECT_PROJECT_BUBBLE_SPRITE, [
+    bubbleID,
+    bubbleID,
+    bubbleID,
+    bubbleID,
+  ]); // 8. bubbleSprite 말풍선 스프라이트
+
+  const result = await DB(query);
+
+  if (!result.state) {
+    logger.error(result.error);
+    return null;
+  }
+
+  // 캐릭터 모델 파일 포장하기
+  const models = {};
+  const modelfile = result.row[5];
+  modelfile.forEach((item) => {
+    if (!Object.prototype.hasOwnProperty.call(models, item.model_name)) {
+      models[item.model_name] = [];
+    }
+
+    models[item.model_name].push(item); // 배열에 추가
+  }); // 캐릭터 모델 포장 끝.
+
+  // 라이브 오브제 파일 포장하기
+  const liveObjects = {};
+  const liveObjectFile = result.row[6];
+  liveObjectFile.forEach((item) => {
+    if (
+      !Object.prototype.hasOwnProperty.call(liveObjects, item.live_object_name)
+    ) {
+      liveObjects[item.live_object_name] = [];
+    }
+
+    liveObjects[item.live_object_name].push(item); // 배열에 추가
+  }); // 라이브 오브제 포장 끝
+
+  // 라이브 일러스트
+  const liveIllusts = {};
+  const liveIllustFile = result.row[7];
+  liveIllustFile.forEach((item) => {
+    // 키 없으면 추가해준다.
+    if (
+      !Object.prototype.hasOwnProperty.call(liveIllusts, item.live_illust_name)
+    ) {
+      liveIllusts[item.live_illust_name] = [];
+    }
+
+    liveIllusts[item.live_illust_name].push(item); // 배열에 추가한다.
+  }); // 라이브 일러스트 포장 끝
+
+  responseData.detail = result.row[0];
+  responseData.dressCode = result.row[1];
+  responseData.nametag = result.row[2];
+  responseData.bgms = result.row[3];
+  responseData.illusts = result.row[4];
+  responseData.models = models;
+  responseData.liveObjects = liveObjects;
+  responseData.liveIllusts = liveIllusts;
+  responseData.bubbleSprite = result.row[8];
+
+  return responseData;
+};
+
 ///////////////////////////////////////////////////////////////////////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////////////////////
@@ -2229,7 +2169,6 @@ export const getUserSelectedStory = async (req, res) => {
   storyInfo.rawVoiceHistory = voiceData.rawVoiceHistory; // 리스트 그대로 형태의 보이스
 
   storyInfo.progress = await getUserCollectionProgress(userInfo); // 수집요소 진행률
-  storyInfo.nametag = await requestProjectNametag(userInfo); // nametag 추가 2021.06.29
 
   // * 사건 정보
   storyInfo.sceneProgress = await getUserEpisodeSceneProgress(userInfo); // 유저 사건ID 진행도
@@ -2245,38 +2184,45 @@ export const getUserSelectedStory = async (req, res) => {
   storyInfo.sides = await requestSideEpisodeList(userInfo); // 유저의 사이드 에피소드 리스트
 
   storyInfo.dressProgress = await getUserProjectDressProgress(userInfo); // 유저 의상 정보
-  storyInfo.favorProgress = await getUserFavorHistory(userInfo); // 유저 호감도 진행도
+  //storyInfo.favorProgress = await getUserFavorHistory(userInfo); // 유저 호감도 진행도
   storyInfo.illustHistory = await getUserIllustHistory(userInfo); // 유저 일러스트 히스토리
 
   storyInfo.episodePurchase = await getUserEpisodePurchaseInfo(userInfo); // 에피소드 구매 정보
 
   // * 기준정보
-  storyInfo.models = await getProjectModels(userInfo); // 프로젝트의 모델들.
-  storyInfo.illusts = await getProjectAllIllust(userInfo); // 프로젝트의 모든 일러스트
 
   // 작품 기준정보
-  storyInfo.bubbleMaster = bubbleMaster; // 말풍선 마스터 정보
-  storyInfo.detail = await requestProjectDetail(userInfo); // 프로젝트 상세정보
-  // storyInfo.hashtag = await requestProjectHashtag(userInfo); // 프로젝트 해시태그 정보
-
-  storyInfo.bgms = await getProjectBGMs(userInfo); // 프로젝트 BGM
-
-  storyInfo.liveObjects = await getProjectLiveObjects(userInfo); // 프로젝트의 모든 라이브 오브젝트
-  storyInfo.liveIllusts = await getProjectLiveIllusts(userInfo); // 프로젝트의 모든 라이브 일러스트
-  storyInfo.dressCode = await getProjectDressCode(userInfo); // 프로젝트 의상 기준정보
-
-  storyInfo.galleryBanner = await getProjectGalleryBannerInfo(userInfo); // 갤러리 상단 배너
+  //storyInfo.galleryBanner = await getProjectGalleryBannerInfo(userInfo); // 갤러리 상단 배너
   storyInfo.bgmBanner = await getProjectBgmBannerInfo(userInfo); // BGM 배너
   storyInfo.freepassBanner = await getProjectFreepassBannerInfo(userInfo); // 프리패스 배너
   storyInfo.freepassTitle = await getProjectFreepassTitleInfo(userInfo); // 프리패스 타이틀
+  storyInfo.bubbleMaster = bubbleMaster; // 말풍선 마스터 정보
 
-  storyInfo.bubbleSprite = await getProjectBubbleSprite(userInfo); // 프로젝트 말풍선 스프라이트 정보
+  const projectResources = await getProjectResources(
+    userInfo.project_id,
+    userInfo.lang,
+    userInfo.bubbleID
+  );
+  if (projectResources == null) {
+    respondDB(res, 80026, "프로젝트 리소스 로딩 오류");
+    return;
+  }
+
+  storyInfo.detail = projectResources.detail; // 상세정보
+  storyInfo.dressCode = projectResources.dressCode; // 의상정보
+  storyInfo.nametag = projectResources.nametag; // 네임태그
+  storyInfo.bgms = projectResources.bgms; // BGM
+  storyInfo.illusts = projectResources.illusts; // 이미지 일러스트
+  storyInfo.models = projectResources.models; // 캐릭터 모델 정보
+  storyInfo.liveObjects = projectResources.liveObjects; // 라이브 오브젝트
+  storyInfo.liveIllusts = projectResources.liveIllusts; // 라이브 일러스트
+  storyInfo.bubbleSprite = projectResources.bubbleSprite; // 프로젝트 말풍선 스프라이트 정보
 
   // * 말풍선 상세 정보 (버전체크를 통해서 필요할때만 내려준다)
   // 버전 + 같은 세트 ID인지도 체크하도록 추가.
   if (
     userInfo.userBubbleVersion < userInfo.bubble_ver ||
-    userInfo.clientBubbleSetID !== userInfo.bubbleID
+    userInfo.clientBubbleSetID != userInfo.bubbleID
   ) {
     // logger.info(`!!! Response with BubbleSetDetail`);
     const allBubbleSet = await getProjectBubbleSetDetail(userInfo); // * 프로젝트 말풍선 세트 상세 정보
@@ -2395,3 +2341,118 @@ export const requestExchangeOneTimeTicketWithCoin = async (req, res) => {
 
   logAction(userkey, "exchange_charge", req.body);
 }; // ? END
+
+
+// * 유저가 보유한 재화 (꾸미기 가능 재화 한정) 리스트
+export const getProfileCurrencyOwnList = async(req, res) =>{
+  
+  logger.info(`getProfileCurrencyOwnList`); 
+
+  const {
+    body:{
+      userkey,
+    }
+  } = req;
+
+  const responseData = {}; 
+  // 재화별로 리스트 가져오기 
+  const result = await DB(`
+  SELECT 
+  a.currency
+  , fn_get_design_info(icon_image_id, 'url') icon_url
+  , fn_get_design_info(icon_image_id, 'key') icon_key
+  , CASE WHEN currency_type = 'wallpaper' THEN 
+    fn_get_bg_info(resource_image_id, 'url') 
+  ELSE 
+    fn_get_design_info(resource_image_id, 'url') 
+  END currency_url
+  , CASE WHEN currency_type = 'wallpaper' THEN 
+    fn_get_bg_info(resource_image_id, 'key') 
+  ELSE 
+    fn_get_design_info(resource_image_id, 'key') 
+  END currency_key
+  , currency_type
+  FROM user_property a, com_currency b 
+  WHERE a.currency = b.currency 
+  AND userkey = ? 
+  AND NOW() < expire_date 
+  AND is_coin = 1
+  ORDER BY a.currency
+  ;`, [userkey]);
+
+  // eslint-disable-next-line no-restricted-syntax
+  for(const item of result.row){
+    
+    if (!Object.prototype.hasOwnProperty.call(responseData, item.currency_type)) {
+      responseData[item.currency_type] = [];
+    }
+
+    responseData[item.currency_type].push({
+      //선택지
+      currency: item.currency,
+      icon_url: item.icon_url,
+      icon_key: item.icon_key,
+      currency_url: item.currency_url,
+      currency_key: item.currency_key,
+    });    
+  }
+
+  res.status(200).json(responseData); 
+
+}; 
+
+// * 유저가 저장한 프로필 꾸미기 저장 정보
+export const getProfileCurrencyCurrent = async(req, res) =>{
+  logger.info(`getProfileCurrencyCurrent`); 
+
+  const {
+    body:{
+      userkey, 
+    }
+  } = req;
+
+  const responseData = {}; 
+
+  let result = await DB(`
+  SELECT 
+  a.currency
+  , CASE WHEN currency_type = 'wallpaper' THEN
+    fn_get_bg_info(resource_image_id, 'url')
+  ELSE 
+    fn_get_design_info(resource_image_id, 'url')
+  END currency_url
+  , CASE WHEN currency_type = 'wallpaper' THEN
+    fn_get_bg_info(resource_image_id, 'key')
+  ELSE 
+    fn_get_design_info(resource_image_id, 'key')
+  END currency_key
+  , sorting_order
+  , pos_x
+  , pos_y 
+  , profile_scale
+  , angle 
+  FROM user_profile_currency a, com_currency b 
+  WHERE userkey = ?
+  AND a.currency = b.currency
+  ; 
+  `, [userkey]);
+  responseData.currency = result.row; 
+
+  result = await DB(`
+  SELECT 
+  text_id 
+  , input_text
+  , font_size
+  , color_rgb
+  , sorting_order
+  , pos_x
+  , pos_y 
+  , angle 
+  FROM user_profile_text
+  WHERE userkey = ?
+  ;
+  `, [userkey]);
+  responseData.text = result.row; 
+
+  res.status(200).json(responseData);
+};
