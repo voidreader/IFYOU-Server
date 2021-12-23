@@ -42,6 +42,7 @@ import {
   getUserEpisodeHistory,
   requestFreeCharge,
   requestExchangeOneTimeTicketWithCoin,
+  updateUserMinicutHistoryVer2,
 } from "./accountController";
 import { logger } from "../logger";
 import {
@@ -295,12 +296,39 @@ const getEpisodeDownloadResources = async (req, res, result) => {
   res.status(200).json(ret);
 };
 
+const getLivePairScriptInfo = async (project_id, template, pair_id) => {
+  let result;
+
+  if (template === "illust") {
+    result = await DB(`
+    SELECT 'live_illust' template
+         , a.live_illust_name image_name
+    FROM list_live_illust a
+    WHERE a.project_id = ${project_id}
+      AND a.live_illust_id = ${pair_id};
+    `);
+  } else {
+    result = await DB(`
+    SELECT 'live_object' template
+         , a.live_object_name image_name
+    FROM list_live_object a
+    WHERE a.project_id = ${project_id}
+      AND a.live_object_id = ${pair_id};
+    `);
+  }
+
+  if (!result.state || result.row.length === 0) return null;
+
+  // return!
+  return result.row[0];
+};
+
 // 하나의 에피소드 스크립트 및 필요한 리소스 조회
 // ! # 중요합니다!
 const getEpisodeScriptWithResources = async (req, res) => {
   const userInfo = req.body;
 
-  logger.info(`getEpisodeScriptWithResources ${userInfo}`);
+  logger.info(`getEpisodeScriptWithResources ${JSON.stringify(userInfo)}`);
 
   const result = {};
 
@@ -318,11 +346,55 @@ const getEpisodeScriptWithResources = async (req, res) => {
   );
   if (!langCheck.state || langCheck.row.length === 0) lang = "KO";
 
+  const purchaseInfo = await DB(
+    `
+  SELECT a.purchase_type 
+  FROM user_episode_purchase a
+ WHERE a.userkey = ?
+   AND a.episode_id = ?
+  `,
+    [userInfo.userkey, userInfo.episode_id]
+  );
+
+  console.log(purchaseInfo.row);
+
+  if (!purchaseInfo.state || purchaseInfo.row.length === 0) {
+    respondDB(res, 80094, "에피소드 구매 정보가 없습니다.");
+    logger.error("No episode purchase data");
+    return;
+  }
+
+  const purchaseType = purchaseInfo.row[0].purchase_type;
+
+  console.log("current episode purchase type is .... ", purchaseType);
+
   // 스크립트
   const sc = await DB(Q_SCRIPT_SELECT_WITH_DIRECTION, [
     userInfo.episode_id,
     lang,
   ]);
+
+  if (purchaseType !== "AD") {
+    console.log("Change to pay");
+
+    for await (const item of sc.row) {
+      // live_pair_id가 있을때만 처리한다.
+      if (item.live_pair_id > 0) {
+        const pair = await getLivePairScriptInfo(
+          item.project_id,
+          item.template,
+          item.live_pair_id
+        );
+
+        // 페어정보 존재시에 교체해준다.
+        if (pair != null) {
+          item.template = pair.template;
+          item.script_data = pair.image_name;
+          item.live_pair_id = -1;
+        }
+      }
+    }
+  }
 
   // 배경
   const background = await DB(Q_SCRIPT_RESOURCE_BG, [
@@ -994,6 +1066,8 @@ export const clientHome = (req, res) => {
     getDistinctProjectGenre(req, res);
   //작품 장르
   else if (func === "getServerMasterInfo") getServerMasterInfo(req, res);
+  else if (func === "updateUserMinicutHistoryVer2")
+    updateUserMinicutHistoryVer2(req, res);
   // 서버 마스터 정보 및 광고 기준정보
   else {
     //  res.status(400).send(`Wrong Func : ${func}`);
