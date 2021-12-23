@@ -104,3 +104,19 @@ export const getAppCommonResources = async (req, res) => {
 
   res.status(200).json(responseData);
 };
+
+// * 서버 마스터 정보 (2021.12.22)
+export const getServerMasterInfo = async (req, res) => {
+  const responseData = {};
+
+  let query = ``;
+  query += `SELECT * FROM com_server cs WHERE server_no > 0 LIMIT 1;`;
+  query += `SELECT a.* FROM com_ad a LIMIT 1;`;
+
+  const result = await DB(query);
+
+  responseData.master = result.row[0][0]; // 마스터 정보
+  responseData.ad = result.row[1][0]; // 광고 정보
+
+  res.status(200).json(responseData);
+};
