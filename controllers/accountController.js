@@ -2351,27 +2351,53 @@ export const getProfileCurrencyOwnList = async(req, res) =>{
   const {
     body:{
       userkey,
-      currency_type = "wallpaper", 
     }
   } = req;
 
+  const responseData = {}; 
   // 재화별로 리스트 가져오기 
   const result = await DB(`
   SELECT 
   a.currency
   , fn_get_design_info(icon_image_id, 'url') icon_url
   , fn_get_design_info(icon_image_id, 'key') icon_key
-  , fn_get_design_info(resource_image_id, 'url') currency_url
-  , fn_get_design_info(resource_image_id, 'key') currency_key
+  , CASE WHEN currency_type = 'wallpaper' THEN 
+    fn_get_bg_info(resource_image_id, 'url') 
+  ELSE 
+    fn_get_design_info(resource_image_id, 'url') 
+  END currency_url
+  , CASE WHEN currency_type = 'wallpaper' THEN 
+    fn_get_bg_info(resource_image_id, 'key') 
+  ELSE 
+    fn_get_design_info(resource_image_id, 'key') 
+  END currency_key
+  , currency_type
   FROM user_property a, com_currency b 
-  WHERE a.currency = b.currency
+  WHERE a.currency = b.currency 
   AND userkey = ? 
-  AND a.currency LIKE CONCAT('%', ?, '%')
   AND NOW() < expire_date 
+  AND is_coin = 1
   ORDER BY a.currency
-  ;`, [userkey, currency_type]);
+  ;`, [userkey]);
 
-  res.status(200).json(result.row); 
+  // eslint-disable-next-line no-restricted-syntax
+  for(const item of result.row){
+    
+    if (!Object.prototype.hasOwnProperty.call(responseData, item.currency_type)) {
+      responseData[item.currency_type] = [];
+    }
+
+    responseData[item.currency_type].push({
+      //선택지
+      currency: item.currency,
+      icon_url: item.icon_url,
+      icon_key: item.icon_key,
+      currency_url: item.currency_url,
+      currency_key: item.currency_key,
+    });    
+  }
+
+  res.status(200).json(responseData); 
 
 }; 
 
@@ -2390,8 +2416,16 @@ export const getProfileCurrencyCurrent = async(req, res) =>{
   let result = await DB(`
   SELECT 
   a.currency
-  , fn_get_design_info(resource_image_id, 'url') currency_url
-  , fn_get_design_info(resource_image_id, 'key') currency_key
+  , CASE WHEN currency_type = 'wallpaper' THEN
+    fn_get_bg_info(resource_image_id, 'url')
+  ELSE 
+    fn_get_design_info(resource_image_id, 'url')
+  END currency_url
+  , CASE WHEN currency_type = 'wallpaper' THEN
+    fn_get_bg_info(resource_image_id, 'key')
+  ELSE 
+    fn_get_design_info(resource_image_id, 'key')
+  END currency_key
   , sorting_order
   , pos_x
   , pos_y 
