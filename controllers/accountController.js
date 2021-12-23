@@ -2341,3 +2341,118 @@ export const requestExchangeOneTimeTicketWithCoin = async (req, res) => {
 
   logAction(userkey, "exchange_charge", req.body);
 }; // ? END
+
+
+// * 유저가 보유한 재화 (꾸미기 가능 재화 한정) 리스트
+export const getProfileCurrencyOwnList = async(req, res) =>{
+  
+  logger.info(`getProfileCurrencyOwnList`); 
+
+  const {
+    body:{
+      userkey,
+    }
+  } = req;
+
+  const responseData = {}; 
+  // 재화별로 리스트 가져오기 
+  const result = await DB(`
+  SELECT 
+  a.currency
+  , fn_get_design_info(icon_image_id, 'url') icon_url
+  , fn_get_design_info(icon_image_id, 'key') icon_key
+  , CASE WHEN currency_type = 'wallpaper' THEN 
+    fn_get_bg_info(resource_image_id, 'url') 
+  ELSE 
+    fn_get_design_info(resource_image_id, 'url') 
+  END currency_url
+  , CASE WHEN currency_type = 'wallpaper' THEN 
+    fn_get_bg_info(resource_image_id, 'key') 
+  ELSE 
+    fn_get_design_info(resource_image_id, 'key') 
+  END currency_key
+  , currency_type
+  FROM user_property a, com_currency b 
+  WHERE a.currency = b.currency 
+  AND userkey = ? 
+  AND NOW() < expire_date 
+  AND is_coin = 1
+  ORDER BY a.currency
+  ;`, [userkey]);
+
+  // eslint-disable-next-line no-restricted-syntax
+  for(const item of result.row){
+    
+    if (!Object.prototype.hasOwnProperty.call(responseData, item.currency_type)) {
+      responseData[item.currency_type] = [];
+    }
+
+    responseData[item.currency_type].push({
+      //선택지
+      currency: item.currency,
+      icon_url: item.icon_url,
+      icon_key: item.icon_key,
+      currency_url: item.currency_url,
+      currency_key: item.currency_key,
+    });    
+  }
+
+  res.status(200).json(responseData); 
+
+}; 
+
+// * 유저가 저장한 프로필 꾸미기 저장 정보
+export const getProfileCurrencyCurrent = async(req, res) =>{
+  logger.info(`getProfileCurrencyCurrent`); 
+
+  const {
+    body:{
+      userkey, 
+    }
+  } = req;
+
+  const responseData = {}; 
+
+  let result = await DB(`
+  SELECT 
+  a.currency
+  , CASE WHEN currency_type = 'wallpaper' THEN
+    fn_get_bg_info(resource_image_id, 'url')
+  ELSE 
+    fn_get_design_info(resource_image_id, 'url')
+  END currency_url
+  , CASE WHEN currency_type = 'wallpaper' THEN
+    fn_get_bg_info(resource_image_id, 'key')
+  ELSE 
+    fn_get_design_info(resource_image_id, 'key')
+  END currency_key
+  , sorting_order
+  , pos_x
+  , pos_y 
+  , profile_scale
+  , angle 
+  FROM user_profile_currency a, com_currency b 
+  WHERE userkey = ?
+  AND a.currency = b.currency
+  ; 
+  `, [userkey]);
+  responseData.currency = result.row; 
+
+  result = await DB(`
+  SELECT 
+  text_id 
+  , input_text
+  , font_size
+  , color_rgb
+  , sorting_order
+  , pos_x
+  , pos_y 
+  , angle 
+  FROM user_profile_text
+  WHERE userkey = ?
+  ;
+  `, [userkey]);
+  responseData.text = result.row; 
+
+  res.status(200).json(responseData);
+};
