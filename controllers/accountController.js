@@ -2341,3 +2341,84 @@ export const requestExchangeOneTimeTicketWithCoin = async (req, res) => {
 
   logAction(userkey, "exchange_charge", req.body);
 }; // ? END
+
+
+// * 유저가 보유한 재화 (꾸미기 가능 재화 한정) 리스트
+export const getProfileCurrencyOwnList = async(req, res) =>{
+  
+  logger.info(`getProfileCurrencyOwnList`); 
+
+  const {
+    body:{
+      userkey,
+      currency_type = "wallpaper", 
+    }
+  } = req;
+
+  // 재화별로 리스트 가져오기 
+  const result = await DB(`
+  SELECT 
+  a.currency
+  , fn_get_design_info(icon_image_id, 'url') icon_url
+  , fn_get_design_info(icon_image_id, 'key') icon_key
+  , fn_get_design_info(resource_image_id, 'url') currency_url
+  , fn_get_design_info(resource_image_id, 'key') currency_key
+  FROM user_property a, com_currency b 
+  WHERE a.currency = b.currency
+  AND userkey = ? 
+  AND a.currency LIKE CONCAT('%', ?, '%')
+  AND NOW() < expire_date 
+  ORDER BY a.currency
+  ;`, [userkey, currency_type]);
+
+  res.status(200).json(result.row); 
+
+}; 
+
+// * 유저가 저장한 프로필 꾸미기 저장 정보
+export const getProfileCurrencyCurrent = async(req, res) =>{
+  logger.info(`getProfileCurrencyCurrent`); 
+
+  const {
+    body:{
+      userkey, 
+    }
+  } = req;
+
+  const responseData = {}; 
+
+  let result = await DB(`
+  SELECT 
+  a.currency
+  , fn_get_design_info(resource_image_id, 'url') currency_url
+  , fn_get_design_info(resource_image_id, 'key') currency_key
+  , sorting_order
+  , pos_x
+  , pos_y 
+  , profile_scale
+  , angle 
+  FROM user_profile_currency a, com_currency b 
+  WHERE userkey = ?
+  AND a.currency = b.currency
+  ; 
+  `, [userkey]);
+  responseData.currency = result.row; 
+
+  result = await DB(`
+  SELECT 
+  text_id 
+  , input_text
+  , font_size
+  , color_rgb
+  , sorting_order
+  , pos_x
+  , pos_y 
+  , angle 
+  FROM user_profile_text
+  WHERE userkey = ?
+  ;
+  `, [userkey]);
+  responseData.text = result.row; 
+
+  res.status(200).json(responseData);
+};
