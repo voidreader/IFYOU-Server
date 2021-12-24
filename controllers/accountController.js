@@ -700,6 +700,7 @@ const requestSideEpisodeList = async (userInfo) => {
   }
 
   // ! 2021.09.01 갤러리 이미지 리소스의 첫 등장 에피소드 정보에 따라서 각 에피소드에 넣어준다.
+  /*
   const galleryImages = await getConnectedGalleryImages(userInfo.project_id);
 
   // 정렬된 에피소드 목록을 돌면서 연결된 갤러리 이미지를 넣어준다.
@@ -713,6 +714,7 @@ const requestSideEpisodeList = async (userInfo) => {
       }
     } //
   });
+  */
 
   return sideEpisodes.row;
 };
@@ -785,6 +787,7 @@ const requestMainEpisodeList = async (userInfo) => {
   });
 
   // ! 2021.09.01 갤러리 이미지 리소스의 첫 등장 에피소드 정보에 따라서 각 에피소드에 넣어준다.
+  /*
   const galleryImages = await getConnectedGalleryImages(userInfo.project_id);
 
   // 정렬된 에피소드 목록을 돌면서 연결된 갤러리 이미지를 넣어준다.
@@ -798,6 +801,7 @@ const requestMainEpisodeList = async (userInfo) => {
       }
     } //
   });
+  */
 
   return organized;
 };
@@ -919,6 +923,10 @@ const getUserGalleryHistory = async (userInfo) => {
   // * live개체의 오픈 이력이 없음 => live 개체를 목록에서 제거
   // 체크 시작한다.
   images.forEach((item) => {
+    if (!Object.prototype.hasOwnProperty.call(item, "valid")) {
+      item.valid = 1;
+    }
+
     // 미니컷, 일러스트 타입이면서 live 페어 정보가 있다.
     if (item.illust_type === "minicut" && item.live_pair_id > 0) {
       // 대상 live_pair_id의 오픈 이력이 있는 체크한다.
@@ -2451,21 +2459,18 @@ export const requestExchangeOneTimeTicketWithCoin = async (req, res) => {
   logAction(userkey, "exchange_charge", req.body);
 }; // ? END
 
-
 // * 유저가 보유한 재화 (꾸미기 가능 재화 한정) 리스트
-export const getProfileCurrencyOwnList = async(req, res) =>{
-  
-  logger.info(`getProfileCurrencyOwnList`); 
+export const getProfileCurrencyOwnList = async (req, res) => {
+  logger.info(`getProfileCurrencyOwnList`);
 
   const {
-    body:{
-      userkey,
-    }
+    body: { userkey },
   } = req;
 
-  const responseData = {}; 
-  // 재화별로 리스트 가져오기 
-  const result = await DB(`
+  const responseData = {};
+  // 재화별로 리스트 가져오기
+  const result = await DB(
+    `
   SELECT 
   a.currency
   , fn_get_design_info(icon_image_id, 'url') icon_url
@@ -2487,12 +2492,15 @@ export const getProfileCurrencyOwnList = async(req, res) =>{
   AND NOW() < expire_date 
   AND is_coin = 1
   ORDER BY a.currency
-  ;`, [userkey]);
+  ;`,
+    [userkey]
+  );
 
   // eslint-disable-next-line no-restricted-syntax
-  for(const item of result.row){
-    
-    if (!Object.prototype.hasOwnProperty.call(responseData, item.currency_type)) {
+  for (const item of result.row) {
+    if (
+      !Object.prototype.hasOwnProperty.call(responseData, item.currency_type)
+    ) {
       responseData[item.currency_type] = [];
     }
 
@@ -2503,26 +2511,24 @@ export const getProfileCurrencyOwnList = async(req, res) =>{
       icon_key: item.icon_key,
       currency_url: item.currency_url,
       currency_key: item.currency_key,
-    });    
+    });
   }
 
-  res.status(200).json(responseData); 
-
-}; 
+  res.status(200).json(responseData);
+};
 
 // * 유저가 저장한 프로필 꾸미기 저장 정보
-export const getProfileCurrencyCurrent = async(req, res) =>{
-  logger.info(`getProfileCurrencyCurrent`); 
+export const getProfileCurrencyCurrent = async (req, res) => {
+  logger.info(`getProfileCurrencyCurrent`);
 
   const {
-    body:{
-      userkey, 
-    }
+    body: { userkey },
   } = req;
 
-  const responseData = {}; 
+  const responseData = {};
 
-  let result = await DB(`
+  let result = await DB(
+    `
   SELECT 
   a.currency
   , CASE WHEN currency_type = 'wallpaper' THEN
@@ -2544,10 +2550,13 @@ export const getProfileCurrencyCurrent = async(req, res) =>{
   WHERE userkey = ?
   AND a.currency = b.currency
   ; 
-  `, [userkey]);
-  responseData.currency = result.row; 
+  `,
+    [userkey]
+  );
+  responseData.currency = result.row;
 
-  result = await DB(`
+  result = await DB(
+    `
   SELECT 
   text_id 
   , input_text
@@ -2560,8 +2569,10 @@ export const getProfileCurrencyCurrent = async(req, res) =>{
   FROM user_profile_text
   WHERE userkey = ?
   ;
-  `, [userkey]);
-  responseData.text = result.row; 
+  `,
+    [userkey]
+  );
+  responseData.text = result.row;
 
   res.status(200).json(responseData);
 };
