@@ -89,8 +89,14 @@ import {
   addressDetail,
 } from "./prizeController";
 import { getProjectEpisodeProgressCount } from "./statController";
-import { getCoinProductList, userCoinPurchase } from "./coinController";
 import { userProfileSave } from "./profileController";  
+import { 
+  getCoinProductList, 
+  userCoinPurchase,
+  getCoinProductMainList, 
+  getCoinProductSearch, 
+  getCoinProductSearchDetail,  
+} from "./coinController";
 
 // * 클라이언트에서 호출하는 프로젝트 크레딧 리스트
 const getProjectCreditList = async (req, res) => {
@@ -984,7 +990,6 @@ export const clientHome = (req, res) => {
   else if (func === "requestExchangeOneTimeTicketWithCoin")
     requestExchangeOneTimeTicketWithCoin(req, res);
   else if (func === "requestPromotionList") getPromotionList(req, res);
-  else if (func === "getCoinProductList") getCoinProductList(req, res);
   else if (func === "userCoinPurchase") userCoinPurchase(req, res);
   else if (func === "updateUserSelectionCurrent") 
     updateUserSelectionCurrent(req, res); // 선택지 업데이트 
@@ -1002,6 +1007,12 @@ export const clientHome = (req, res) => {
     getProfileCurrencyCurrent(req, res); //현재 저장된 프로필 재화 정보
   else if (func === "userProfileSave") 
     userProfileSave(req, res); //프로필 꾸미기 저장 
+  else if (func === "getCoinProductMainList") 
+    getCoinProductMainList(req, res);  //코인 상점 메인 
+  else if (func === "getCoinProductSearch") 
+    getCoinProductSearch(req, res);  //코인 상점 검색 
+  else if (func === "getCoinProductSearchDetail") 
+    getCoinProductSearchDetail(req, res);  //코인 상점 검색 상세
   else {
     //  res.status(400).send(`Wrong Func : ${func}`);
     logger.error(`clientHome Error`);

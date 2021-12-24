@@ -7,6 +7,10 @@ import {
 } from "../respondent";
 import { getUserBankInfo } from "./bankController";
 import { getCurrencyQuantity } from "./accountController";
+import {
+    getEqualConditionQuery, 
+    getLikeConditionQuery, 
+} from "../com/com";
 
 const currencyQuery = `SELECT currency 
 , local_code
@@ -38,7 +42,7 @@ const modifyCoinProductInfo = async (userkey, row) => {
         });
         currencys = currencys.slice(0, -1); 
         const currencyList = await getCurrencyInfo(userkey, currencys);
-        row.currency = currencyList;u
+        row.currency = currencyList;
     }
 
     const langResult = await DB(`SELECT lang, name FROM com_coin_product_detail WHERE coin_product_id = ?;`, [row.coin_product_id]);
@@ -47,38 +51,9 @@ const modifyCoinProductInfo = async (userkey, row) => {
     return row;
 };
 
-const getCurrencyList = async (lang, startData, endDate, currency) =>{
-
-    let whereQuery = ``; 
-    if(currency === "set"){
-        whereQuery += ` AND currency = '' `; 
-    }else{
-        whereQuery += ` AND currency LIKE '%${currency}%' `; 
-    }
-    const result = await DB(`
-    SELECT coin_product_id 
-    , fn_get_coin_product_name(coin_product_id, ?) name 
-    , price
-    , sale_price
-    , sale_kind 
-    , thumbnail_id 
-    , fn_get_design_info(thumbnail_id, 'url') thumbnail_url
-    , fn_get_design_info(thumbnail_id, 'key') thumbnail_key 
-    FROM com_coin_product 
-    WHERE coin_product_id > 0  
-    AND is_public > 0 
-    AND sale_price > 0
-    AND start_date >= ? AND end_date <= ? 
-    ${whereQuery}
-    ORDER BY coin_product_id DESC;
-    `, [lang, startData, endDate]); 
-
-    return result.row; 
-};
-
-//! 메인화면 
+//! 메인 상품 목록 
 export const getCoinProductMainList = async (req, res) =>{
-    logger.info(`coinMainList`);
+    logger.info(`getCoinProductMainList`);
 
     const {
         body: {
@@ -86,35 +61,85 @@ export const getCoinProductMainList = async (req, res) =>{
         }
     } = req;
 
-    const responseData = {}; 
-
     //* 기간 한정 시작일, 끝일 가져오기 
-    const result = await DB(`
+    let result = await DB(`
     SELECT 
     ifnull(DATE_FORMAT(min(start_date), '%Y-%m-%d %T'), now()) start_date
     , ifnull(DATE_FORMAT(max(end_date), '%Y-%m-%d %T'), now()) end_date
     FROM com_coin_product
     WHERE coin_product_id > 0 
-    AND is_public > 0 
-    AND sale_price > 0
-    AND now() <= end_date 
-    AND end_date <> '9999-12-31';
-    `, []);
+    -- AND is_public > 0 
+    -- AND sale_price > 0
+    AND now() <= end_date
+    -- AND end_date <> '9999-12-31'
+    ;`, []);
 
     const startDate = result.row[0].start_date; 
     const endDate = result.row[0].end_date; 
 
-    responseData.set = await getCurrencyList(lang, startDate, endDate, 'set'); //세트상품
-    responseData.photo = await getCurrencyList(lang, startDate, endDate, 'photo'); //프로필사진
-    responseData.frame = await getCurrencyList(lang, startDate, endDate, 'frame'); //프로필 테두리
-    responseData.background = await getCurrencyList(lang, startDate, endDate, 'background');  //프로필 배경
-    responseData.badge = await getCurrencyList(lang, startDate, endDate, 'badge'); //프로필 뱃지
+    const responseData = {}; 
+    responseData.date = {
+        start_date : startDate, 
+        end_date : endDate,
+    };
+
+    result = await DB(`
+    SELECT coin_product_id
+    , fn_get_coin_product_name(coin_product_id, ?) name  
+    , price
+    , sale_price
+    , sale_kind 
+    , thumbnail_id 
+    , fn_get_design_info(thumbnail_id, 'url') thumbnail_url
+    , fn_get_design_info(thumbnail_id, 'key') thumbnail_key 
+    , CASE WHEN currency LIKE '%portrait%' THEN 'portrait' 
+    WHEN currency LIKE '%frame%' THEN 'frame' 
+    WHEN currency LIKE '%wallpaper%' THEN 'wallpaper' 
+    WHEN currency LIKE '%badge%' THEN 'badge' 
+    WHEN currency LIKE '%standing%' THEN 'standing' 
+    WHEN currency LIKE '%bubble%' THEN 'bubble' 
+    ELSE 'set' 
+    END currency_type      
+    , CASE WHEN currency LIKE '%portrait%' THEN '1' 
+    WHEN currency LIKE '%frame%' THEN '2' 
+    WHEN currency LIKE '%wallpaper%' THEN '3' 
+    WHEN currency LIKE '%badge%' THEN '4' 
+    WHEN currency LIKE '%standing%' THEN '5' 
+    WHEN currency LIKE '%bubble%' THEN '6' 
+    ELSE '0' 
+    END sortkey            
+    FROM com_coin_product
+    WHERE coin_product_id > 0
+    -- AND is_public > 0
+    -- AND sale_price > 0 
+    AND start_date >= ?, now()) AND end_date <= ? 
+    ORDER BY sortkey, coin_product_id DESC;
+    `, [lang, startDate, endDate]); 
+    
+    // eslint-disable-next-line no-restricted-syntax
+    for(const item of result.row){
+
+        if (!Object.prototype.hasOwnProperty.call(responseData, item.currency_type)) {  //재화 타입별로 가져오도록 셋팅 
+            responseData[item.currency_type] = [];
+        }
+      
+        responseData[item.currency_type].push({
+            coin_product_id: item.coin_product_id,
+            name  : item.name,
+            price: item.price,
+            sale_price: item.sale_price,
+            sale_kind : item.sale_kind,
+            thumbnail_id  : item.thumbnail_id, 
+            thumbnail_url : item.thumbnail_url, 
+            thumbnail_key : item.thumbnail_key, 
+        });                        
+    }
 
     res.status(200).json(responseData); 
 
 };
 
-//! 검색 리스트 
+//! 검색 목록
 export const getCoinProductSearch = async(req, res) =>{
     logger.info(`getCoinProductSearch`);
 
@@ -128,7 +153,7 @@ export const getCoinProductSearch = async(req, res) =>{
     SELECT search_word
     FROM user_coin_search
     WHERE userkey = ? 
-    ORDER BY update_date DESC
+    ORDER BY action_date DESC
     LIMIT 10;
     `, [userkey]);
 
@@ -137,96 +162,246 @@ export const getCoinProductSearch = async(req, res) =>{
 
 //! 검색 상세 
 export const getCoinProductSearchDetail = async(req, res) =>{
+    
     logger.info(`getCoinProductSearchDetail`);
 
     const {
         body: {
+            userkey, 
             lang = "KO", 
+            search_word = "", 
         }
     } = req;   
 
+    //* 검색어 누적 
+    let result = await DB(`INSERT INTO user_coin_search(userkey, search_word) VALUES(?, ?);`, [userkey, search_word]);
+
     const responseData = {};
-    const startDate = 'now()'; 
-    const endDate = '9999-12-31';
+    result = await DB(`
+    SELECT coin_product_id
+    , fn_get_coin_product_name(coin_product_id, ?) name  
+    , price
+    , sale_price
+    , sale_kind 
+    , thumbnail_id 
+    , fn_get_design_info(thumbnail_id, 'url') thumbnail_url
+    , fn_get_design_info(thumbnail_id, 'key') thumbnail_key 
+    , CASE WHEN currency LIKE '%portrait%' THEN 'portrait' 
+    WHEN currency LIKE '%frame%' THEN 'frame' 
+    WHEN currency LIKE '%wallpaper%' THEN 'wallpaper' 
+    WHEN currency LIKE '%badge%' THEN 'badge' 
+    WHEN currency LIKE '%standing%' THEN 'standing' 
+    WHEN currency LIKE '%bubble%' THEN 'bubble' 
+    ELSE 'set' 
+    END currency_type      
+    , CASE WHEN currency LIKE '%portrait%' THEN '1' 
+    WHEN currency LIKE '%frame%' THEN '2' 
+    WHEN currency LIKE '%wallpaper%' THEN '3' 
+    WHEN currency LIKE '%badge%' THEN '4' 
+    WHEN currency LIKE '%standing%' THEN '5' 
+    WHEN currency LIKE '%bubble%' THEN '6' 
+    ELSE '0' 
+    END sortkey            
+    FROM com_coin_product
+    WHERE coin_product_id > 0
+    -- AND is_public > 0
+    AND now() <= end_date
+    ORDER BY sortkey, coin_product_id DESC;
+    `, [lang]); 
 
-    //세트상품 
-    let result = await getCurrencyList(lang, startDate, endDate, 'set');
-    responseData.setCount = result.row.length; 
-    responseData.set = result;  
+    // eslint-disable-next-line no-restricted-syntax
+    for(const item of result.row){
 
-    //프로필사진
-    result = await getCurrencyList(lang, startDate, endDate, 'photo');
-    responseData.photoCount = result.row.length; 
-    responseData.photo = result; 
+        if (!Object.prototype.hasOwnProperty.call(responseData, item.currency_type)) {  //재화 타입별로 가져오도록 셋팅 
+            responseData[item.currency_type] = [];
+        }
+      
+        responseData[item.currency_type].push({
+            coin_product_id: item.coin_product_id,
+            name  : item.name,
+            price: item.price,
+            sale_price: item.sale_price,
+            sale_kind : item.sale_kind,
+            thumbnail_id  : item.thumbnail_id, 
+            thumbnail_url : item.thumbnail_url, 
+            thumbnail_key : item.thumbnail_key, 
+        });                        
+    }
 
-    //프로필 테두리
-    result = await getCurrencyList(lang, startDate, endDate, 'frame');
-    responseData.frameCount = result.row.length; 
-    responseData.frame = result; 
+    res.status(200).json(responseData);
 
-    //프로필 배경
-    result = await getCurrencyList(lang, startDate, endDate, 'background');
-    responseData.bgCount = result.row.length; 
-    responseData.bg = result;  
-
-    //프로필 뱃지
-    result = await getCurrencyList(lang, startDate, endDate, 'badge');
-    responseData.badgeCount = result.row.length; 
-    responseData.badge = result;
-
-    res.status(200).json(responseData); 
 };
 
-//! 판매중인 리스트 
-export const getCoinProductList = async (req, res) => {
-    logger.info(`getCoinProductList`);
+//! 탭별 목록 
+export const getCoinProductTypeList = async(req, res) =>{
+    
+    logger.info(`getCoinProductTypeList`);
 
     const {
-        body:{userkey = 0}
+        body:{
+            lang = "KO", 
+            currency_type = "",
+        }
+    } = req;
+
+    let whereQuery = ``; 
+    if(currency_type){
+        if(currency_type === "set") whereQuery += getEqualConditionQuery('a.currency', '', true);
+        else whereQuery += getLikeConditionQuery('a.currency', currency_type); 
+    }
+
+    const responseData = {}; 
+    const project = {}; 
+    
+    //* 추천 상품(할인 중인 상품, 신규상품(2주 이내))
+    let result = await DB(`
+    SELECT coin_product_id
+    , fn_get_coin_product_name(coin_product_id, ?) name  
+    , price
+    , sale_price
+    , sale_kind 
+    , thumbnail_id 
+    , fn_get_design_info(thumbnail_id, 'url') thumbnail_url
+    , fn_get_design_info(thumbnail_id, 'key') thumbnail_key 
+    FROM com_coin_product a
+    WHERE coin_product_id > 0
+    -- AND is_public > 0
+    -- AND sale_price > 0 
+    AND create_date BETWEEN DATE_ADD(NOW(),INTERVAL -2 WEEK ) AND NOW()
+    AND NOW() <= end_date
+    ${whereQuery}
+    ORDER BY coin_product_id DESC;       
+    `, [lang]);
+    responseData.recommend = result.row;
+    
+    //* 작품별 리스트 
+    result = await DB(`
+    SELECT coin_product_id
+    , fn_get_coin_product_name(coin_product_id, ?) name  
+    , price
+    , sale_price
+    , sale_kind 
+    , thumbnail_id 
+    , fn_get_design_info(thumbnail_id, 'url') thumbnail_url
+    , fn_get_design_info(thumbnail_id, 'key') thumbnail_key 
+    , connected_project 
+    , fn_get_project_name_new(connected_project, ?) project_name 
+    , (SELECT sortkey FROM list_project_master WHERE project_id = connected_project) sortkey 
+    FROM com_coin_product a, com_currency b 
+    WHERE coin_product_id > 0
+    -- AND is_public > 0
+    AND NOW() <= end_date
+    ${whereQuery}
+    AND a.currency = b.currency
+    ORDER BY sortkey, coin_product_id DESC;    
+    `, [lang, lang]); 
+
+    // eslint-disable-next-line no-restricted-syntax
+    for(const item of result.row){
+
+        if (!Object.prototype.hasOwnProperty.call(project, item.project_name)) {  //작품별로 가져오도록 셋팅 
+            project[item.project_name] = [];
+        }
+      
+        project[item.project_name].push({
+            coin_product_id: item.coin_product_id,
+            name  : item.name,
+            price: item.price,
+            sale_price: item.sale_price,
+            sale_kind : item.sale_kind,
+            thumbnail_id  : item.thumbnail_id, 
+            thumbnail_url : item.thumbnail_url, 
+            thumbnail_key : item.thumbnail_key, 
+        });                        
+    }
+    responseData.project = project; 
+
+    res.status(200).json(responseData);     
+
+};  
+
+
+const getCoinCurrencyInfo = async (userkey, lang, coin_product_id) => {
+
+    const responseData = {}; 
+
+    const result = await DB(`
+    SELECT currency 
+    , fn_get_localize_text((SELECT id FROM com_localize WHERE currency = a.currency), ?) currency_name
+    , fn_get_user_property(?, a.currency) is_own
+    , CASE WHEN currency LIKE '%portrait%' THEN 'portrait' 
+           WHEN currency LIKE '%frame%' THEN 'frame' 
+           WHEN currency LIKE '%wallpaper%' THEN 'wallpaper' 
+           WHEN currency LIKE '%badge%' THEN 'badge' 
+           WHEN currency LIKE '%standing%' THEN 'standing' 
+           WHEN currency LIKE '%bubble%' THEN 'bubble' 
+       ELSE '' END currency_type 
+    FROM com_coin_product_set a
+    WHERE coin_product_id = ?;
+    `, [lang, userkey, coin_product_id]);
+    // eslint-disable-next-line no-restricted-syntax
+    for(const item of result.row){
+
+        if (!Object.prototype.hasOwnProperty.call(responseData, item.currency_type)) {  //재화 타입별로 가져오도록 셋팅 
+            responseData[item.currency_type] = [];
+        }
+      
+        responseData[item.currency_type].push({
+            currency: item.currency,
+            currency_name  : item.currency_name,
+            is_own: item.is_own,
+        });                        
+    }
+
+
+    return responseData; 
+};
+
+//! 상품 상세 
+export const coinProductDetail = async(req, res) =>{
+    logger.info(`coinProductDetail`);
+
+    const {
+        body:{
+            coin_product_id, 
+            userkey, 
+            lang = "KO", 
+        }
     } = req;
     
     const result = await DB(`
-    SELECT coin_product_id
+    SELECT fn_get_coin_product_name(coin_product_id, ?) name  
+    , price
+    , sale_price
+    , sale_kind 
+    , thumbnail_id 
     , fn_get_design_info(thumbnail_id, 'url') thumbnail_url
-    , fn_get_design_info(thumbnail_id, 'key') thumbnail_key
+    , fn_get_design_info(thumbnail_id, 'key') thumbnail_key 
+    , detail_page_id 
     , fn_get_design_info(detail_page_id, 'url') detail_page_url
-    , fn_get_design_info(detail_page_id, 'key') detail_page_key 
-    , price 
-    , sale_price 
-    , sale_kind.
-    , currency 
-    , CASE WHEN currency = '' THEN '1' ELSE '0' END is_set 
+    , fn_get_design_info(detail_page_id, 'key') detail_page_key
+    , CASE WHEN currency LIKE '%portrait%' THEN '초상화' 
+           WHEN currency LIKE '%frame%' THEN '테두리' 
+           WHEN currency LIKE '%wallpaper%' THEN '배경' 
+           WHEN currency LIKE '%badge%' THEN '뱃지' 
+           WHEN currency LIKE '%standing%' THEN '캐릭터 스탠딩' 
+           WHEN currency LIKE '%bubble%' THEN '말풍선' 
+      ELSE '세트' END currency_type          
+    , DATE_FORMAT(start_date, '%Y-%m-%d %T') start_date
+    , DATE_FORMAT(end_date, '%Y-%m-%d %T') end_date
     FROM com_coin_product 
-    WHERE is_public > 0 
-    AND NOW() BETWEEN start_date AND end_date
-    ORDER BY coin_product_id DESC;
-    `, []);
+    WHERE coin_product_id = ?;
+    `, [lang, coin_product_id]);
+    // eslint-disable-next-line no-restricted-syntax
+    for(const item of result.row){
+        if(item.currency_type === "세트"){
+            // eslint-disable-next-line no-await-in-loop
+            item.set = await getCoinCurrencyInfo(userkey, lang, coin_product_id); 
+        }
+    }
 
-    const promise = [];
-    let finalResult = ``; 
-    result.row.forEach(async (item) => {
-        promise.push(modifyCoinProductInfo(userkey, item)); 
-    });
-
-    await Promise.all(promise)
-    .then((values) => {
-      finalResult = values;
-    })
-    .catch((err) => {
-      console.log(err);
-    });
-  
-    res.status(200).json(finalResult);
-
+    res.status(200).json(result.row); 
 };
-
-
-//! 서치 
-
-//! 서치 상세 
-
-//! 서브 페이지 
-
 
 //! 구매 
 export const userCoinPurchase = async (req, res) => {
