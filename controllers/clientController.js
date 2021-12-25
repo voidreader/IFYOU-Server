@@ -91,11 +91,12 @@ import {
 import { getProjectEpisodeProgressCount } from "./statController";
 import { userProfileSave } from "./profileController";  
 import { 
-  getCoinProductList, 
   userCoinPurchase,
   getCoinProductMainList, 
   getCoinProductSearch, 
   getCoinProductSearchDetail,  
+  getCoinProductTypeList,
+  coinProductDetail, 
 } from "./coinController";
 
 // * 클라이언트에서 호출하는 프로젝트 크레딧 리스트
@@ -1013,6 +1014,10 @@ export const clientHome = (req, res) => {
     getCoinProductSearch(req, res);  //코인 상점 검색 
   else if (func === "getCoinProductSearchDetail") 
     getCoinProductSearchDetail(req, res);  //코인 상점 검색 상세
+  else if (func === "getCoinProductTypeList")
+    getCoinProductTypeList(req, res); //탭별 목록
+  else if (func === "coinProductDetail")
+    coinProductDetail(req, res); //상품 상세
   else {
     //  res.status(400).send(`Wrong Func : ${func}`);
     logger.error(`clientHome Error`);
