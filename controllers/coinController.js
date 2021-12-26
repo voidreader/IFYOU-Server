@@ -12,6 +12,31 @@ import {
     getInConditionQuery, 
 } from "../com/com";
 
+const getColumn = (kind) =>{
+
+    let result = `, ifnull(fn_get_currency_info(currency, 'type'), 'set') currency_type      
+    , CASE WHEN fn_get_currency_info(currency, 'type') = 'portrait' COLLATE utf8mb4_0900_ai_ci THEN '1' 
+    WHEN fn_get_currency_info(currency, 'type') = 'frame' COLLATE utf8mb4_0900_ai_ci THEN '2' 
+    WHEN fn_get_currency_info(currency, 'type') = 'wallpaper' COLLATE utf8mb4_0900_ai_ci THEN '3' 
+    WHEN fn_get_currency_info(currency, 'type') = 'badge' COLLATE utf8mb4_0900_ai_ci THEN '4' 
+    WHEN fn_get_currency_info(currency, 'type') = 'standing' COLLATE utf8mb4_0900_ai_ci THEN '5' 
+    WHEN fn_get_currency_info(currency, 'type') = 'bubble' COLLATE utf8mb4_0900_ai_ci THEN '6' 
+    ELSE '0' END sortkey`;
+
+    if(kind){
+        result = `, ifnull(fn_get_currency_info(a.currency, 'type'), '') currency_type
+        , CASE WHEN fn_get_currency_info(a.currency, 'type') = 'portrait' COLLATE utf8mb4_0900_ai_ci THEN '1'
+        WHEN fn_get_currency_info(a.currency, 'type') = 'frame' COLLATE utf8mb4_0900_ai_ci THEN '2'
+        WHEN fn_get_currency_info(a.currency, 'type') = 'wallpaper' COLLATE utf8mb4_0900_ai_ci THEN '3'
+        WHEN fn_get_currency_info(a.currency, 'type') = 'badge' COLLATE utf8mb4_0900_ai_ci THEN '4'
+        WHEN fn_get_currency_info(a.currency, 'type') = 'standing' COLLATE utf8mb4_0900_ai_ci THEN '5'
+        WHEN fn_get_currency_info(a.currency, 'type') = 'bubble' COLLATE utf8mb4_0900_ai_ci THEN '6'
+        ELSE '7' END sortkey`;
+    }
+
+    return result; 
+};
+
 //! 메인 상품 목록 
 export const getCoinProductMainList = async (req, res) =>{
     logger.info(`getCoinProductMainList`);
@@ -29,10 +54,10 @@ export const getCoinProductMainList = async (req, res) =>{
     , ifnull(DATE_FORMAT(max(end_date), '%Y-%m-%d %T'), now()) end_date
     FROM com_coin_product
     WHERE coin_product_id > 0 
-    -- AND is_public > 0 
-    -- AND sale_price > 0
+    AND is_public > 0 
+    AND sale_price > 0
     AND now() <= end_date
-    -- AND end_date <> '9999-12-31'
+    AND end_date <> '9999-12-31'
     ;`);
 
     const startDate = result.row[0].start_date; 
@@ -44,6 +69,8 @@ export const getCoinProductMainList = async (req, res) =>{
         end_date : endDate,
     };
 
+    const column = getColumn(); 
+
     result = await DB(`
     SELECT coin_product_id
     , fn_get_coin_product_name(coin_product_id, ?) name  
@@ -53,19 +80,13 @@ export const getCoinProductMainList = async (req, res) =>{
     , thumbnail_id 
     , fn_get_design_info(thumbnail_id, 'url') thumbnail_url
     , fn_get_design_info(thumbnail_id, 'key') thumbnail_key 
-    , ifnull(fn_get_currency_info(currency, 'type'), 'set') currency_type      
-    , CASE WHEN fn_get_currency_info(currency, 'type') = 'portrait' COLLATE utf8mb4_0900_ai_ci THEN '1' 
-    WHEN fn_get_currency_info(currency, 'type') = 'frame' COLLATE utf8mb4_0900_ai_ci THEN '2' 
-    WHEN fn_get_currency_info(currency, 'type') = 'wallpaper' COLLATE utf8mb4_0900_ai_ci THEN '3' 
-    WHEN fn_get_currency_info(currency, 'type') = 'badge' COLLATE utf8mb4_0900_ai_ci THEN '4' 
-    WHEN fn_get_currency_info(currency, 'type') = 'standing' COLLATE utf8mb4_0900_ai_ci THEN '5' 
-    WHEN fn_get_currency_info(currency, 'type') = 'bubble' COLLATE utf8mb4_0900_ai_ci THEN '6' 
-    ELSE '0' END sortkey            
+    ${column}
     FROM com_coin_product
     WHERE coin_product_id > 0
-    -- AND is_public > 0
-    -- AND sale_price > 0 
-    AND start_date >= ? AND end_date <= ? 
+    AND is_public > 0
+    AND sale_price > 0 
+    AND start_date >= ? 
+    AND end_date BETWEEN now() AND ? 
     ORDER BY sortkey, coin_product_id DESC;
     `, [lang, startDate, endDate]); 
     
@@ -127,11 +148,11 @@ export const getCoinProductSearchDetail = async(req, res) =>{
     } = req;   
 
     //* 검색어 누적 > 검색어가 다를 경우에만 누적 
-    let result = await DB(`SELECT * FROM user_coin_search WHERE userkey = ? AND UPPER(search_word) = UPPER(?);`, [userkey, search_word]);
+    let result = await DB(`SELECT * FROM user_coin_search WHERE userkey = ? AND search_word = ?;`, [userkey, search_word]);
     if(result.row.length === 0) {
         result = await DB(`INSERT INTO user_coin_search(userkey, search_word) VALUES(?, ?);`, [userkey, search_word]);
     }else{
-        result = await DB(`UPDATE user_coin_search action_date = now() WHERE userkey = ? AND search_word = ?;`, [userkey, search_word]);
+        result = await DB(`UPDATE user_coin_search SET action_date = now() WHERE userkey = ? AND search_word = ?;`, [userkey, search_word]);
     }
     //* 검색어 조건절 걸기 
     let whereQuery = ``; 
@@ -184,6 +205,34 @@ export const getCoinProductSearchDetail = async(req, res) =>{
     }
 
     const responseData = {};
+    const total = {};
+    const list = {}; 
+    const column = getColumn(); 
+
+    //건수 
+    result = await DB(`
+    SELECT count(*) total 
+    ${column}
+    FROM com_coin_product
+    WHERE coin_product_id > 0
+    AND is_public > 0
+    AND now() <= end_date
+    ${whereQuery}
+    GROUP BY currency_type
+    ORDER BY sortkey;`);
+    // eslint-disable-next-line no-restricted-syntax
+    for(const item of result.row){
+        if (!Object.prototype.hasOwnProperty.call(total, item.currency_type)) {  //재화 타입별로 가져오도록 셋팅 
+            total[item.currency_type] = [];
+        }
+      
+        total[item.currency_type].push({
+            total : item.total, 
+        });             
+    }
+    responseData.total = total; 
+
+    //리스트 
     result = await DB(`
     SELECT coin_product_id
     , fn_get_coin_product_name(coin_product_id, ?) name  
@@ -193,17 +242,10 @@ export const getCoinProductSearchDetail = async(req, res) =>{
     , thumbnail_id 
     , fn_get_design_info(thumbnail_id, 'url') thumbnail_url
     , fn_get_design_info(thumbnail_id, 'key') thumbnail_key 
-    , ifnull(fn_get_currency_info(currency, 'type'), 'set') currency_type      
-    , CASE WHEN fn_get_currency_info(currency, 'type') = 'portrait' COLLATE utf8mb4_0900_ai_ci THEN '1' 
-    WHEN fn_get_currency_info(currency, 'type') = 'frame' COLLATE utf8mb4_0900_ai_ci THEN '2' 
-    WHEN fn_get_currency_info(currency, 'type') = 'wallpaper' COLLATE utf8mb4_0900_ai_ci THEN '3' 
-    WHEN fn_get_currency_info(currency, 'type') = 'badge' COLLATE utf8mb4_0900_ai_ci THEN '4' 
-    WHEN fn_get_currency_info(currency, 'type') = 'standing' COLLATE utf8mb4_0900_ai_ci THEN '5' 
-    WHEN fn_get_currency_info(currency, 'type') = 'bubble' COLLATE utf8mb4_0900_ai_ci THEN '6' 
-    ELSE '0' END sortkey
+    ${column}
     FROM com_coin_product
     WHERE coin_product_id > 0
-    -- AND is_public > 0
+    AND is_public > 0
     AND now() <= end_date
     ${whereQuery}
     ORDER BY sortkey, coin_product_id DESC;
@@ -212,11 +254,11 @@ export const getCoinProductSearchDetail = async(req, res) =>{
     // eslint-disable-next-line no-restricted-syntax
     for(const item of result.row){
 
-        if (!Object.prototype.hasOwnProperty.call(responseData, item.currency_type)) {  //재화 타입별로 가져오도록 셋팅 
-            responseData[item.currency_type] = [];
+        if (!Object.prototype.hasOwnProperty.call(list, item.currency_type)) {  //재화 타입별로 가져오도록 셋팅 
+            list[item.currency_type] = [];
         }
       
-        responseData[item.currency_type].push({
+        list[item.currency_type].push({
             coin_product_id: item.coin_product_id,
             name  : item.name,
             price: item.price,
@@ -225,9 +267,10 @@ export const getCoinProductSearchDetail = async(req, res) =>{
             thumbnail_id  : item.thumbnail_id, 
             thumbnail_url : item.thumbnail_url, 
             thumbnail_key : item.thumbnail_key, 
-        });                        
+        });     
     }
-
+    responseData.list = list; 
+    
     res.status(200).json(responseData);
 
 };
@@ -265,7 +308,7 @@ export const getCoinProductTypeList = async(req, res) =>{
     , fn_get_design_info(thumbnail_id, 'key') thumbnail_key 
     FROM com_coin_product a
     WHERE coin_product_id > 0
-    -- AND is_public > 0
+    AND is_public > 0
     AND ( sale_price > 0 OR create_date BETWEEN DATE_ADD(NOW(),INTERVAL -2 WEEK ) AND NOW() )
     AND NOW() <= end_date
     ${whereQuery}
@@ -274,7 +317,7 @@ export const getCoinProductTypeList = async(req, res) =>{
     responseData.recommend = result.row;
     
     //* 리스트 
-    if(currency_type === "set"){
+    if(currency_type === "set"){ // 최신순
         result = await DB(`
         SELECT coin_product_id 
         , fn_get_coin_product_name(coin_product_id, ?) name  
@@ -286,12 +329,12 @@ export const getCoinProductTypeList = async(req, res) =>{
         , fn_get_design_info(thumbnail_id, 'key') thumbnail_key 
         FROM com_coin_product a 
         WHERE coin_product_id > 0
-        -- AND is_public > 0 
+        AND is_public > 0 
         AND NOW() <= end_date
         ${whereQuery}
         ORDER BY coin_product_id DESC;
-        `, [lang]);
-    }else{
+        `, [lang]);   
+    }else{ //작품 관리에 지정된 sortkey순으로 출력
         result = await DB(`
         SELECT coin_product_id
         , fn_get_coin_product_name(coin_product_id, ?) name  
@@ -301,13 +344,12 @@ export const getCoinProductTypeList = async(req, res) =>{
         , thumbnail_id 
         , fn_get_design_info(thumbnail_id, 'url') thumbnail_url
         , fn_get_design_info(thumbnail_id, 'key') thumbnail_key 
-        , connected_project 
         , fn_get_project_name_new(connected_project, ?) project_name 
         , (SELECT sortkey FROM list_project_master WHERE project_id = connected_project) sortkey 
         FROM com_coin_product a, com_currency b 
         WHERE a.currency = b.currency
         AND coin_product_id > 0
-        -- AND is_public > 0
+        AND is_public > 0
         AND NOW() <= end_date
         ${whereQuery}
         ORDER BY sortkey, coin_product_id DESC;    
@@ -346,23 +388,19 @@ export const getCoinProductTypeList = async(req, res) =>{
 const getCoinCurrencyInfo = async (userkey, lang, coin_product_id) => {
 
     const responseData = {}; 
-    
+
+    const column = getColumn(1); 
+
     const result = await DB(`
-    SELECT currency 
-    , fn_get_localize_text((SELECT local_code FROM com_currency WHERE currency = a.currency), ?) currency_name
-    , fn_get_user_property(?, currency) is_own
-    , (SELECT price FROM com_coin_product WHERE currency = a.currency AND is_public > 0 AND NOW() <= end_date) price 
-    , (SELECT sale_price FROM com_coin_product WHERE currency = a.currency AND is_public > 0 AND NOW() <= end_date) sale_price       
-    , ifnull(fn_get_currency_info(currency, 'type'), '') currency_type
-    , CASE WHEN fn_get_currency_info(currency, 'type') = 'portrait' COLLATE utf8mb4_0900_ai_ci THEN '1' 
-    WHEN fn_get_currency_info(currency, 'type') = 'frame' COLLATE utf8mb4_0900_ai_ci THEN '2' 
-    WHEN fn_get_currency_info(currency, 'type') = 'wallpaper' COLLATE utf8mb4_0900_ai_ci THEN '3' 
-    WHEN fn_get_currency_info(currency, 'type') = 'badge' COLLATE utf8mb4_0900_ai_ci THEN '4' 
-    WHEN fn_get_currency_info(currency, 'type') = 'standing' COLLATE utf8mb4_0900_ai_ci THEN '5' 
-    WHEN fn_get_currency_info(currency, 'type') = 'bubble' COLLATE utf8mb4_0900_ai_ci THEN '6' 
-    ELSE '7' END sortkey
-    FROM com_coin_product_set a
-    WHERE coin_product_id = ?
+    SELECT a.currency 
+    , fn_get_localize_text(local_code, ?) currency_name
+    , fn_get_user_property(?, a.currency) is_own
+    , fn_get_coin_product_price(a.currency, 'price') price
+    , fn_get_coin_product_price(a.currency, 'sale') sale_price
+    ${column}
+    FROM com_coin_product_set a, com_currency b 
+    WHERE a.currency = b.currency  
+    AND coin_product_id = ?
     ORDER BY sortkey;
     `, [lang, userkey, coin_product_id]);
     // eslint-disable-next-line no-restricted-syntax
@@ -396,28 +434,23 @@ export const coinProductDetail = async(req, res) =>{
         }
     } = req;
 
-    let ownQuery = ``; 
+    let query = ``; 
     let result = await DB(`SELECT currency FROM com_coin_product WHERE coin_product_id = ?;`, [coin_product_id]);
-    if(result.row[0].currency !== "") ownQuery = `, fn_get_user_property(${userkey}, currency) is_own `;
-    
+    if(result.row[0].currency !== "") {
+        query = `
+        , fn_get_project_name_new((SELECT connected_project FROM com_currency WHERE currency = a.currency), '${lang}') project_name 
+        , fn_get_user_property(${userkey}, currency) is_own 
+        `;
+    }
+
     result = await DB(`
-    SELECT fn_get_coin_product_name(coin_product_id, ?) name  
-    , price
-    , sale_price
-    , sale_kind 
-    , thumbnail_id 
-    , fn_get_design_info(thumbnail_id, 'url') thumbnail_url
-    , fn_get_design_info(thumbnail_id, 'key') thumbnail_key 
-    , detail_page_id 
-    , fn_get_design_info(detail_page_id, 'url') detail_page_url
-    , fn_get_design_info(detail_page_id, 'key') detail_page_key
-    , ifnull(fn_get_currency_info(currency, 'type'), 'set') currency_type       
+    SELECT ifnull(fn_get_currency_info(currency, 'type'), 'set') currency_type       
     , DATE_FORMAT(start_date, '%Y-%m-%d %T') start_date
     , DATE_FORMAT(end_date, '%Y-%m-%d %T') end_date
-    ${ownQuery}
-    FROM com_coin_product 
+    ${query}
+    FROM com_coin_product a
     WHERE coin_product_id = ?;
-    `, [lang, coin_product_id]);
+    `, [coin_product_id]);
     // eslint-disable-next-line no-restricted-syntax
     for(const item of result.row){
         if(item.currency_type === "set"){
