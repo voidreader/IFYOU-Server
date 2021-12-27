@@ -29,8 +29,8 @@ export const userProfileSave = async (req, res) =>{
     if(currencyList){
         
         currentQuery = `
-        INSERT INTO user_profile_currency(userkey, currency, sorting_order, pos_x, pos_y, profile_scale, angle)
-        VALUES(?, ?, ?, ?, ?, ?, ?);
+        INSERT INTO user_profile_currency(userkey, currency, sorting_order, pos_x, pos_y, width, height, angle)
+        VALUES(?, ?, ?, ?, ?, ?, ?, ?);
         `;
 
         // eslint-disable-next-line no-restricted-syntax
@@ -42,7 +42,8 @@ export const userProfileSave = async (req, res) =>{
             item.sorting_order, 
             item.pos_x, 
             item.pos_y, 
-            item.profile_scale, 
+            item.width,
+            item.height, 
             item.angle
             ]);
         }

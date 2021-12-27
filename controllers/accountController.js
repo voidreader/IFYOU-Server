@@ -2544,7 +2544,8 @@ export const getProfileCurrencyCurrent = async (req, res) => {
   , sorting_order
   , pos_x
   , pos_y 
-  , profile_scale
+  , width
+  , height
   , angle 
   FROM user_profile_currency a, com_currency b 
   WHERE userkey = ?
