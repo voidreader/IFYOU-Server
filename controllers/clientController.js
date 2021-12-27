@@ -42,8 +42,9 @@ import {
   getUserEpisodeHistory,
   requestFreeCharge,
   requestExchangeOneTimeTicketWithCoin,
-  getProfileCurrencyOwnList, 
+  getProfileCurrencyOwnList,
   getProfileCurrencyCurrent,
+  updateUserMinicutHistoryVer2,
 } from "./accountController";
 import { logger } from "../logger";
 import {
@@ -99,6 +100,7 @@ import {
   getCoinProductTypeList,
   coinProductDetail, 
 } from "./coinController";
+
 
 // * 클라이언트에서 호출하는 프로젝트 크레딧 리스트
 const getProjectCreditList = async (req, res) => {
@@ -306,12 +308,39 @@ const getEpisodeDownloadResources = async (req, res, result) => {
   res.status(200).json(ret);
 };
 
+const getLivePairScriptInfo = async (project_id, template, pair_id) => {
+  let result;
+
+  if (template === "illust") {
+    result = await DB(`
+    SELECT 'live_illust' template
+         , a.live_illust_name image_name
+    FROM list_live_illust a
+    WHERE a.project_id = ${project_id}
+      AND a.live_illust_id = ${pair_id};
+    `);
+  } else {
+    result = await DB(`
+    SELECT 'live_object' template
+         , a.live_object_name image_name
+    FROM list_live_object a
+    WHERE a.project_id = ${project_id}
+      AND a.live_object_id = ${pair_id};
+    `);
+  }
+
+  if (!result.state || result.row.length === 0) return null;
+
+  // return!
+  return result.row[0];
+};
+
 // 하나의 에피소드 스크립트 및 필요한 리소스 조회
 // ! # 중요합니다!
 const getEpisodeScriptWithResources = async (req, res) => {
   const userInfo = req.body;
 
-  logger.info(`getEpisodeScriptWithResources ${userInfo}`);
+  logger.info(`getEpisodeScriptWithResources ${JSON.stringify(userInfo)}`);
 
   const result = {};
 
@@ -329,11 +358,56 @@ const getEpisodeScriptWithResources = async (req, res) => {
   );
   if (!langCheck.state || langCheck.row.length === 0) lang = "KO";
 
+  const purchaseInfo = await DB(
+    `
+  SELECT a.purchase_type 
+  FROM user_episode_purchase a
+ WHERE a.userkey = ?
+   AND a.episode_id = ?
+  `,
+    [userInfo.userkey, userInfo.episode_id]
+  );
+
+  console.log(purchaseInfo.row);
+
+  if (!purchaseInfo.state || purchaseInfo.row.length === 0) {
+    // respondDB(res, 80094, "에피소드 구매 정보가 없습니다.");
+    logger.error("No episode purchase data");
+    purchaseType = "Permanent";
+    //return;
+  }
+
+  const purchaseType = purchaseInfo.row[0].purchase_type;
+
+  console.log("current episode purchase type is .... ", purchaseType);
+
   // 스크립트
   const sc = await DB(Q_SCRIPT_SELECT_WITH_DIRECTION, [
     userInfo.episode_id,
     lang,
   ]);
+
+  if (purchaseType !== "AD") {
+    console.log("Change to pay");
+
+    for await (const item of sc.row) {
+      // live_pair_id가 있을때만 처리한다.
+      if (item.live_pair_id > 0) {
+        const pair = await getLivePairScriptInfo(
+          item.project_id,
+          item.template,
+          item.live_pair_id
+        );
+
+        // 페어정보 존재시에 교체해준다.
+        if (pair != null) {
+          item.template = pair.template;
+          item.script_data = pair.image_name;
+          item.live_pair_id = -1;
+        }
+      }
+    }
+  }
 
   // 배경
   const background = await DB(Q_SCRIPT_RESOURCE_BG, [
@@ -597,6 +671,73 @@ ORDER BY a.sortkey;
 
   res.status(200).send(result.row);
 }; // ? 끝
+
+// * 이프유 프로젝트 리스트 조회
+const getIfYouProjectList = async (req, res) => {
+  const {
+    body: {
+      userkey = 0,
+      build = "pier.make.story",
+      country = "KR",
+      lang = "KO",
+    },
+  } = req;
+
+  const query = `
+  SELECT a.project_id 
+  , ifnull(b.title, a.title) title
+  , ifnull(b.summary, a.summary) summary 
+  , ifnull(b.writer , a.writer) writer 
+  , a.sortkey 
+  , a.bubble_set_id
+  , a.favor_use 
+  , a.challenge_use 
+  , a.is_credit 
+  , fn_get_design_info(b.ifyou_banner_id, 'url') ifyou_image_url
+  , fn_get_design_info(b.ifyou_banner_id, 'key') ifyou_image_key
+  , fn_get_design_info(b.ifyou_thumbnail_id, 'url') ifyou_thumbnail_url
+  , fn_get_design_info(b.ifyou_thumbnail_id, 'key') ifyou_thumbnail_key
+  , fn_get_design_info(b.circle_image_id, 'url') circle_image_url
+  , fn_get_design_info(b.circle_image_id, 'key') circle_image_key
+  , a.banner_model_id -- 메인배너 Live2D 모델ID
+  , a.is_lock
+  , a.color_rgb
+  , fn_get_episode_progress_value(${userkey}, a.project_id) project_progress
+  , fn_check_exists_project_play_record(${userkey}, a.project_id) is_playing
+  FROM list_project_master a
+  LEFT OUTER JOIN list_project_detail b ON b.project_id = a.project_id AND b.lang ='${lang}'
+  WHERE a.is_public > 0
+  AND a.service_package LIKE CONCAT('%', ?, '%')
+  AND (a.service_country IS NULL OR a.service_country = ?)
+  `;
+
+  const result = await DB(`${query} ORDER BY a.sortkey;`, [build, country]);
+  if (!result.state) {
+    logger.error(`selectLobbyProjectList Error ${result.error}`);
+    respondDB(res, 80026, result.error);
+    return;
+  }
+
+  // * 장르 추가
+  for await (const item of result.row) {
+    item.genre = await getProjectGenre(item.project_id, lang);
+  }
+
+  const randomPick = await DB(`${query} ORDER BY RAND() LIMIT 4;`, [
+    build,
+    country,
+  ]);
+
+  const responseData = {};
+  responseData.all = result.row;
+  responseData.recommend = [];
+
+  randomPick.row.forEach((item) => {
+    responseData.recommend.push(item.project_id);
+  });
+
+  res.status(200).json(responseData);
+}; // ? end of getIfYouProjectList
 
 const getCharacterModel = async (req, res) => {
   const userInfo = req.body;
@@ -1003,6 +1144,9 @@ export const clientHome = (req, res) => {
     getDistinctProjectGenre(req, res); //작품 장르 
   else if (func === "getServerMasterInfo") 
     getServerMasterInfo(req, res); // 서버 마스터 정보 및 광고 기준정보
+  else if (func === "updateUserMinicutHistoryVer2")
+    updateUserMinicutHistoryVer2(req, res);
+  else if (func === "getIfYouProjectList") getIfYouProjectList(req, res); // 서버 마스터 정보 및 광고 기준정보  
   else if (func === "getProfileCurrencyOwnList") 
     getProfileCurrencyOwnList(req, res); //소유한 프로필 재화 리스트
   else if (func === "getProfileCurrencyCurrent") 

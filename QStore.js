@@ -388,6 +388,8 @@ SELECT ls.script_no
      , ifnull(ls.control, '') control
      , ls.selection_group
      , ls.selection_no
+     , CASE WHEN ls.template IN ('illust', 'image') THEN fn_get_live_pair_id(ls.project_id, ls.template, ls.script_data) 
+            ELSE -1 END live_pair_id
  FROM list_script ls
 WHERE ls.episode_id = ?
   AND ls.lang = ?

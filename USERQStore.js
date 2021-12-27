@@ -129,38 +129,102 @@ SELECT a.favor_hist_no
 export const Q_UPDATE_USER_FAVOR_UPDATE = `CALL sp_update_user_favor(?, ?, ? ,?);`;
 export const Q_INIT_USER_FAVOR = ``;
 
-export const UQ_SELECT_USER_MINICUT_HISTORY = `
-SELECT z.minicut_type
-     , z.minicut_id
-     , z.minicut_name
-     , ifnull(z.public_name, z.minicut_name) public_name
+// * 2021.12.23 유저 갤러리 이미지 리스트 리뉴얼
+export const Q_SELECT_USER_GALLERY_IMAGES = `
+SELECT z.illust_type
+     , z.illust_id
+     , z.illust_name
+     , z.thumbnail_url
+     , z.thumbnail_key
+     , ifnull(z.public_name, z.illust_name) public_name
      , ifnull(z.summary, '입력되지 않았음') summary
-     , fn_check_user_minicut_exists(?, z.minicut_type, z.minicut_id) minicut_open
+     , CASE WHEN is_minicut = 0 THEN fn_check_user_illust_exists(?, z.origin_type, z.illust_id)
+            ELSE fn_check_user_minicut_exists_new(?, z.origin_type, z.illust_id) END illust_open
+     , z.is_public
      , z.image_url
      , z.image_key
+     , z.appear_episode
+     , fn_get_episode_type(z.appear_episode) appear_episode_type
+     , z.live_pair_id
   FROM (
-SELECT 'image' minicut_type
-     , lm.minicut_id
-     , lm.image_name minicut_name
-     , fn_get_minicut_localized_text(lm.minicut_id, 'minicut', 'KO', 'name') public_name
-     , fn_get_minicut_localized_text(lm.minicut_id, 'minicut', 'KO', 'summary') summary
-     , lm.image_url
-     , lm.image_key
-  FROM list_minicut lm 
- WHERE lm.project_id = ?
-   AND lm.is_public = 1
+SELECT 'illust' illust_type
+     , li.illust_id illust_id
+     , li.image_name  illust_name
+     , fn_get_design_info(li.thumbnail_id, 'url') thumbnail_url
+     , fn_get_design_info(li.thumbnail_id, 'key') thumbnail_key
+     , fn_get_illust_localized_text(li.illust_id, 'illust', 'KO', 'name') public_name
+     , fn_get_illust_localized_text(li.illust_id, 'illust', 'KO', 'summary') summary
+     , 0 is_minicut
+     , li.is_public
+     , li.image_url
+     , li.image_key
+     , li.appear_episode
+     , li.live_pair_id
+     , 'illust' origin_type
+  FROM list_illust li
+ WHERE li.project_id = ?
+   AND li.is_public > 0
+   AND li.appear_episode > 0
 UNION ALL
-SELECT 'live2d' minicut_type
-     , lo.live_object_id minicut_id
-     , lo.live_object_name minicut_name
-     , fn_get_minicut_localized_text(lo.live_object_id , 'live2d', 'KO', 'name') public_name
-     , fn_get_minicut_localized_text(lo.live_object_id, 'live2d', 'KO', 'summary') summary
-     , '' image_url
-     , '' image_key
-  FROM list_live_object lo
- WHERE lo.project_id = ?
-   AND lo.is_public = 1
-) z;
+SELECT 'live_illust' illust_type
+    , lli.live_illust_id  illust_id
+    , lli.live_illust_name  illust_name
+    , fn_get_design_info(lli.thumbnail_id, 'url') thumbnail_url
+    , fn_get_design_info(lli.thumbnail_id, 'key') thumbnail_key
+    , fn_get_illust_localized_text(lli.live_illust_id , 'live2d', 'KO', 'name') public_name
+    , fn_get_illust_localized_text(lli.live_illust_id, 'live2d', 'KO', 'summary') summary    
+    , 0 is_minicut
+    , lli.is_public
+    , '' image_url
+    , '' image_key
+    , lli.appear_episode
+    , -1 live_pair_id
+    , 'live2d' origin_type
+  FROM list_live_illust lli
+ WHERE lli.project_id = ?
+   AND lli.is_public > 0
+   AND lli.appear_episode > 0
+ UNION ALL 
+SELECT 'live_object' illust_type
+    , a.live_object_id  illust_id
+    , a.live_object_name  illust_name
+    , fn_get_design_info(a.thumbnail_id, 'url') thumbnail_url
+    , fn_get_design_info(a.thumbnail_id, 'key') thumbnail_key
+    , fn_get_minicut_localized_text(a.live_object_id, 'live2d', 'KO', 'name') public_name
+    , fn_get_minicut_localized_text(a.live_object_id, 'live2d', 'KO', 'summary') summary
+    , 1 is_minicut
+    , a.is_public
+    , '' image_url
+    , '' image_key
+    , a.appear_episode
+    , -1 live_pair_id
+    , 'live2d' origin_type
+  FROM list_live_object a 
+ WHERE a.project_id = ?
+   AND a.is_public > 0
+   AND a.appear_episode > 0
+ UNION ALL
+ SELECT 'minicut' illust_type
+    , a.minicut_id  illust_id
+    , a.image_name  illust_name
+    , fn_get_design_info(a.thumbnail_id, 'url') thumbnail_url
+    , fn_get_design_info(a.thumbnail_id, 'key') thumbnail_key
+    , fn_get_minicut_localized_text(a.minicut_id, 'minicut', 'KO', 'name') public_name
+    , fn_get_minicut_localized_text(a.minicut_id, 'minicut', 'KO', 'summary') summary
+    , 1 is_minicut
+    , a.is_public
+    , a.image_url
+    , a.image_key
+    , a.appear_episode
+    , a.live_pair_id
+    , 'minicut' origin_type
+  FROM list_minicut a 
+ WHERE a.project_id = ?
+   AND a.appear_episode > 0
+   AND a.is_public > 0
+  ) z, list_episode le 
+  WHERE z.appear_episode = le.episode_id
+ ORDER BY le.sortkey, z.illust_name;
 `;
 
 // 일러스트
@@ -181,6 +245,7 @@ SELECT z.illust_type
      , z.image_key
      , z.appear_episode
      , fn_get_episode_type(z.appear_episode) appear_episode_type
+     , z.live_pair_id
   FROM (
 SELECT 'illust' illust_type
      , li.illust_id illust_id
@@ -194,6 +259,7 @@ SELECT 'illust' illust_type
      , li.image_url
      , li.image_key
      , li.appear_episode
+     , li.live_pair_id
   FROM list_illust li
  WHERE li.project_id = ?
    AND li.is_public > 0
@@ -211,6 +277,7 @@ SELECT 'live2d' illust_type
     , '' image_url
     , '' image_key
     , lli.appear_episode
+    , -1 live_pair_id
   FROM list_live_illust lli
  WHERE lli.project_id = ?
    AND lli.is_public > 0
@@ -228,6 +295,7 @@ SELECT 'live2d' illust_type
     , '' image_url
     , '' image_key
     , a.appear_episode
+    , -1 live_pair_id
   FROM list_live_object a 
  WHERE a.project_id = ?
    AND a.is_public > 0
@@ -245,6 +313,7 @@ SELECT 'live2d' illust_type
     , a.image_url
     , a.image_key
     , a.appear_episode
+    , a.live_pair_id
   FROM list_minicut a 
  WHERE a.project_id = ?
    AND a.appear_episode > 0
@@ -270,9 +339,29 @@ SELECT a.illust_id
      , a.is_public 
      , a.appear_episode
      , fn_get_illust_localized_text(a.illust_id, 'illust', ?, 'name') public_name
+     , a.live_pair_id
   FROM list_illust a
  WHERE a.project_id = ?
  ORDER BY sortkey, illust_id ;
+`;
+
+export const Q_SELECT_PROJECT_ALL_MINICUT = `
+SELECT a.minicut_id 
+     , a.image_name 
+     , a.image_url 
+     , a.image_key
+     , fn_get_design_info(a.thumbnail_id, 'url') thumbnail_url
+     , fn_get_design_info(a.thumbnail_id, 'key') thumbnail_key
+     , a.offset_x 
+     , a.offset_y 
+     , a.game_scale 
+     , a.is_resized 
+     , a.is_public 
+     , a.appear_episode 
+     , fn_get_minicut_localized_text(a.minicut_id, 'minicut', ?, 'name') public_name
+     , a.live_pair_id
+  FROM list_minicut a
+ WHERE a.project_id = ?;
 `;
 
 // 유저의 프로젝트 메인 에피소드 (CHAPTER, ENDING) 조회
