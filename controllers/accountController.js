@@ -2549,6 +2549,7 @@ export const getProfileCurrencyCurrent = async (req, res) => {
   FROM user_profile_currency a, com_currency b 
   WHERE userkey = ?
   AND a.currency = b.currency
+  ORDER BY sorting_order; 
   ; 
   `,
     [userkey]
@@ -2568,6 +2569,7 @@ export const getProfileCurrencyCurrent = async (req, res) => {
   , angle 
   FROM user_profile_text
   WHERE userkey = ?
+  ORDER BY sorting_order; 
   ;
   `,
     [userkey]
