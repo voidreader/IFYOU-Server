@@ -46,6 +46,8 @@ import {
   UQ_GET_PROJECT_USER_PROPERTY,
   UQ_SELECT_USER_MAIN_EPISODE,
   UQ_INSERT_USER_TIMEDEAL,
+  Q_SELECT_PROJECT_ALL_MINICUT,
+  Q_SELECT_USER_GALLERY_IMAGES,
 } from "../USERQStore";
 
 import { logger } from "../logger";
@@ -530,7 +532,7 @@ export const updateUserIllustHistory = async (req, res) => {
   }
 
   // 업데이트하고 재조회
-  const refresh = await DB(Q_SELECT_USER_ILLUST_HISTORY, [
+  const refresh = await DB(Q_SELECT_USER_GALLERY_IMAGES, [
     userkey,
     userkey,
     project_id,
@@ -542,8 +544,8 @@ export const updateUserIllustHistory = async (req, res) => {
   const responseData = {};
 
   if (refresh.state) {
-    responseData.illustHistory = refresh.row;
-  } else responseData.illustHistory = [];
+    responseData.galleryImages = refresh.row;
+  } else responseData.galleryImages = [];
 
   res.status(200).send(responseData);
 };
@@ -698,6 +700,7 @@ const requestSideEpisodeList = async (userInfo) => {
   }
 
   // ! 2021.09.01 갤러리 이미지 리소스의 첫 등장 에피소드 정보에 따라서 각 에피소드에 넣어준다.
+  /*
   const galleryImages = await getConnectedGalleryImages(userInfo.project_id);
 
   // 정렬된 에피소드 목록을 돌면서 연결된 갤러리 이미지를 넣어준다.
@@ -711,6 +714,7 @@ const requestSideEpisodeList = async (userInfo) => {
       }
     } //
   });
+  */
 
   return sideEpisodes.row;
 };
@@ -783,6 +787,7 @@ const requestMainEpisodeList = async (userInfo) => {
   });
 
   // ! 2021.09.01 갤러리 이미지 리소스의 첫 등장 에피소드 정보에 따라서 각 에피소드에 넣어준다.
+  /*
   const galleryImages = await getConnectedGalleryImages(userInfo.project_id);
 
   // 정렬된 에피소드 목록을 돌면서 연결된 갤러리 이미지를 넣어준다.
@@ -796,6 +801,7 @@ const requestMainEpisodeList = async (userInfo) => {
       }
     } //
   });
+  */
 
   return organized;
 };
@@ -893,6 +899,90 @@ const getUserIllustHistory = async (userInfo) => {
   if (result.state) return result.row;
   else return [];
 };
+
+// * 갤러리에 들어가는 공개된, 미니컷, 일러스트, 라이브 오브제, 라이브 일러스트 리스트 조회
+const getUserGalleryHistory = async (userInfo) => {
+  // 공개된 이미지들.
+  const publicImages = await DB(Q_SELECT_USER_GALLERY_IMAGES, [
+    userInfo.userkey,
+    userInfo.userkey,
+    userInfo.project_id,
+    userInfo.project_id,
+    userInfo.project_id,
+    userInfo.project_id,
+  ]);
+
+  const images = publicImages.row;
+
+  console.log("!!! gallery total images count : ", images.length);
+
+  const finalResult = [];
+
+  // * illust_type이 illust, minicut인 경우 live_pair_id가 존재하는 경우
+  // * live개체 오픈 이력 있음 => illust or minicut 제거
+  // * live개체의 오픈 이력이 없음 => live 개체를 목록에서 제거
+  // 체크 시작한다.
+  images.forEach((item) => {
+    if (!Object.prototype.hasOwnProperty.call(item, "valid")) {
+      item.valid = 1;
+    }
+
+    // 미니컷, 일러스트 타입이면서 live 페어 정보가 있다.
+    if (item.illust_type === "minicut" && item.live_pair_id > 0) {
+      // 대상 live_pair_id의 오픈 이력이 있는 체크한다.
+      for (let i = 0; i < images.length; i++) {
+        // live2d, is_minicut
+        if (
+          images[i].illust_type === "live_object" &&
+          item.live_pair_id === images[i].illust_id
+        ) {
+          // 오픈 여부 체크
+          if (images[i].illust_open > 0) {
+            // 라이브 개체의 오픈이력이 있다.
+            item.valid = 0;
+            images[i].valid = 1;
+          } else {
+            // 라이브 개체의 오픈 이력이 없다.
+            item.valid = 1;
+            images[i].valid = 0;
+          }
+          break;
+        }
+      }
+    } // ? end minicut check
+    else if (item.illust_type === "illust" && item.live_pair_id > 0) {
+      // * 일러스트 시작
+      for (let i = 0; i < images.length; i++) {
+        // live2d, 미니컷 아님.
+        if (
+          images[i].illust_type === "live_illust" &&
+          item.live_pair_id === images[i].illust_id
+        ) {
+          // 오픈 여부 체크
+          if (images[i].illust_open > 0) {
+            // 라이브 개체의 오픈이력이 있다.
+            item.valid = 0;
+            images[i].valid = 1;
+          } else {
+            // 라이브 개체의 오픈 이력이 없다.
+            item.valid = 1;
+            images[i].valid = 0;
+          }
+          break;
+        }
+      }
+    } // ? end of illust check
+  }); // ? end of foreach
+
+  /*
+  for (let i = 0; i < images.length; i++) {
+    if (images[i].valid) finalResult.push(images[i]);
+  }
+  */
+
+  // console.log("!!! gallery finalResult count : ", finalResult.length);
+  return images;
+}; // ? End getUserGalleryHistory
 
 // 유저 프로젝트 호감도 히스토리
 const getUserFavorHistory = async (userInfo) => {
@@ -1912,6 +2002,29 @@ export const updateTutorialStep = async (req, res) => {
   logAction(userkey, "update_tutorial", req.body);
 };
 
+// * 유저 미니컷 히스토리 업데이트 (IFYOU 버전)
+export const updateUserMinicutHistoryVer2 = async (req, res) => {
+  const {
+    body: { userkey, project_id, minicut_id, minicut_type },
+  } = req;
+
+  const updateResult = await DB(
+    `call sp_update_user_minicut_history(?,?,?,?)`,
+    [userkey, minicut_id, minicut_type, project_id]
+  );
+
+  if (!updateResult.state) {
+    logger.error(`updateUserMinicutHistory Error ${updateResult.error}`);
+    respondDB(res, 80020, updateResult.error);
+    return;
+  }
+
+  const result = {};
+  result.galleryImages = await getUserGalleryHistory(req.body);
+
+  res.status(200).json(result);
+};
+
 // ? 유저 미니컷 히스토리 업데이트
 export const updateUserMinicutHistory = async (req, res) => {
   const {
@@ -2045,6 +2158,7 @@ const getProjectResources = async (project_id, lang, bubbleID) => {
     bubbleID,
     bubbleID,
   ]); // 8. bubbleSprite 말풍선 스프라이트
+  query += mysql.format(Q_SELECT_PROJECT_ALL_MINICUT, [lang, project_id]); // 9. minicuts 미니컷
 
   const result = await DB(query);
 
@@ -2100,6 +2214,7 @@ const getProjectResources = async (project_id, lang, bubbleID) => {
   responseData.liveObjects = liveObjects;
   responseData.liveIllusts = liveIllusts;
   responseData.bubbleSprite = result.row[8];
+  responseData.minicuts = result.row[9];
 
   return responseData;
 };
@@ -2135,17 +2250,18 @@ export const getUserSelectedStory = async (req, res) => {
 
   // 프로젝트에 연결된 BubbleSet ID, Version 정보 추가
   const bubbleMaster = await getProjectBubbleSetVersionID(userInfo);
-  console.log(bubbleMaster);
+  // console.log(bubbleMaster);
 
   // 프로젝트와 연결된 말풍선 세트 정보를 따로 갖고 있는다. (아래에서 비교)
   userInfo.bubbleID = bubbleMaster.bubbleID;
   userInfo.bubble_ver = bubbleMaster.bubble_ver;
 
-  logger.info(`>>> getUserSelectedStory [${JSON.stringify(userInfo)}]`);
+  // logger.info(`>>> getUserSelectedStory [${JSON.stringify(userInfo)}]`);
 
   const storyInfo = {}; // * 결과값
 
   // 가장 최신 작업
+  storyInfo.galleryImages = await getUserGalleryHistory(userInfo); // 갤러리 공개 이미지
   storyInfo.freepasProduct = await getProjectFreepassProduct(
     userInfo.project_id,
     userInfo.userkey
@@ -2185,7 +2301,7 @@ export const getUserSelectedStory = async (req, res) => {
 
   storyInfo.dressProgress = await getUserProjectDressProgress(userInfo); // 유저 의상 정보
   //storyInfo.favorProgress = await getUserFavorHistory(userInfo); // 유저 호감도 진행도
-  storyInfo.illustHistory = await getUserIllustHistory(userInfo); // 유저 일러스트 히스토리
+  // storyInfo.illustHistory = await getUserIllustHistory(userInfo); // 유저 일러스트 히스토리
 
   storyInfo.episodePurchase = await getUserEpisodePurchaseInfo(userInfo); // 에피소드 구매 정보
 
@@ -2213,6 +2329,7 @@ export const getUserSelectedStory = async (req, res) => {
   storyInfo.nametag = projectResources.nametag; // 네임태그
   storyInfo.bgms = projectResources.bgms; // BGM
   storyInfo.illusts = projectResources.illusts; // 이미지 일러스트
+  storyInfo.minicuts = projectResources.minicuts; // 미니컷
   storyInfo.models = projectResources.models; // 캐릭터 모델 정보
   storyInfo.liveObjects = projectResources.liveObjects; // 라이브 오브젝트
   storyInfo.liveIllusts = projectResources.liveIllusts; // 라이브 일러스트
@@ -2342,21 +2459,18 @@ export const requestExchangeOneTimeTicketWithCoin = async (req, res) => {
   logAction(userkey, "exchange_charge", req.body);
 }; // ? END
 
-
 // * 유저가 보유한 재화 (꾸미기 가능 재화 한정) 리스트
-export const getProfileCurrencyOwnList = async(req, res) =>{
-  
-  logger.info(`getProfileCurrencyOwnList`); 
+export const getProfileCurrencyOwnList = async (req, res) => {
+  logger.info(`getProfileCurrencyOwnList`);
 
   const {
-    body:{
-      userkey,
-    }
+    body: { userkey },
   } = req;
 
-  const responseData = {}; 
-  // 재화별로 리스트 가져오기 
-  const result = await DB(`
+  const responseData = {};
+  // 재화별로 리스트 가져오기
+  const result = await DB(
+    `
   SELECT 
   a.currency
   , fn_get_design_info(icon_image_id, 'url') icon_url
@@ -2378,12 +2492,15 @@ export const getProfileCurrencyOwnList = async(req, res) =>{
   AND NOW() < expire_date 
   AND is_coin = 1
   ORDER BY a.currency
-  ;`, [userkey]);
+  ;`,
+    [userkey]
+  );
 
   // eslint-disable-next-line no-restricted-syntax
-  for(const item of result.row){
-    
-    if (!Object.prototype.hasOwnProperty.call(responseData, item.currency_type)) {
+  for (const item of result.row) {
+    if (
+      !Object.prototype.hasOwnProperty.call(responseData, item.currency_type)
+    ) {
       responseData[item.currency_type] = [];
     }
 
@@ -2394,26 +2511,24 @@ export const getProfileCurrencyOwnList = async(req, res) =>{
       icon_key: item.icon_key,
       currency_url: item.currency_url,
       currency_key: item.currency_key,
-    });    
+    });
   }
 
-  res.status(200).json(responseData); 
-
-}; 
+  res.status(200).json(responseData);
+};
 
 // * 유저가 저장한 프로필 꾸미기 저장 정보
-export const getProfileCurrencyCurrent = async(req, res) =>{
-  logger.info(`getProfileCurrencyCurrent`); 
+export const getProfileCurrencyCurrent = async (req, res) => {
+  logger.info(`getProfileCurrencyCurrent`);
 
   const {
-    body:{
-      userkey, 
-    }
+    body: { userkey },
   } = req;
 
-  const responseData = {}; 
+  const responseData = {};
 
-  let result = await DB(`
+  let result = await DB(
+    `
   SELECT 
   a.currency
   , CASE WHEN currency_type = 'wallpaper' THEN
@@ -2436,10 +2551,13 @@ export const getProfileCurrencyCurrent = async(req, res) =>{
   AND a.currency = b.currency
   ORDER BY sorting_order; 
   ; 
-  `, [userkey]);
-  responseData.currency = result.row; 
+  `,
+    [userkey]
+  );
+  responseData.currency = result.row;
 
-  result = await DB(`
+  result = await DB(
+    `
   SELECT 
   text_id 
   , input_text
@@ -2453,8 +2571,10 @@ export const getProfileCurrencyCurrent = async(req, res) =>{
   WHERE userkey = ?
   ORDER BY sorting_order; 
   ;
-  `, [userkey]);
-  responseData.text = result.row; 
+  `,
+    [userkey]
+  );
+  responseData.text = result.row;
 
   res.status(200).json(responseData);
 };
