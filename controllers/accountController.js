@@ -2262,6 +2262,7 @@ export const getUserSelectedStory = async (req, res) => {
 
   // 가장 최신 작업
   storyInfo.galleryImages = await getUserGalleryHistory(userInfo); // 갤러리 공개 이미지
+
   storyInfo.freepasProduct = await getProjectFreepassProduct(
     userInfo.project_id,
     userInfo.userkey
@@ -2305,6 +2306,14 @@ export const getUserSelectedStory = async (req, res) => {
 
   storyInfo.episodePurchase = await getUserEpisodePurchaseInfo(userInfo); // 에피소드 구매 정보
 
+  // * 2021.10.01 프리패스 타임딜 처리
+  storyInfo.userFreepassTimedeal = await checkFreepassTimedealAppear(
+    userInfo.userkey,
+    userInfo.project_id,
+    storyInfo.episodePurchase,
+    storyInfo.userProperty.freepass
+  );
+
   // * 기준정보
 
   // 작품 기준정보
@@ -2347,14 +2356,6 @@ export const getUserSelectedStory = async (req, res) => {
     // 말풍선 세트를 Variation, Template 별로 정리합니다.
     storyInfo.bubbleSet = arrangeBubbleSet(allBubbleSet);
   } // ? 말풍선 상세정보 끝
-
-  // * 2021.10.01 프리패스 타임딜 처리
-  storyInfo.userFreepassTimedeal = await checkFreepassTimedealAppear(
-    userInfo.userkey,
-    userInfo.project_id,
-    storyInfo.episodePurchase,
-    storyInfo.userProperty.freepass
-  );
 
   // response
   res.status(200).json(storyInfo);
