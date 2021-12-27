@@ -90,8 +90,17 @@ import {
   addressDetail,
 } from "./prizeController";
 import { getProjectEpisodeProgressCount } from "./statController";
-import { getCoinProductList, userCoinPurchase } from "./coinController";
-import { userProfileSave } from "./profileController";
+import { userProfileSave } from "./profileController";  
+import { 
+  userCoinPurchase,
+  getCoinProductMainList, 
+  getCoinProductSearch, 
+  getCoinProductSearchDetail,  
+  coinProductSearchDelete, 
+  getCoinProductTypeList,
+  coinProductDetail, 
+} from "./coinController";
+
 
 // * 클라이언트에서 호출하는 프로젝트 크레딧 리스트
 const getProjectCreditList = async (req, res) => {
@@ -1124,43 +1133,38 @@ export const clientHome = (req, res) => {
   else if (func === "requestExchangeOneTimeTicketWithCoin")
     requestExchangeOneTimeTicketWithCoin(req, res);
   else if (func === "requestPromotionList") getPromotionList(req, res);
-  else if (func === "getCoinProductList") getCoinProductList(req, res);
   else if (func === "userCoinPurchase") userCoinPurchase(req, res);
-  else if (func === "updateUserSelectionCurrent")
-    updateUserSelectionCurrent(req, res);
-  // 선택지 업데이트
-  else if (func === "getTop3SelectionList") getTop3SelectionList(req, res);
-  // 선택지 로그 리스트
-  else if (func === "getEndingSelectionList") getEndingSelectionList(req, res);
-  // 엔딩 선택지 로그 리스트
-  else if (func === "getDistinctProjectGenre")
-    getDistinctProjectGenre(req, res);
-  //작품 장르
-  else if (func === "getServerMasterInfo") getServerMasterInfo(req, res);
-  // 서버 마스터 정보 및 광고 기준정보
-  else if (func === "getProfileCurrencyOwnList")
-    getProfileCurrencyOwnList(req, res);
-  //소유한 프로필 재화 리스트
-  else if (func === "getProfileCurrencyCurrent")
-    getProfileCurrencyCurrent(req, res);
-  //현재 저장된 프로필 재화 정보
-  else if (func === "userProfileSave") userProfileSave(req, res);
-  //프로필 꾸미기 저장
-  else if (func === "updateUserSelectionCurrent")
-    updateUserSelectionCurrent(req, res);
-  // 선택지 업데이트
-  else if (func === "getTop3SelectionList") getTop3SelectionList(req, res);
-  // 선택지 로그 리스트
-  else if (func === "getEndingSelectionList") getEndingSelectionList(req, res);
-  // 엔딩 선택지 로그 리스트
-  else if (func === "getDistinctProjectGenre")
-    getDistinctProjectGenre(req, res);
-  //작품 장르
-  else if (func === "getServerMasterInfo") getServerMasterInfo(req, res);
+  else if (func === "updateUserSelectionCurrent") 
+    updateUserSelectionCurrent(req, res); // 선택지 업데이트 
+  else if (func === "getTop3SelectionList") 
+    getTop3SelectionList(req, res);  // 선택지 로그 리스트
+  else if (func === "getEndingSelectionList") 
+    getEndingSelectionList(req, res); // 엔딩 선택지 로그 리스트 
+  else if (func === "getDistinctProjectGenre") 
+    getDistinctProjectGenre(req, res); //작품 장르 
+  else if (func === "getServerMasterInfo") 
+    getServerMasterInfo(req, res); // 서버 마스터 정보 및 광고 기준정보
   else if (func === "updateUserMinicutHistoryVer2")
     updateUserMinicutHistoryVer2(req, res);
-  else if (func === "getIfYouProjectList") getIfYouProjectList(req, res);
-  // 서버 마스터 정보 및 광고 기준정보
+  else if (func === "getIfYouProjectList") getIfYouProjectList(req, res); // 서버 마스터 정보 및 광고 기준정보  
+  else if (func === "getProfileCurrencyOwnList") 
+    getProfileCurrencyOwnList(req, res); //소유한 프로필 재화 리스트
+  else if (func === "getProfileCurrencyCurrent") 
+    getProfileCurrencyCurrent(req, res); //현재 저장된 프로필 재화 정보
+  else if (func === "userProfileSave") 
+    userProfileSave(req, res); //프로필 꾸미기 저장 
+  else if (func === "getCoinProductMainList") 
+    getCoinProductMainList(req, res);  //코인 상점 메인 
+  else if (func === "getCoinProductSearch") 
+    getCoinProductSearch(req, res);  //코인 상점 검색 
+  else if (func === "getCoinProductSearchDetail") 
+    getCoinProductSearchDetail(req, res);  //코인 상점 검색 상세
+  else if (func === "getCoinProductTypeList")
+    getCoinProductTypeList(req, res); //탭별 목록
+  else if (func === "coinProductDetail")
+    coinProductDetail(req, res); //상품 상세
+  else if (func === "coinProductSearchDelete")
+    coinProductSearchDelete(req,res);  //검색어 삭제 
   else {
     //  res.status(400).send(`Wrong Func : ${func}`);
     logger.error(`clientHome Error`);
