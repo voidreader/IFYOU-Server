@@ -95,6 +95,7 @@ import {
   getCoinProductMainList, 
   getCoinProductSearch, 
   getCoinProductSearchDetail,  
+  coinProductSearchDelete, 
   getCoinProductTypeList,
   coinProductDetail, 
 } from "./coinController";
@@ -1018,6 +1019,8 @@ export const clientHome = (req, res) => {
     getCoinProductTypeList(req, res); //탭별 목록
   else if (func === "coinProductDetail")
     coinProductDetail(req, res); //상품 상세
+  else if (func === "coinProductSearchDelete")
+    coinProductSearchDelete(req,res);  //검색어 삭제 
   else {
     //  res.status(400).send(`Wrong Func : ${func}`);
     logger.error(`clientHome Error`);
