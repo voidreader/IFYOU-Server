@@ -2486,14 +2486,17 @@ export const getProfileCurrencyOwnList = async (req, res) => {
     fn_get_design_info(resource_image_id, 'key') 
   END currency_key
   , currency_type
+  , fn_get_user_property(?, a.currency) total_cnt
+  , (SELECT ifnull(count(*), 0) FROM user_profile_currency WHERE userkey = ? AND currency = a.currency) current_cnt
   FROM user_property a, com_currency b 
   WHERE a.currency = b.currency 
   AND userkey = ? 
   AND NOW() < expire_date 
   AND is_coin = 1
+  GROUP BY a.currency
   ORDER BY a.currency
   ;`,
-    [userkey]
+    [userkey, userkey, userkey]
   );
 
   // eslint-disable-next-line no-restricted-syntax
@@ -2511,6 +2514,8 @@ export const getProfileCurrencyOwnList = async (req, res) => {
       icon_key: item.icon_key,
       currency_url: item.currency_url,
       currency_key: item.currency_key,
+      total_cnt : item.total_cnt, 
+      current_cnt : item.current_cnt,
     });
   }
 
