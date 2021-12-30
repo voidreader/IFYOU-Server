@@ -258,8 +258,6 @@ export const getCoinProductSearchDetail = async(req, res) =>{
 
     const responseData = {};
     const column = getColumn(); 
-    let set = [];
-    let payPrice = 0; 
 
     //* 검색 결과
     if(whereQuery){
@@ -578,11 +576,11 @@ export const userCoinPurchase = async (req, res) => {
     for(const item of currency){
         // 유니크 아닌 상품과 유니크면서 아직 보유하지 않으면 메일 전송 
         if(item.is_unique === 0 || (item.is_unique === 1 && item.quantity === 0) ){
-            insertQuery += mysql.format(`CALL sp_insert_user_property(?, 1, ?, 'coin_purchase');`, [userkey, item.currency]);
+            insertQuery += mysql.format(`CALL sp_insert_user_property(?, ?, 1, 'coin_purchase');`, [userkey, item.currency]);
             currencyText +=`${item.currency},`;
         }
     }
-    currencyText = currencyText.slice(0,-1); //세트 상품인 경우, 소유재화에 따라 코인 재화 리스트 
+    currencyText = currencyText.slice(0,-1); //세트 상품인 경우, 소유재화에 따라 코인 재화 리스트가 달라짐
     const purchaseQuery = mysql.format(`CALL sp_use_user_property(?, 'coin', ?, 'coin_purchase', -1);`, [userkey, pay_price]);
     const userHistoryQuery = mysql.format(`
     INSERT INTO user_coin_purchase(userkey, coin_product_id, sell_price, pay_price, currency) VALUES(?, ?, ?, ?, ?);`,
@@ -626,8 +624,8 @@ export const getCoinProductPurchaseList = async(req, res) =>{
 
     const result = await DB(`
     SELECT fn_get_coin_product_name(a.coin_product_id, ?) name  
-    sell_price 
-    pay_price 
+    , sell_price 
+    , pay_price 
     , CASE WHEN b.currency = '' THEN 
         a.currency
     ELSE 
@@ -652,15 +650,15 @@ export const getCoinProductPurchaseList = async(req, res) =>{
     for(const item of result.row){
         if(item.currency_type === "set"){
             
-            const whereQuery = getInConditionQuery('currency', item.currency, true); 
-            
+            const whereQuery = getInConditionQuery('currency', item.currency_name, true); 
+           
             // eslint-disable-next-line no-await-in-loop
             const currencyResult = await DB(`SELECT 
             group_concat(fn_get_localize_text(local_code, ?)) currency_name 
             FROM com_currency  
             ${whereQuery} 
-            `, [lang]);
-            item.currency_name = currencyResult.row[0];
+            ;`, [lang]);
+            item.currency_name = currencyResult.row[0].currency_name;
         }
     }
 
