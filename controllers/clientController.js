@@ -575,6 +575,7 @@ const getDistinctProjectGenre = async (req, res) => {
   const result = await DB(
     `
   SELECT DISTINCT fn_get_localize_text(ls.text_id, ?) genre_name
+       , fn_get_localize_text(ls.text_id, 'KO') origin_name
     FROM list_project_genre genre
       , list_project_master ma
       , list_standard ls 
