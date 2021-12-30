@@ -30,6 +30,7 @@ export const getUserBankInfo = async (userInfo) => {
    AND cc.currency = a.currency 
    AND cc.connected_project > 0 
    AND cc.is_use = 1
+   AND cc.is_coin = 0
 GROUP BY a.currency;
   `);
 

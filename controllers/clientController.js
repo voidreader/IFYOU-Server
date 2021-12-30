@@ -98,7 +98,8 @@ import {
   getCoinProductSearchDetail,
   coinProductSearchDelete,
   getCoinProductTypeList,
-  coinProductDetail,
+  coinProductDetail, 
+  getCoinProductPurchaseList, 
 } from "./coinController";
 
 // * 클라이언트에서 호출하는 프로젝트 크레딧 리스트
@@ -1170,8 +1171,9 @@ export const clientHome = (req, res) => {
   else if (func === "coinProductDetail") coinProductDetail(req, res);
   //상품 상세
   else if (func === "coinProductSearchDelete")
-    coinProductSearchDelete(req, res);
-  //검색어 삭제
+    coinProductSearchDelete(req,res);  //검색어 삭제 
+  else if (func === "getCoinProductPurchaseList")
+    getCoinProductPurchaseList(req, res); // 코인 재화 구매 내역
   else {
     //  res.status(400).send(`Wrong Func : ${func}`);
     logger.error(`clientHome Error`);
