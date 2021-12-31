@@ -270,7 +270,7 @@ export const getTop3SelectionList = async (req, res) => {
     , fn_get_ending_type(ending_id) ending_type
     , fn_get_script_data(a.episode_id, a.selection_group, a.selection_no, '${lang}') script_data
     FROM list_selection a LEFT OUTER JOIN user_selection_ending b 
-    ON a.project_id = b.project_id AND a.episode_id AND a.selection_group = b.selection_group
+    ON a.project_id = b.project_id AND a.episode_id = b.episode_id AND a.selection_group = b.selection_group
     WHERE userkey = ? 
     AND a.project_id = ?
     AND play_count BETWEEN ? AND ?
