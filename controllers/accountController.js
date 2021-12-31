@@ -2699,4 +2699,12 @@ export const updateUserLevelProcess = async(req, res) =>{
 
   res.status(200).json(responseData);
 
+  logAction(userkey, "levelup", { userkey, 
+    current_level, 
+    current_experience,
+    experience,  
+    route, 
+    clear_id, 
+    project_id,  });
+
 };
