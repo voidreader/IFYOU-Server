@@ -300,6 +300,8 @@ SELECT ta.userkey
 , ta.tutorial_step
 , ta.uid
 , ta.ad_charge
+, ta.current_level
+, ta.current_experience
 FROM table_account ta 
 WHERE ta.gamebaseid  = ?;
 `;
@@ -315,6 +317,8 @@ SELECT ta.userkey
 , ta.tutorial_step
 , ta.uid
 , ta.ad_charge
+, ta.current_level
+, ta.current_experience
 FROM table_account ta 
 WHERE ta.userkey  = ?;
 `;
