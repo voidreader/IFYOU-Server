@@ -458,12 +458,44 @@ export const getCoinProductTypeList = async(req, res) =>{
         `, [lang, lang, userkey]); 
     }
     list = await getCoinProductList(userkey , lang, result.row);
+
+    if(currency_type === "set"){
+        responseData.list = list; 
+    }else{
+        // eslint-disable-next-line no-restricted-syntax
+        for(const item of list){
+
+            if(item.currency_type !== "set"){
+                if (!Object.prototype.hasOwnProperty.call(responseData, item.project_name)) {  //작품별로 가져오도록 셋팅 
+                    responseData[item.project_name] = [];
+                }
+
+                responseData[item.project_name].push({
+                    coin_product_id: item.coin_product_id,
+                    name  : item.name,
+                    price: item.price,
+                    sale_price: item.sale_price,
+                    sale_check : item.sale_check,
+                    start_date  : item.start_date, 
+                    end_date : item.end_date, 
+                    thumbnail_url : item.thumbnail_url, 
+                    thumbnail_key : item.thumbnail_key, 
+                    project_name : item.project_name, 
+                    sortkey : item.sortkey, 
+                    quantity : item.quantity, 
+                    is_unique : item.is_unique, 
+                    currency_type : item.currency_type, 
+                    currency_type_name : item.currency_type_name, 
+                });    
+            }
+        }
+    }
     // eslint-disable-next-line no-restricted-syntax
     for(const item of list){
         delete item['currency_type'];
     }
-    responseData.list = list; 
 
+   
     res.status(200).json(responseData);     
 
 };  
