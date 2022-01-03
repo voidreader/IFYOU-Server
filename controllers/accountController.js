@@ -1365,6 +1365,8 @@ export const updateUserEpisodePlayRecord = async (req, res) => {
   responseData.unlockMission = await checkMissionByEpisode(req.body);
 
   // * 1회권 처리 - 1회권으로 플레이를 했는지 체크한다.
+  // ! IFYOU에서 안해요!
+  /*
   const needOneTimePlayCount = await getEpisodeOneTimePlayable(
     userkey,
     episodeID
@@ -1378,6 +1380,7 @@ export const updateUserEpisodePlayRecord = async (req, res) => {
     );
     await setZeroEpisodeOneTimePlayCount(userkey, episodeID);
   }
+  */
   // ? 1회권 처리 끝
 
   // * 2021.09.18 처리할꺼 다 하고, 첫 클리어 보상 입력처리.
@@ -2515,8 +2518,8 @@ export const getProfileCurrencyOwnList = async (req, res) => {
       icon_key: item.icon_key,
       currency_url: item.currency_url,
       currency_key: item.currency_key,
-      total_cnt : item.total_cnt, 
-      current_cnt : item.current_cnt,
+      total_cnt: item.total_cnt,
+      current_cnt: item.current_cnt,
     });
   }
 

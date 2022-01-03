@@ -81,10 +81,19 @@ const multerComDesign = multer({
         fileLength
       );
 
+      let fileLocalPath = "";
+
+      // 경로 조정
+      if (req.params.id === -1 || req.params.id === "-1") {
+        fileLocalPath = `com/${Date.now()}.${fileExtension}`;
+      } else {
+        fileLocalPath = `com/${req.params.id}/${Date.now()}.${fileExtension}`;
+      }
+
       // 여기에 등록되는 이미지들은, com 폴더 아래에 프로젝트 ID(params.id) 하위로 들어가도록 변경한다.
       // 이전에는 프로젝트ID/com 폴더에 들어가있기 때문에 데이터관리에서 다운로드 데이터를 삭제하게되면
       // 현재 보여지고 있는 화면의 이미지도 삭제되는 경우가 생기기때문이다.
-      cb(null, `com/${req.params.id}/${Date.now()}.${fileExtension}`);
+      cb(null, fileLocalPath);
     },
   }),
 }); // end of multer com design

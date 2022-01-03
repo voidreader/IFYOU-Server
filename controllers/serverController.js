@@ -3,6 +3,7 @@ import { respondRedirect, respondError, respondDB } from "../respondent";
 import { logger } from "../logger";
 import { DB } from "../mysqldb";
 import { getComModelMainBannerClientList } from "./designController";
+import { getLevelListNoResponse } from "./levelController";
 
 const s3 = new aws.S3({
   accessKeyId: process.env.AWS_KEY,
@@ -100,7 +101,22 @@ export const getAppCommonResources = async (req, res) => {
   const responseData = {};
 
   // * 2021.09.14 공용 모델 정보 추가
-  responseData.models = await getComModelMainBannerClientList();
+  // responseData.models = await getComModelMainBannerClientList();
+
+  // * 2021.01.03 재화 아이콘
+  const currencyIcons = await DB(`
+  SELECT DISTINCT fn_get_design_info(a.icon_image_id, 'url') icon_url
+     , fn_get_design_info(a.icon_image_id, 'key') icon_key
+  FROM com_currency a 
+ WHERE a.is_use > 0
+   AND a.local_code > -1
+   AND a.icon_image_id > 0
+   AND a.resource_image_id > 0
+ ORDER BY a.currency_type ;
+  `);
+
+  responseData.currencyIcons = currencyIcons.row;
+  responseData.levelList = await getLevelListNoResponse();
 
   res.status(200).json(responseData);
 };
