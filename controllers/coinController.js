@@ -12,10 +12,11 @@ import {
     getInConditionQuery, 
 } from "../com/com";
 
-const getColumn = (kind) =>{
+const getColumn = (kind, lang) =>{
 
     let result = `   
-    , ifnull(fn_get_currency_info(currency, 'type'), 'set') currency_type      
+    , ifnull(fn_get_currency_info(currency, 'type'), 'set') currency_type  
+    , fn_get_localize_text(ifnull(fn_get_standard_text_id('currency_type', fn_get_currency_info(currency, 'type')), 5123), '${lang}') currency_type_name
     , CASE WHEN fn_get_currency_info(currency, 'type') = 'portrait' COLLATE utf8mb4_0900_ai_ci THEN 1 
     WHEN fn_get_currency_info(currency, 'type') = 'frame' COLLATE utf8mb4_0900_ai_ci THEN 2 
     WHEN fn_get_currency_info(currency, 'type') = 'wallpaper' COLLATE utf8mb4_0900_ai_ci THEN 3 
@@ -28,6 +29,7 @@ const getColumn = (kind) =>{
     if(kind){
         result = `
         , ifnull(fn_get_currency_info(a.currency, 'type'), '') currency_type
+        , fn_get_localize_text(ifnull(fn_get_standard_text_id('currency_type', fn_get_currency_info(a.currency, 'type')), ''), '${lang}') currency_type_name
         , CASE WHEN fn_get_currency_info(a.currency, 'type') = 'portrait' COLLATE utf8mb4_0900_ai_ci THEN 1
         WHEN fn_get_currency_info(a.currency, 'type') = 'frame' COLLATE utf8mb4_0900_ai_ci THEN 2
         WHEN fn_get_currency_info(a.currency, 'type') = 'wallpaper' COLLATE utf8mb4_0900_ai_ci THEN 3
@@ -46,7 +48,7 @@ const getCoinCurrencyInfo = async (userkey, lang, coin_product_id) => {
 
     const responseData = {}; 
 
-    const column = getColumn(1); 
+    const column = getColumn(1, lang); 
     let price = 0;
     const result = await DB(`
     SELECT 
@@ -134,7 +136,7 @@ export const getCoinProductMainList = async (req, res) =>{
         end_date : endDate,
     };
 
-    const column = getColumn(); 
+    const column = getColumn('', lang); 
     result = await DB(`
     SELECT coin_product_id
     , fn_get_coin_product_name(coin_product_id, ?) name  
@@ -257,7 +259,7 @@ export const getCoinProductSearchDetail = async(req, res) =>{
     }
 
     const responseData = {};
-    const column = getColumn(); 
+    const column = getColumn('', lang); ; 
 
     //* 검색 결과
     if(whereQuery){
@@ -386,6 +388,7 @@ export const getCoinProductTypeList = async(req, res) =>{
     , CASE WHEN currency <> '' THEN fn_get_user_property(?, currency) ELSE 0 END quantity
     , CASE WHEN currency <> '' THEN CAST(fn_get_currency_info(currency, 'unique') AS signed integer) ELSE 0 END is_unique
     , '${currency_type}' currency_type
+    , fn_get_localize_text(fn_get_standard_text_id('currency_type', '${currency_type}'), 'KO') currency_type_name
     FROM com_coin_product a
     WHERE coin_product_id > 0
     AND is_public > 0
@@ -418,6 +421,7 @@ export const getCoinProductTypeList = async(req, res) =>{
         , 0 quantity
         , 0 is_unique
         , '${currency_type}' currency_type
+        , fn_get_localize_text(fn_get_standard_text_id('currency_type', '${currency_type}'), 'KO') currency_type_name
         FROM com_coin_product a 
         WHERE coin_product_id > 0
         AND is_public > 0 
@@ -443,6 +447,7 @@ export const getCoinProductTypeList = async(req, res) =>{
         , fn_get_user_property(?, a.currency)  quantity
         , CAST(fn_get_currency_info(a.currency, 'unique') AS signed integer) is_unique
         , '${currency_type}' currency_type
+        , fn_get_localize_text(fn_get_standard_text_id('currency_type', '${currency_type}'), 'KO') currency_type_name
         FROM com_coin_product a, com_currency b 
         WHERE a.currency = b.currency
         AND coin_product_id > 0
@@ -488,6 +493,7 @@ export const coinProductDetail = async(req, res) =>{
     , fn_get_design_info(thumbnail_id, 'url') thumbnail_url
     , fn_get_design_info(thumbnail_id, 'key') thumbnail_key 
     , ifnull(fn_get_currency_info(currency, 'type'), 'set') currency_type 
+    , fn_get_localize_text(ifnull(fn_get_standard_text_id('currency_type', fn_get_currency_info(currency, 'type')), 5123), '${lang}') currency_type_name
     , CASE WHEN currency <> '' THEN fn_get_user_property(?, currency) ELSE 0 END quantity
     , CASE WHEN currency <> '' THEN CAST(fn_get_currency_info(currency, 'unique') AS signed integer) ELSE 0 END is_unique
     , CASE WHEN currency <> '' THEN 
@@ -632,6 +638,7 @@ export const getCoinProductPurchaseList = async(req, res) =>{
         fn_get_localize_text((SELECT local_code FROM com_currency WHERE currency = a.currency), ?)
     END currency_name
     , ifnull(fn_get_currency_info(b.currency, 'type'), 'set') currency_type
+    , fn_get_localize_text(ifnull(fn_get_standard_text_id('currency_type', fn_get_currency_info(b.currency, 'type')), 5123), '${lang}') currency_type_name
     , CASE WHEN fn_get_currency_info(b.currency, 'type') = 'portrait' COLLATE utf8mb4_0900_ai_ci THEN 1 
     WHEN fn_get_currency_info(b.currency, 'type') = 'frame' COLLATE utf8mb4_0900_ai_ci THEN 2 
     WHEN fn_get_currency_info(b.currency, 'type') = 'wallpaper' COLLATE utf8mb4_0900_ai_ci THEN 3 
