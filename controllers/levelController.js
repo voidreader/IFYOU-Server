@@ -35,16 +35,21 @@ export const updateUserLevelProcess = async (req, res) => {
   let result = await DB(
     `
     SELECT experience 
-    , currency
+    , a.currency
     , quantity 
-    FROM com_level_management 
-    WHERE next_level = ?;
+    , fn_get_design_info(icon_image_id, 'url') icon_image_url
+    , fn_get_design_info(icon_image_id, 'key') icon_image_key
+    FROM com_level_management a, com_currency b 
+    WHERE a.currency = b.currency 
+    AND next_level = ?;
     `,
     [current_level + 1]
   );
   const next_experience = result.row[0].experience;
   const next_currency = result.row[0].currency;
   const next_quantity = result.row[0].quantity;
+  const { icon_image_url } = result.row[0];
+  const { icon_image_key } = result.row[0];
 
   //* 경험치 쌓기, 레벨업 처리
   let target_level = 0;
@@ -133,6 +138,8 @@ export const updateUserLevelProcess = async (req, res) => {
     responseData.reward = {
       currency: next_currency,
       quantity: next_quantity,
+      icon_image_url,
+      icon_image_key,
     };
   }
 
