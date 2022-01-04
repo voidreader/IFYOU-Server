@@ -45,6 +45,7 @@ import {
   getProfileCurrencyOwnList,
   getProfileCurrencyCurrent,
   updateUserMinicutHistoryVer2,
+  insertUserProperty,
 } from "./accountController";
 import { logger } from "../logger";
 import {
@@ -98,14 +99,11 @@ import {
   getCoinProductSearchDetail,
   coinProductSearchDelete,
   getCoinProductTypeList,
-  coinProductDetail, 
-  getCoinProductPurchaseList, 
+  coinProductDetail,
+  getCoinProductPurchaseList,
 } from "./coinController";
 
-import {
-  getLevelList, 
-  updateUserLevelProcess, 
-} from "./levelController";
+import { getLevelList, updateUserLevelProcess } from "./levelController";
 
 // * 클라이언트에서 호출하는 프로젝트 크레딧 리스트
 const getProjectCreditList = async (req, res) => {
@@ -1177,13 +1175,16 @@ export const clientHome = (req, res) => {
   else if (func === "coinProductDetail") coinProductDetail(req, res);
   //상품 상세
   else if (func === "coinProductSearchDelete")
-    coinProductSearchDelete(req,res);  //검색어 삭제 
+    coinProductSearchDelete(req, res);
+  //검색어 삭제
   else if (func === "getCoinProductPurchaseList")
-    getCoinProductPurchaseList(req, res); // 코인 재화 구매 내역
-  else if (func === "updateUserLevelProcess")
-    updateUserLevelProcess(req, res); // 레벨업 처리
-  else if (func === "getLevelList")
-    getLevelList(req, res); // 레벨 리스트 
+    getCoinProductPurchaseList(req, res);
+  // 코인 재화 구매 내역
+  else if (func === "updateUserLevelProcess") updateUserLevelProcess(req, res);
+  // 레벨업 처리
+  else if (func === "getLevelList") getLevelList(req, res);
+  else if (func === "insertUserProperty") insertUserProperty(req, res);
+  // 레벨 리스트
   else {
     //  res.status(400).send(`Wrong Func : ${func}`);
     logger.error(`clientHome Error`);

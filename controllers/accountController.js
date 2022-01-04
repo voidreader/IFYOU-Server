@@ -109,6 +109,32 @@ const addUserProperty = async (userkey, currency, quantity, pathCode) => {
   }
 };
 
+// * 유저 재화 입력
+export const insertUserProperty = async (req, res) => {
+  const {
+    body: { userkey, currency, quantity, pathCode },
+  } = req;
+
+  const responseData = {};
+
+  // * 2021.09.18 처리할꺼 다 하고, 첫 클리어 보상 입력처리.
+  const rewardPromise = [];
+  rewardPromise.push(addUserProperty(userkey, currency, quantity, pathCode));
+
+  await Promise.all(rewardPromise)
+    .then((values) => {
+      console.log(values);
+    })
+    .catch((err) => {
+      console.log(err);
+      logger.error(err);
+    });
+
+  // bank 정보 refresh
+  responseData.bank = await getUserBankInfo(req.body);
+  res.status(200).json(responseData);
+};
+
 // * 유저가 프로젝트의 프리패스를 가지고 있는지 체크.
 export const checkUserHasProjectFreepass = async (userkey, project_id) => {
   const result = await DB(`
@@ -1221,12 +1247,17 @@ const getEpisodeFisrtClearReward = async (userkey, episodeID) => {
   if (existsCheck.row[0].is_exists > 0) return [];
 
   // 없으면, 첫클리어 보상 정보 가져오기
+  // 재화의 아이콘 URL 추가
   const rewardResult = await DB(`
   SELECT le.first_reward_currency currency
-     , le.first_reward_quantity quantity
+       , le.first_reward_quantity quantity
+       , fn_get_design_info(cc.icon_image_id, 'url') icon_url
+       , fn_get_design_info(cc.icon_image_id, 'key') icon_key
   FROM list_episode le 
-  WHERE episode_id = ${episodeID};
-  `);
+     , com_currency cc 
+  WHERE episode_id = ${episodeID}
+    AND cc.currency = le.first_reward_currency;  
+    `);
 
   // 없을리가 없는데 일치하는 에피소드 없으면..  오류 기록은 남긴다.
   if (!rewardResult.state || rewardResult.row === 0) {
