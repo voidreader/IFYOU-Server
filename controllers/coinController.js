@@ -257,29 +257,14 @@ export const getCoinProductSearchDetail = async(req, res) =>{
         }
 
     }
-
     const responseData = {};
     const column = getColumn('', lang); ; 
 
-    //* 검색 결과
-    if(whereQuery){
-        responseData.result = "OK";
-    }else{
-        responseData.result = "FAIL";  //검색 결과 없어도 전체 리스트 리턴 
+    if(!whereQuery){
+        logger.info(`getCoinProductSearchDetail search no`);
+        respondDB(res, 80098);
+        return;    
     }
-
-    //* 건수 
-    result = await DB(`
-    SELECT count(*) total 
-    ${column}
-    FROM com_coin_product
-    WHERE coin_product_id > 0
-    AND is_public > 0
-    AND now() <= end_date
-    ${whereQuery}
-    GROUP BY currency_type
-    ORDER BY sortkey;`);
-    responseData.total = result.row; 
     
     //리스트 
     result = await DB(`
@@ -304,10 +289,32 @@ export const getCoinProductSearchDetail = async(req, res) =>{
     ${whereQuery}
     ORDER BY sortkey, coin_product_id DESC;
     `, [lang, userkey]); 
-    responseData.list = await getCoinProductList(userkey , lang, result.row); 
-    
-    res.status(200).json(responseData);
+    const list = await getCoinProductList(userkey , lang, result.row); 
+    // eslint-disable-next-line no-restricted-syntax
+    for(const item of list){
+        if (!Object.prototype.hasOwnProperty.call(responseData, item.currency_type_name)) {  //재화 타입별로 가져오도록 셋팅 
+            responseData[item.currency_type_name] = [];
+        }
 
+        responseData[item.currency_type_name].push({
+            coin_product_id: item.coin_product_id,
+            name  : item.name,
+            price: item.price,
+            sale_price: item.sale_price,
+            sale_check : item.sale_check,
+            start_date  : item.start_date, 
+            end_date : item.end_date, 
+            thumbnail_url : item.thumbnail_url, 
+            thumbnail_key : item.thumbnail_key, 
+            sortkey : item.sortkey, 
+            quantity : item.quantity, 
+            is_unique : item.is_unique, 
+            currency_type : item.currency_type, 
+            currency_type_name : item.currency_type_name, 
+            pay_price : item.pay_price,
+        });           
+    }
+    res.status(200).json(responseData);
 };
 
 //! 검색어 삭제 
@@ -486,6 +493,7 @@ export const getCoinProductTypeList = async(req, res) =>{
                     is_unique : item.is_unique, 
                     currency_type : item.currency_type, 
                     currency_type_name : item.currency_type_name, 
+                    pay_price : item.pay_price,
                 });    
             }
         }
