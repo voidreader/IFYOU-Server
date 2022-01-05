@@ -52,9 +52,10 @@ WHERE ls.project_id = ?
   AND script.voice = ls.sound_name 
   AND le.episode_id = script.episode_id 
   AND le.title NOT LIKE '%테스트%'
+  AND script.lang = ?
 ORDER BY ls.speaker, le.episode_type, le.sortkey;
   `,
-    [userInfo.userkey, userInfo.project_id]
+    [userInfo.userkey, userInfo.project_id, userInfo.lang]
   );
 
   // 포장되지 않은 형태
