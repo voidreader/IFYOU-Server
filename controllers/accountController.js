@@ -66,6 +66,7 @@ import {
   getUserProjectCurrent,
   getUserProjectSelectionProgress,
   requestUpdateProjectCurrent,
+  getProjectResetInfo,
 } from "../com/userProject";
 import { getConnectedGalleryImages } from "./episodeController";
 import {
@@ -1973,20 +1974,61 @@ export const resetUserEpisodeProgress = async (req, res) => {
   logger.info(`resetUserEpisodeProgress [${JSON.stringify(req.body)}]`);
 
   // * 2021.12.12 : 선택지 로그 추가로 sp_reset_user_episode_progress 프로시저로 일부 수정 - JE
-
+  // * 2022.01.05 : 리셋 제한 추가(프리패스 : 상관없음, 그 외 : 횟수에 따라 코인값 조정)
   const {
     body: { userkey, project_id, episodeID, isFree = false },
   } = req;
 
-  const resetResult = await DB(
+  //* 기준 정보, 리셋 횟수, 프래패스currency 가져오기 
+  const result = await DB(`
+  SELECT 
+  first_reset_price
+  , reset_increment_rate 
+  , fn_get_user_project_reset_count(? , ?) reset_count
+  , ifnull((SELECT currency FROM com_currency WHERE connected_project = ? AND local_code = 5004), '') free_pass_currency
+  FROM com_server 
+  WHERE server_no = 1;`,
+  [userkey, project_id,project_id]);
+  
+  const firstResetPrice = result.row[0].first_reset_price;  // 최초 코인 가격
+  const resetIncrementRate = result.row[0].reset_increment_rate;  //증가율
+  const resetCount = result.row[0].reset_count;  //현 리셋 횟수
+  const freePassCurrency = result.row[0].free_pass_currency; // 작품 프리패스 
+
+
+  const userCoin = await getCurrencyQuantity(userkey, "coin");  //코인 건수 
+  const userFreePass = await getCurrencyQuantity(userkey, freePassCurrency); //프리패스건수 
+  const setResetCount = resetCount + 1; 
+  let useQuery = ``; 
+
+  //* 프래패스 미보유자 코인값 셋팅 
+  if(userFreePass <= 0){ //프리패스 미보유자
+    let resetPrice = 0; 
+    if(resetCount <= 0){ //리셋하지 않은 경우
+      resetPrice = firstResetPrice; 
+    }else{  // 리셋한 경우(리셋횟수만큼 증가)
+      resetPrice = firstResetPrice + ( firstResetPrice * ( (resetIncrementRate * setResetCount) / 100) ) ; 
+    }
+
+    if(userCoin < resetPrice){  //코인부족
+      logger.error(`resetUserEpisodeProgress Error 1`);
+      respondDB(res, 80013);
+      return;
+    }
+    useQuery = mysql.format(`CALL sp_use_user_property(?, 'coin', ?, 'reset_purchase', ?);`, [userkey, resetPrice, project_id]);
+  }
+
+  const resetResult = await transactionDB(
     `
+    ${useQuery}
+    CALL sp_update_user_reset(?, ?, ?);
     CALL sp_reset_user_episode_progress(?, ?, ?);
     `,
-    [userkey, project_id, episodeID]
+    [userkey, project_id, setResetCount, userkey, project_id, episodeID]
   );
 
   if (!resetResult.state) {
-    logger.error(`resetUserEpisodeProgress Error ${resetResult.error}`);
+    logger.error(`resetUserEpisodeProgress Error  ${resetResult.error}`);
     respondDB(res, 80026, resetResult.error);
     return;
   }
@@ -2002,6 +2044,8 @@ export const resetUserEpisodeProgress = async (req, res) => {
   responseData.selectionProgress = await getUserProjectSelectionProgress(
     req.body
   ); // 프로젝트 선택지 Progress
+
+  responseData.resetCount = await getProjectResetInfo(req.body);  //리셋횟수
 
   res.status(200).json(responseData);
 
