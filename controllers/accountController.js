@@ -1733,7 +1733,7 @@ export const purchaseEpisodeType2 = async (req, res) => {
 
   // ! 재화 소모 처리
   // ! 프리패스 이용자는 재화 소모 처리하지 않음.
-  if (!hasFreepass || useCurrency !== "none") {
+  if (!hasFreepass && useCurrency !== "none") {
     const consumeResult = await DB(UQ_USE_CURRENCY, [
       userkey,
       useCurrency,
@@ -1814,8 +1814,8 @@ export const registerClientAccount = async (req, res) => {
     ]);
     await DB(UQ_ACCQUIRE_CURRENCY, [
       userResult.row[0].userkey,
-      "coin",
-      10,
+      "gem",
+      1000,
       "newbie",
     ]);
   }
