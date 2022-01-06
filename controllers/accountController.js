@@ -1996,7 +1996,7 @@ export const resetUserEpisodeProgress = async (req, res) => {
   const resetCount = result.row[0].reset_count;  //현 리셋 횟수
   const freePassCurrency = result.row[0].free_pass_currency; // 작품 프리패스 
 
-
+  
   const userCoin = await getCurrencyQuantity(userkey, "coin");  //코인 건수 
   const userFreePass = await getCurrencyQuantity(userkey, freePassCurrency); //프리패스건수 
   const setResetCount = resetCount + 1; 
@@ -2008,7 +2008,10 @@ export const resetUserEpisodeProgress = async (req, res) => {
     if(resetCount <= 0){ //리셋하지 않은 경우
       resetPrice = firstResetPrice; 
     }else{  // 리셋한 경우(리셋횟수만큼 증가)
-      resetPrice = firstResetPrice * (1 + ( ( resetIncrementRate * setResetCount ) / 100 ));
+      resetPrice = firstResetPrice;
+      for(let i=0; i<resetCount; i++) {
+        resetPrice =  Math.floor( resetPrice + ( resetPrice * ( resetIncrementRate / 100 ) ) );
+      } 
     }
 
     if(userCoin < resetPrice){  //코인부족
