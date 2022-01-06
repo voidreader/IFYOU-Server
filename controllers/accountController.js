@@ -79,6 +79,7 @@ import { getUserBankInfo } from "./bankController";
 import { getProjectFreepassProduct } from "./shopController";
 import { gamebaseAPI } from "../com/gamebaseAPI";
 
+
 dotenv.config();
 
 // 캐릭터 탈퇴일자 업데이트
@@ -2007,7 +2008,7 @@ export const resetUserEpisodeProgress = async (req, res) => {
     if(resetCount <= 0){ //리셋하지 않은 경우
       resetPrice = firstResetPrice; 
     }else{  // 리셋한 경우(리셋횟수만큼 증가)
-      resetPrice = firstResetPrice + ( firstResetPrice * ( (resetIncrementRate * setResetCount) / 100) ) ; 
+      resetPrice = firstResetPrice * (1 + ( ( resetIncrementRate * setResetCount ) / 100 ));
     }
 
     if(userCoin < resetPrice){  //코인부족
