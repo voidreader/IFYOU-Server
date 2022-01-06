@@ -16,6 +16,7 @@ export const updateUserLevelProcess = async (req, res) => {
       route = "",
       clear_id = -1,
       project_id = -1,
+      lang = "KO",
     },
   } = req;
 
@@ -39,17 +40,27 @@ export const updateUserLevelProcess = async (req, res) => {
     , quantity 
     , fn_get_design_info(icon_image_id, 'url') icon_image_url
     , fn_get_design_info(icon_image_id, 'key') icon_image_key
-    FROM com_level_management a, com_currency b 
+    , b.currency_type 
+    , fn_get_localize_text(ls.text_id , '${lang}') type_name
+    , fn_get_localize_text(b.local_code, '${lang}') currency_name
+    FROM com_level_management a, com_currency b, list_standard ls 
     WHERE a.currency = b.currency 
-    AND next_level = ?;
+     AND ls.standard_class = 'currency_type'
+     AND ls.code = b.currency_type
+     AND next_level = ?;
     `,
     [current_level + 1]
   );
   const next_experience = result.row[0].experience;
   const next_currency = result.row[0].currency;
   const next_quantity = result.row[0].quantity;
-  const { icon_image_url } = result.row[0];
-  const { icon_image_key } = result.row[0];
+  const {
+    icon_image_url,
+    icon_image_key,
+    currency_type,
+    type_name,
+    currency_name,
+  } = result.row[0];
 
   //* 경험치 쌓기, 레벨업 처리
   let target_level = 0;
@@ -140,6 +151,9 @@ export const updateUserLevelProcess = async (req, res) => {
       quantity: next_quantity,
       icon_image_url,
       icon_image_key,
+      currency_type,
+      type_name,
+      currency_name,
     };
   }
 
