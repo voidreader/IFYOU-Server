@@ -448,3 +448,17 @@ export const getEndingSelectionList = async (req, res) => {
 };
 
 ///////////////////// 새로운 선택지 로그 끝 ///////////////////////
+
+//! 리셋 카운드 
+export const getProjectResetInfo = async (userInfo) =>{
+  console.log(`getProjectResetInfo`, userInfo);
+
+  const result = await DB(`
+  SELECT 
+  ${userInfo.project_id} project_id
+  , fn_get_user_project_reset_count(?, ?) reset_count 
+  FROM DUAL;
+  `, [userInfo.userkey, userInfo.project_id]);
+
+  return result.row; 
+};
