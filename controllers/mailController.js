@@ -20,6 +20,8 @@ SELECT a.mail_no
 , TIMESTAMPDIFF(MINUTE, now(), a.expire_date) remain_mins
 , cc.local_code
 , a.purchase_no 
+, fn_get_design_info(cc.icon_image_id, 'url') icon_image_url
+, fn_get_design_info(cc.icon_image_id, 'key') icon_image_key
 FROM user_mail a
 LEFT OUTER JOIN com_currency cc ON cc.currency = a.currency 
 WHERE a.userkey = ?
