@@ -71,44 +71,6 @@ export const getClientPrizeTicketList = async (req, res) => {
   res.status(200).json(modifiedResult);
 };
 
-// 유저 UID 밸리데이션 체크
-export const checkUserIdValidation = async (req, res) => {
-  const {
-    body: { uid },
-  } = req;
-
-  // 제대로된 형식이 아니면 error.
-  if (!uid.includes("#") || !uid.includes("-")) {
-    respondDB(res, 80056, `UID 정보가 일치하지 않습니다.`);
-    return;
-  }
-
-  let pin = uid.split("-")[0];
-  pin = pin.replace("#", "");
-  const userkey = uid.split("-")[1];
-
-  // pin과 userkey 같이 검색.
-  const validationResult = await DB(
-    `SELECT fn_get_userkey_info(${userkey}) uid
-          , userkey 
-       FROM table_account 
-      WHERE userkey = ${userkey} AND pincode = ?;`,
-    [pin]
-  );
-  if (!validationResult.state || validationResult.row.length === 0) {
-    respondDB(res, 80056, `UID 정보가 일치하지 않습니다.`);
-    return;
-  }
-
-  // uid, userkey를 전달.
-  const responseData = {};
-  responseData.userkey = validationResult.row[0].userkey;
-  responseData.uid = validationResult.row[0].uid;
-  responseData.coin = await getCurrencyQuantity(responseData.userkey, "coin");
-
-  res.status(200).json(responseData);
-};
-
 // * 응모!
 export const applyPrize = async (req, res) => {
   const {
