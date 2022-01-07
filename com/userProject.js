@@ -504,3 +504,44 @@ export const checkUserIdValidation = async (req, res) => {
 
   res.status(200).json(responseData);
 };
+
+// 닉네임 변경 
+export const updateUserNickname = async(req, res) =>{
+  
+  const {
+    body:{ userkey, nickname = "", }
+  } = req;
+
+  if(!nickname){
+    logger.error(`updateUserNickname error 1`);
+    respondDB(res, 80019);
+    return;    
+  }
+
+  if(nickname.length > 12){
+    logger.error(`updateUserNickname error 2`);
+    respondDB(res, 80101);
+    return;        
+  }
+
+
+  // 닉네임 중복 검사 
+  let result = await DB(`SELECT * FROM table_account WHERE userkey <> ? AND nickname = ?;`, [userkey, nickname]);
+  if(!result.state || result.row.length > 0){
+    logger.error(`updateUserNickname error 3`);
+    respondDB(res, 80100);
+    return;
+  }
+
+  result = await DB(`UPDATE table_account SET nickname = ? WHERE userkey = ?;`, [nickname, userkey]);
+  if(!result.state){
+    logger.error(`updateUserNickname error 4 ${result.error}`);
+    respondDB(res, 80026, result.error);
+    return;    
+  }
+
+  result = await DB(`SELECT userkey, nickname FROM table_account WHERE userkey = ?;`, [userkey]);
+
+  logAction(userkey, "nickname_update", { userkey, nickname });
+  res.status(200).json(result.row);
+};
