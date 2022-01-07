@@ -95,8 +95,11 @@ export const userProfileSave = async (req, res) => {
     }
   }
 
+  let queryCheck = false;
+  if (currencyQuery || textQuery) queryCheck = true;
+
   //* 기존 데이터를 지우고 새 데이터 insert
-  if (currencyQuery) {
+  if (queryCheck) {
     result = await transactionDB(`
         ${currencyQuery}
         ${textQuery}
