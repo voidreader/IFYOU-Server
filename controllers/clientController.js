@@ -70,6 +70,7 @@ import {
   updateUserSelectionCurrent,
   getTop3SelectionList,
   getEndingSelectionList,
+  checkUserIdValidation,
 } from "../com/userProject";
 import {
   getAllProductList,
@@ -82,7 +83,6 @@ import { useCoupon } from "./couponController";
 import { getUserBankInfo, getUserBankInfoWithResponse } from "./bankController";
 import {
   applyPrize,
-  checkUserIdValidation,
   getClientPrizeTicketList,
   getClientUserPrizeHistory,
   userAddressList,
