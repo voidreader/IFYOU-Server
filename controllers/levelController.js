@@ -103,14 +103,19 @@ export const updateUserLevelProcess = async (req, res) => {
   ]);
 
   if (target_currency) {
-    //* 메일 발송(레벨업이면 메일 발송)
+    // * 직접 입력
+    /*
     currentQuery = `INSERT INTO user_mail(userkey, mail_type, currency, quantity, expire_date, connected_project) 
       VALUES(?, 'levelup', ?, ?, DATE_ADD(NOW(), INTERVAL 1 YEAR), ?);`;
+    */
+
+    currentQuery = `CALL sp_insert_user_property(?,?,?,?);`;
+
     sendQuery = mysql.format(currentQuery, [
       userkey,
       target_currency,
       next_quantity,
-      project_id,
+      "levelup",
     ]);
   }
 
