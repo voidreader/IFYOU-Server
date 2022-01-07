@@ -71,6 +71,7 @@ import {
   getTop3SelectionList,
   getEndingSelectionList,
   checkUserIdValidation,
+  updateUserNickname,
 } from "../com/userProject";
 import {
   getAllProductList,
@@ -1190,6 +1191,8 @@ export const clientHome = (req, res) => {
   // 레벨 리스트
   else if (func === "updateProjectLike" ) updateProjectLike(req, res); 
   // 작품 좋아요 등록/해제 
+  else if (func === "updateUserNickname") updateUserNickname(req, res);
+  // 닉네임 변경
   else {
     //  res.status(400).send(`Wrong Func : ${func}`);
     logger.error(`clientHome Error`);

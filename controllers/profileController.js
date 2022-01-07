@@ -11,43 +11,38 @@ export const userProfileSave = async (req, res) => {
   logger.info(`userProfileSave`);
 
   const {
-    body: { userkey, currencyList = "", textList = "" },
+    body: { userkey, kind = "", currencyList = "", textList = "" },
   } = req;
 
   let result = ``;
-  let validCheck = true;
-
   let currentQuery = ``;
   let currencyQuery = ``;
   let textQuery = ``;
 
+  if(!kind){
+    logger.error(`userProfileSave error`);
+    respondDB(res, 80019);
+    return;        
+  }
+
+  //* 기존 데이터 삭제 
+  if(kind === "profile"){ //프로필
+    currentQuery = `
+    DELETE FROM user_profile_currency
+    WHERE userkey = ? 
+    AND currency IN ( SELECT currency FROM com_currency WHERE currency_type IN ('portrait', 'frame') AND is_coin = 1 );
+    `;
+  }else{  //꾸미기
+    currentQuery = `
+    DELETE FROM user_profile_currency
+    WHERE userkey = ? 
+    AND currency NOT IN ( SELECT currency FROM com_currency WHERE currency_type IN ('portrait', 'frame') AND is_coin = 1 );
+    `;
+  }
+  currencyQuery = mysql.format(currentQuery, [userkey]); 
+
   //* 프로필 재화 저장
   if (currencyList) {
-    // eslint-disable-next-line no-restricted-syntax
-    for (const item of currencyList) {
-      result = await DB(
-        `SELECT currency_type FROM com_currency WHERE currency = ?;`,
-        [item.currency]
-      );
-      if (
-        result.row[0].currency_type === "portrait" ||
-        result.row[0].currency_type === "frame"
-      )
-        validCheck = false; // 초상화나 테두리가 있으면 false
-    }
-
-    if (validCheck) {
-      currentQuery = "NOT";
-    }
-
-    // 저장된 재화 삭제
-    currentQuery = `
-        DELETE 
-        FROM user_profile_currency 
-        WHERE userkey = ? 
-        AND currency ${currentQuery} IN ( SELECT currency FROM com_currency WHERE currency_type IN ( 'portrait', 'frame' ) ); `;
-    currencyQuery += mysql.format(currentQuery, [userkey]);
-
     // 새 데이터 삽입
     currentQuery = `
         INSERT INTO user_profile_currency(userkey, currency, sorting_order, pos_x, pos_y, width, height, angle)
@@ -68,11 +63,14 @@ export const userProfileSave = async (req, res) => {
     }
   }
 
+  //* 기존 데이터 삭제
+  if(kind !== "profile"){
+    currentQuery = `DELETE FROM user_profile_text WHERE userkey = ?;`;
+    textQuery = mysql.format(currentQuery, [userkey]);
+  }
+
   //* 텍스트 저장
   if (textList) {
-    //저장된 텍스트 삭제
-    currentQuery = `DELETE FROM user_profile_text WHERE userkey = ?;`;
-    textQuery += mysql.format(currentQuery, [userkey]);
 
     //새 데이터 삽입
     currentQuery = `
@@ -95,22 +93,18 @@ export const userProfileSave = async (req, res) => {
     }
   }
 
-  let queryCheck = false;
-  if (currencyQuery || textQuery) queryCheck = true;
-
   //* 기존 데이터를 지우고 새 데이터 insert
-  if (queryCheck) {
-    result = await transactionDB(`
-        ${currencyQuery}
-        ${textQuery}
-        `);
+  result = await transactionDB(`
+  ${currencyQuery}
+  ${textQuery}
+  `);
 
-    if (!result.state) {
-      logger.error(`userProfileSave error ${result.error}`);
-      respondDB(res, 80026, result.error);
-      return;
-    }
+  if (!result.state) {
+    logger.error(`userProfileSave error ${result.error}`);
+    respondDB(res, 80026, result.error);
+    return;
   }
+
 
   logAction(userkey, "profile_save", { userkey });
   getProfileCurrencyCurrent(req, res);
