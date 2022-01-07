@@ -1882,13 +1882,14 @@ export const loginClient = async (req, res) => {
       userInfo.userkey,
     ]);
 
-    // 테이블에 uid 컬럼이 비어있으면,
+    // 테이블에 uid 컬럼이 비어있으면, uid 업데이트 이후에 nickname 변경 
     if (accountInfo.account.uid === null || accountInfo.account.uid === "") {
       console.log(`UPDATE UID`);
       await DB(`UPDATE table_account SET uid = ? WHERE userkey = ?`, [
         accountInfo.account.pincode,
         accountInfo.account.userkey,
       ]);
+      await DB(`UPDATE table_account SET nickname = CONCAT(nickname, uid) WHERE userkey = ?;`, [accountInfo.account.userkey]);
     }
 
     // 로그 쌓기
