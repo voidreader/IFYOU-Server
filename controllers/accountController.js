@@ -2383,7 +2383,10 @@ export const getUserSelectedStory = async (req, res) => {
   const storyInfo = {}; // * 결과값
 
   // 가장 최신 작업
-  storyInfo.resetCount = await getProjectResetInfo(userInfo); //리셋횟수
+  storyInfo.resetData = await getProjectResetCoinPrice(
+    userInfo.userkey,
+    userInfo.project_id
+  ); // 작품 리셋 카운트 및 소모 가격
   storyInfo.galleryImages = await getUserGalleryHistory(userInfo); // 갤러리 공개 이미지
 
   storyInfo.freepasProduct = await getProjectFreepassProduct(
