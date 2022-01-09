@@ -2087,9 +2087,11 @@ export const resetUserEpisodeProgress = async (req, res) => {
     req.body
   ); // 프로젝트 선택지 Progress
 
-  // responseData.resetCount = await getProjectResetInfo(req.body); //리셋횟수
-  responseData.resetCount = resetData.reset_count + 1;
-  responseData.resetPrice = resetData.resetPrice;
+  // const responseData = { resetPrice, reset_count };
+  resetData.reset_count += 1;
+  responseData.resetData = resetData; // 리셋 데이터
+
+  responseData.bank = await getUserBankInfo(req.body);
 
   res.status(200).json(responseData);
 
