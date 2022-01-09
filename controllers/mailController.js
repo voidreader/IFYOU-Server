@@ -16,6 +16,7 @@ SELECT a.mail_no
 , a.quantity
 , a.is_receive
 , a.connected_project
+, fn_get_project_name_new(a.connected_project, ?) connected_project_title
 , TIMESTAMPDIFF(HOUR, now(), a.expire_date) remain_hours
 , TIMESTAMPDIFF(MINUTE, now(), a.expire_date) remain_mins
 , cc.local_code
@@ -128,13 +129,13 @@ export const readUserSingleMail = async (req, res, next) => {
 // * 유저 메일 리스트 조회
 export const getUserUnreadMailList = async (req, res) => {
   const {
-    body: { userkey },
+    body: { userkey, lang = "KO" },
   } = req;
 
   const responseData = {};
 
   // 조회 쿼리
-  const result = await DB(QUERY_USER_UNREAD_MAIL_LIST, [userkey]);
+  const result = await DB(QUERY_USER_UNREAD_MAIL_LIST, [lang, userkey]);
 
   // console.log(result.row);
 
@@ -165,14 +166,14 @@ export const requestReceiveSingleMail = (req, res) => {
 // * 유저 모든 메일 수신 처리
 export const requestReceiveAllMail = async (req, res) => {
   const {
-    body: { userkey },
+    body: { userkey, lang = "KO" },
   } = req;
 
   // 에러가 발견되면 지울 예정
   logger.info(`requestReceiveAllMail [${JSON.stringify(req.body)}]`);
 
   // 유저의 모든 미수신 메일 정보를 읽어온다.
-  const result = await DB(QUERY_USER_UNREAD_MAIL_LIST, [userkey]);
+  const result = await DB(QUERY_USER_UNREAD_MAIL_LIST, [lang, userkey]);
 
   for await (const item of result.row) {
     req.body.mail_no = item.mail_no;
