@@ -79,7 +79,6 @@ import { getUserBankInfo } from "./bankController";
 import { getProjectFreepassProduct } from "./shopController";
 import { gamebaseAPI } from "../com/gamebaseAPI";
 
-
 dotenv.config();
 
 // 캐릭터 탈퇴일자 업데이트
@@ -1050,6 +1049,8 @@ const getProjectAllMission = async (userInfo) => {
   , a.image_url 
   , a.image_key 
   , b.unlock_state 
+  , fn_get_design_info((SELECT icon_image_id FROM com_currency WHERE currency = reward_currency), 'url') icon_image_url
+  , fn_get_design_info((SELECT icon_image_id FROM com_currency WHERE currency = reward_currency), 'key') icon_image_key
 FROM list_mission a 
 LEFT OUTER JOIN user_mission b ON a.mission_id = b.mission_id AND b.userkey = ${userInfo.userkey}
 WHERE a.project_id = ${userInfo.project_id};
@@ -1882,13 +1883,17 @@ export const loginClient = async (req, res) => {
       userInfo.userkey,
     ]);
 
-    // 테이블에 uid 컬럼이 비어있으면,
+    // 테이블에 uid 컬럼이 비어있으면, uid 업데이트 이후에 nickname 변경
     if (accountInfo.account.uid === null || accountInfo.account.uid === "") {
       console.log(`UPDATE UID`);
       await DB(`UPDATE table_account SET uid = ? WHERE userkey = ?`, [
         accountInfo.account.pincode,
         accountInfo.account.userkey,
       ]);
+      await DB(
+        `UPDATE table_account SET nickname = CONCAT(nickname, uid) WHERE userkey = ?;`,
+        [accountInfo.account.userkey]
+      );
     }
 
     // 로그 쌓기
@@ -1970,6 +1975,42 @@ export const updateUserScriptMission = async (req, res) => {
   res.status(200).json(result);
 };
 
+// 작품의 리셋 코인 가격 조회하기
+const getProjectResetCoinPrice = async (userkey, project_id) => {
+  //* 기준 정보, 리셋 횟수, 프래패스currency 가져오기
+  const result = await DB(
+    `
+    SELECT 
+    first_reset_price
+    , reset_increment_rate 
+    , fn_get_user_project_reset_count(? , ?) reset_count
+    FROM com_server 
+    WHERE server_no = 1;`,
+    [userkey, project_id, project_id]
+  );
+
+  const { first_reset_price, reset_increment_rate, reset_count } =
+    result.row[0];
+
+  // * 기준정보를 가져와서 리셋 카운트에 따른 코인 비용 구하기!
+  let resetPrice = 0;
+  if (reset_count <= 0) {
+    //리셋하지 않은 경우
+    resetPrice = first_reset_price;
+  } else {
+    // 리셋한 경우(리셋횟수만큼 증가)
+    resetPrice = first_reset_price;
+    for (let i = 0; i < reset_count; i++) {
+      resetPrice = Math.floor(
+        resetPrice + resetPrice * (reset_increment_rate / 100)
+      );
+    }
+  }
+
+  const responseData = { resetPrice, reset_count };
+  return responseData;
+};
+
 // ! 유저 에피소드 진행도 초기화
 export const resetUserEpisodeProgress = async (req, res) => {
   logger.info(`resetUserEpisodeProgress [${JSON.stringify(req.body)}]`);
@@ -1980,46 +2021,36 @@ export const resetUserEpisodeProgress = async (req, res) => {
     body: { userkey, project_id, episodeID, isFree = false },
   } = req;
 
-  //* 기준 정보, 리셋 횟수, 프래패스currency 가져오기 
-  const result = await DB(`
-  SELECT 
-  first_reset_price
-  , reset_increment_rate 
-  , fn_get_user_project_reset_count(? , ?) reset_count
-  , ifnull((SELECT currency FROM com_currency WHERE connected_project = ? AND local_code = 5004), '') free_pass_currency
-  FROM com_server 
-  WHERE server_no = 1;`,
-  [userkey, project_id,project_id]);
-  
-  const firstResetPrice = result.row[0].first_reset_price;  // 최초 코인 가격
-  const resetIncrementRate = result.row[0].reset_increment_rate;  //증가율
-  const resetCount = result.row[0].reset_count;  //현 리셋 횟수
-  const freePassCurrency = result.row[0].free_pass_currency; // 작품 프리패스 
+  const userCoin = await getCurrencyQuantity(userkey, "coin"); // 유저 보유 코인수
+  const resetData = await getProjectResetCoinPrice(userkey, project_id);
 
-  
-  const userCoin = await getCurrencyQuantity(userkey, "coin");  //코인 건수 
-  const userFreePass = await getCurrencyQuantity(userkey, freePassCurrency); //프리패스건수 
-  const setResetCount = resetCount + 1; 
-  let useQuery = ``; 
+  // * 프리미엄 패스 재화코드는 Free+프로젝트ID (Free73)
+  const userFreePass = await getCurrencyQuantity(
+    userkey,
+    `Free${project_id.toString()}`
+  ); // 프리패스 보유체크
 
-  //* 프래패스 미보유자 코인값 셋팅 
-  if(userFreePass <= 0){ //프리패스 미보유자
-    let resetPrice = 0; 
-    if(resetCount <= 0){ //리셋하지 않은 경우
-      resetPrice = firstResetPrice; 
-    }else{  // 리셋한 경우(리셋횟수만큼 증가)
-      resetPrice = firstResetPrice;
-      for(let i=0; i<resetCount; i++) {
-        resetPrice =  Math.floor( resetPrice + ( resetPrice * ( resetIncrementRate / 100 ) ) );
-      } 
-    }
+  let useQuery = ``;
 
-    if(userCoin < resetPrice){  //코인부족
-      logger.error(`resetUserEpisodeProgress Error 1`);
-      respondDB(res, 80013);
-      return;
-    }
-    useQuery = mysql.format(`CALL sp_use_user_property(?, 'coin', ?, 'reset_purchase', ?);`, [userkey, resetPrice, project_id]);
+  // * 프리미엄패스 유저의 경우 resetPrice는 0원.
+  if (userFreePass > 0) {
+    //프리패스 미보유자
+    resetData.resetPrice = 0;
+  }
+
+  // * 코인 부족한 경우 종료
+  if (userCoin < resetData.resetPrice) {
+    //코인부족
+    logger.error(`resetUserEpisodeProgress Error 1`);
+    respondDB(res, 80013);
+    return;
+  }
+
+  if (resetData.resetPrice > 0) {
+    useQuery = mysql.format(
+      `CALL sp_use_user_property(?, 'coin', ?, 'reset_purchase', ?);`,
+      [userkey, resetData.resetPrice, project_id]
+    );
   }
 
   const resetResult = await transactionDB(
@@ -2028,7 +2059,14 @@ export const resetUserEpisodeProgress = async (req, res) => {
     CALL sp_update_user_reset(?, ?, ?);
     CALL sp_reset_user_episode_progress(?, ?, ?);
     `,
-    [userkey, project_id, setResetCount, userkey, project_id, episodeID]
+    [
+      userkey,
+      project_id,
+      resetData.reset_count + 1,
+      userkey,
+      project_id,
+      episodeID,
+    ]
   );
 
   if (!resetResult.state) {
@@ -2049,7 +2087,11 @@ export const resetUserEpisodeProgress = async (req, res) => {
     req.body
   ); // 프로젝트 선택지 Progress
 
-  responseData.resetCount = await getProjectResetInfo(req.body);  //리셋횟수
+  // const responseData = { resetPrice, reset_count };
+  resetData.reset_count += 1;
+  responseData.resetData = resetData; // 리셋 데이터
+
+  responseData.bank = await getUserBankInfo(req.body);
 
   res.status(200).json(responseData);
 
@@ -2343,6 +2385,10 @@ export const getUserSelectedStory = async (req, res) => {
   const storyInfo = {}; // * 결과값
 
   // 가장 최신 작업
+  storyInfo.resetData = await getProjectResetCoinPrice(
+    userInfo.userkey,
+    userInfo.project_id
+  ); // 작품 리셋 카운트 및 소모 가격
   storyInfo.galleryImages = await getUserGalleryHistory(userInfo); // 갤러리 공개 이미지
 
   storyInfo.freepasProduct = await getProjectFreepassProduct(
