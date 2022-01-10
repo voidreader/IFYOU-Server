@@ -38,23 +38,8 @@ GROUP BY a.currency;
 
   // 프로젝트 귀속재화 (있는것만) bank에 넣어주기.
   projectProperty.row.forEach((item) => {
-    if (item.currency.includes("OneTime"))
-      item.renameCurrency = `onetime_${item.connected_project}`;
-    else if (item.currency.includes("Free"))
-      item.renameCurrency = `free_${item.connected_project}`;
-
-    bank[`${item.renameCurrency}`] = parseInt(item.current_quantity, 10);
+    bank[`${item.currency}`] = parseInt(item.current_quantity, 10);
   });
-
-  // ! 클라이언트에서 바로 참조하고있어서..
-  // ! 1.0.21 버전에서 제거
-  if (!Object.prototype.hasOwnProperty.call(bank, "onetime_57")) {
-    bank.onetime_57 = 0;
-  }
-
-  if (!Object.prototype.hasOwnProperty.call(bank, "onetime_60")) {
-    bank.onetime_60 = 0;
-  }
 
   return bank;
 }; // * end of bankInfo
