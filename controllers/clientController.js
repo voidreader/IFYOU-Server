@@ -106,6 +106,7 @@ import {
 
 import { getLevelList, updateUserLevelProcess } from "./levelController";
 import { getUserProjectLikeList, updateProjectLike } from "./likeController";
+import { getCoinExchangeProductList, coinExchangePurchase } from "./exchangeController"; 
  
 // * 클라이언트에서 호출하는 프로젝트 크레딧 리스트
 const getProjectCreditList = async (req, res) => {
@@ -1193,6 +1194,9 @@ export const clientHome = (req, res) => {
   // 작품 좋아요 등록/해제 
   else if (func === "updateUserNickname") updateUserNickname(req, res);
   // 닉네임 변경
+  else if (func === "getCoinExchangeProductList") getCoinExchangeProductList(req, res); 
+  // 코인 상품 환전 리스트 
+  else if (func === "coinExchangePurchase") coinExchangePurchase(req, res);
   else {
     //  res.status(400).send(`Wrong Func : ${func}`);
     logger.error(`clientHome Error`);
