@@ -2621,7 +2621,6 @@ export const getProfileCurrencyOwnList = async (req, res) => {
   WHERE a.currency = b.currency 
   AND userkey = ? 
   AND NOW() < expire_date 
-  AND is_coin = 1
   GROUP BY a.currency
   ORDER BY a.currency
   ;`,
