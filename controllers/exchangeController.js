@@ -74,7 +74,7 @@ export const coinExchangePurchase = async (req, res) =>{
         } = result.row[0];
 
         // eslint-disable-next-line no-lonely-if
-        if(exchange_check === 0){
+        if(exchange_check === 0){  // 교환 여부 
             logger.error(`coinExchangePurchase error 3`);
             respondDB(res, 80025);
             return;  
@@ -93,7 +93,7 @@ export const coinExchangePurchase = async (req, res) =>{
 
         // 코인 획득 
         currentQuery = `CALL pier.sp_insert_user_property(?, 'coin', ?, 'coin_exchange');`; //코인 환전 
-        const coin = star_quantity + bonus_quantity;
+        const coin = coin_quantity + bonus_quantity;
         if(coin > 0) exchangeQuery += mysql.format(currentQuery, [userkey, coin]);
         
         if(exchangeQuery){
