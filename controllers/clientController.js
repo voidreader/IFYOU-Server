@@ -1,5 +1,6 @@
 /* eslint-disable no-restricted-syntax */
 import { restart } from "nodemon";
+import { response } from "express";
 import { DB, logAction } from "../mysqldb";
 import {
   Q_MODEL_RESOURCE_INFO,
@@ -106,8 +107,11 @@ import {
 
 import { getLevelList, updateUserLevelProcess } from "./levelController";
 import { getUserProjectLikeList, updateProjectLike } from "./likeController";
-import { getCoinExchangeProductList, coinExchangePurchase } from "./exchangeController"; 
- 
+import {
+  getCoinExchangeProductList,
+  coinExchangePurchase,
+} from "./exchangeController";
+
 // * 클라이언트에서 호출하는 프로젝트 크레딧 리스트
 const getProjectCreditList = async (req, res) => {
   const {
@@ -744,7 +748,7 @@ const getIfYouProjectList = async (req, res) => {
     responseData.recommend.push(item.project_id);
   });
 
-  responseData.like = await getUserProjectLikeList(userkey); //좋아요 리스트 
+  responseData.like = await getUserProjectLikeList(userkey); //좋아요 리스트
 
   res.status(200).json(responseData);
 }; // ? end of getIfYouProjectList
@@ -833,6 +837,21 @@ const checkAccountExistsByGamebase = async (req, res) => {
   res.status(200).json(result.row);
 };
 
+// 유저의 미수신 메일 개수 조회
+export const getUserUnreadMailCount = async (userkey) => {
+  let unreadCount = 0;
+
+  const unreadMailResult = await DB(
+    `SELECT fn_get_user_unread_mail_count(?) cnt FROM dual;`,
+    [userkey]
+  );
+
+  if (unreadMailResult.state && unreadMailResult.row.length > 0)
+    unreadCount = unreadMailResult.row[0].cnt;
+
+  return unreadCount;
+};
+
 // 현재 계정의 gamebase ID 정보를 업데이트
 // 최초 연동때 사용한다.
 const updateAccountWithGamebaseID = async (req, res) => {
@@ -840,11 +859,15 @@ const updateAccountWithGamebaseID = async (req, res) => {
     body: { userkey, gamebaseID },
   } = req;
 
+  // * 최초 연동시에 스타 7개 지급 2022.01
   const result = await DB(
     `
   UPDATE table_account 
    SET gamebaseid = ?
+     , account_link = 'link'
    WHERE userkey = ?;
+   
+   CALL sp_send_user_mail(${userkey}, 'account_link', 'gem', 7, -1, 30);
   `,
     [gamebaseID, userkey]
   );
@@ -855,7 +878,10 @@ const updateAccountWithGamebaseID = async (req, res) => {
     return;
   }
 
-  res.status(200).send("ok");
+  const unreadMailCount = await getUserUnreadMailCount(userkey);
+  const responseData = { unreadMailCount };
+
+  res.status(200).json(responseData);
 };
 
 // * 쿼리 만들기
@@ -1190,12 +1216,13 @@ export const clientHome = (req, res) => {
   else if (func === "getLevelList") getLevelList(req, res);
   else if (func === "insertUserProperty") insertUserProperty(req, res);
   // 레벨 리스트
-  else if (func === "updateProjectLike" ) updateProjectLike(req, res); 
-  // 작품 좋아요 등록/해제 
+  else if (func === "updateProjectLike") updateProjectLike(req, res);
+  // 작품 좋아요 등록/해제
   else if (func === "updateUserNickname") updateUserNickname(req, res);
   // 닉네임 변경
-  else if (func === "getCoinExchangeProductList") getCoinExchangeProductList(req, res); 
-  // 코인 상품 환전 리스트 
+  else if (func === "getCoinExchangeProductList")
+    getCoinExchangeProductList(req, res);
+  // 코인 상품 환전 리스트
   else if (func === "coinExchangePurchase") coinExchangePurchase(req, res);
   else {
     //  res.status(400).send(`Wrong Func : ${func}`);
