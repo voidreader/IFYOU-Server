@@ -2098,19 +2098,46 @@ export const resetUserEpisodeProgress = async (req, res) => {
   logAction(userkey, "reset_progress", req.body);
 }; // * End of resetUserEpisodeProgress
 
-// 튜토리얼 단계 업데이트2021.09.06
+// * 튜토리얼 단계 업데이트2022.01.11
 export const updateTutorialStep = async (req, res) => {
   const {
-    body: { userkey, tutorial_step },
+    body: { userkey, tutorial_step, first_project_id, first_episode_id },
   } = req;
 
+  const userTutorial = await DB(
+    `SELECT * FROM user_tutorial ut WHERE ut.userkey = ${userkey};`
+  );
+
+  // 테이블에 데이터 없으면 업데이트
+  // table_account의 tutorial_step은 사용하지 말자.
+  if (userTutorial.state && userTutorial.row.length === 0) {
+    const createTutorial =
+      await DB(`INSERT INTO user_tutorial (userkey, first_project_id, tutorial_step) 
+    VALUES (${userkey}, ${first_project_id}, ${tutorial_step});`);
+
+    if (!createTutorial.state) {
+      respondDB(res, 80048, createTutorial.error);
+      return;
+    }
+  } else {
+    const updateTutorial = await DB(
+      `
+    UPDATE user_tutorial
+       SET first_project_id = ifnull(?, first_project_id)
+         , tutorial_step = ?
+    WHERE userkey = ${userkey};
+    `,
+      [first_project_id, tutorial_step]
+    );
+
+    if (!updateTutorial.state) {
+      respondDB(res, 80048, updateTutorial.error);
+      return;
+    }
+  } // ? insert or update
+
   const result = await DB(
-    `
-  UPDATE table_account 
-     SET tutorial_step = ?
-  WHERE userkey = ?;
-  `,
-    [tutorial_step, userkey]
+    `SELECT a.* FROM user_tutorial a WHERE a.userkey = ${userkey};`
   );
 
   if (!result.state) {
@@ -2119,7 +2146,10 @@ export const updateTutorialStep = async (req, res) => {
   }
 
   const responseData = {};
-  responseData.new_tutorial_step = tutorial_step;
+  responseData.first_project_id = result.row[0].first_project_id;
+  // responseData.first_episode_id = result.row[0].first_episode_id;
+  responseData.tutorial_step = result.row[0].tutorial_step;
+  responseData.new_tutorial_step = result.row[0].tutorial_step;
 
   res.status(200).json(responseData);
 
