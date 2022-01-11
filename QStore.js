@@ -295,7 +295,7 @@ SELECT ta.userkey
 , ta.nickname 
 , ta.admin 
 , ta.gamebaseid 
-, concat('#', ta.pincode, '-', userkey) pincode 
+, concat('#', ta.pincode, '-', ta.userkey) pincode 
 , fn_get_user_unread_mail_count(ta.userkey) unreadMailCount
 , ta.tutorial_step
 , ta.uid
@@ -303,7 +303,10 @@ SELECT ta.userkey
 , ta.current_level
 , ta.current_experience
 , ta.account_link
+, ifnull(t.tutorial_step, 0) tutorial_step 
+, ifnull(t.first_project_id, -1) first_project_id
 FROM table_account ta 
+LEFT OUTER JOIN user_tutorial t ON t.userkey = ta.userkey
 WHERE ta.gamebaseid  = ?;
 `;
 
@@ -313,7 +316,7 @@ SELECT ta.userkey
 , ta.nickname 
 , ta.admin 
 , ta.gamebaseid 
-, concat('#', ta.pincode, '-', userkey) pincode 
+, concat('#', ta.pincode, '-', ta.userkey) pincode 
 , fn_get_user_unread_mail_count(ta.userkey) unreadMailCount
 , ta.tutorial_step
 , ta.uid
@@ -321,7 +324,10 @@ SELECT ta.userkey
 , ta.current_level
 , ta.current_experience
 , ta.account_link
+, ifnull(t.tutorial_step, 0) tutorial_step 
+, ifnull(t.first_project_id, -1) first_project_id
 FROM table_account ta 
+LEFT OUTER JOIN user_tutorial t ON t.userkey = ta.userkey
 WHERE ta.userkey  = ?;
 `;
 
