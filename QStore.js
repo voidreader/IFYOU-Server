@@ -302,6 +302,7 @@ SELECT ta.userkey
 , ta.ad_charge
 , ta.current_level
 , ta.current_experience
+, ta.account_link
 FROM table_account ta 
 WHERE ta.gamebaseid  = ?;
 `;
@@ -319,6 +320,7 @@ SELECT ta.userkey
 , ta.ad_charge
 , ta.current_level
 , ta.current_experience
+, ta.account_link
 FROM table_account ta 
 WHERE ta.userkey  = ?;
 `;
