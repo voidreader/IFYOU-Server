@@ -333,7 +333,7 @@ VALUES(?, NULL, NULL, 'GUEST', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, 0, NULL, ?)
 export const Q_REGISTER_CLIENT_ACCOUNT_WITH_GAMEBASE = `
 INSERT INTO pier.table_account
 (deviceid, googleid, appleid, nickname, createtime, lastlogintime, admin, gamebaseid, pincode)
-VALUES(?, NULL, NULL, 'GUEST', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, 0, ?, ?);
+VALUES(?, NULL, NULL, NULL, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, 0, ?, ?);
 `;
 
 export const Q_UPDATE_CLIENT_ACCOUNT_WITH_GAMEBASE = `UPDATE pier.table_account SET country = ?, valid = ?, lastlogintime = now() WHERE userkey = ?;`;
