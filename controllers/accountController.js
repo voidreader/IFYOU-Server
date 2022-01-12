@@ -714,12 +714,55 @@ export const clearUserEpisodeSceneProgress = async (req, res) => {
 
 // 앱에서 사용되는 사이드 에피소드 리스트
 const requestSideEpisodeList = async (userInfo) => {
+  /*
   const sideEpisodes = await DB(UQ_SELECT_USER_SIDE_EPISODE, [
     userInfo.userkey,
     userInfo.userkey,
     userInfo.userkey,
     userInfo.project_id,
   ]);
+  */
+
+  const sideEpisodes = await DB(
+    `
+  SELECT a.episode_id 
+  , a.project_id 
+  , a.episode_type
+  , TRIM(fn_get_episode_title_lang(a.episode_id, '${userInfo.lang}')) title 
+  , fn_check_episode_lang_exists(a.episode_id, '${userInfo.lang}') lang_exists
+  , a.episode_status 
+  , a.currency
+  , a.price 
+  , a.ending_type 
+  , a.depend_episode
+  , TRIM(fn_get_episode_title_lang(a.depend_episode, '${userInfo.lang}')) depend_episode_title
+  , a.unlock_style 
+  , a.unlock_episodes 
+  , a.unlock_scenes 
+  , a.unlock_coupon 
+  , a.sale_price 
+  , a.one_currency
+  , a.one_price
+  , a.first_reward_currency
+  , a.first_reward_quantity
+  , a.sortkey 
+  , a.chapter_number
+  , 0 in_progress
+  , TRIM(fn_get_episode_title_lang(a.episode_id, '${userInfo.lang}')) indexed_title
+  , fn_get_design_info(a.square_image_id, 'url') title_image_url
+  , fn_get_design_info(a.square_image_id, 'key') title_image_key
+  , fn_get_design_info(a.popup_image_id, 'url') popup_image_url
+  , fn_get_design_info(a.popup_image_id, 'key') popup_image_key
+  , TRIM(fn_get_episode_summary_lang(a.episode_id, '${userInfo.lang}')) summary
+  , fn_get_count_scene_in_history(${userInfo.userkey}, a.episode_id, '${userInfo.lang}', 'total') total_scene_count
+  , fn_get_count_scene_in_history(${userInfo.userkey}, a.episode_id, '${userInfo.lang}', 'played') played_scene_count     
+  , fn_check_special_episode_open(${userInfo.userkey}, a.episode_id) is_open
+FROM list_episode a
+WHERE a.project_id = ${userInfo.project_id}
+AND a.episode_type = 'side'
+ORDER BY a.episode_type, a.sortkey;  
+  `
+  );
 
   if (!sideEpisodes.state) {
     logger.error(`requestSideEpisodeList Error ${sideEpisodes.error}`);
@@ -749,14 +792,46 @@ const requestSideEpisodeList = async (userInfo) => {
 // 앱에서 사용되는 메인 에피소드 리스트
 const requestMainEpisodeList = async (userInfo) => {
   // 유저의 메인 에피소드 리스트
-  const regularEpisodes = await DB(UQ_SELECT_USER_MAIN_EPISODE, [
-    userInfo.userkey,
-    userInfo.userkey,
-    userInfo.userkey,
-    userInfo.userkey,
-    userInfo.userkey,
-    userInfo.project_id,
-  ]);
+  const regularEpisodes = await DB(`
+  SELECT a.episode_id 
+  , a.project_id 
+  , a.episode_type
+  , TRIM(fn_get_episode_title_lang(a.episode_id, '${userInfo.lang}')) title 
+  , fn_check_episode_lang_exists(a.episode_id, '${userInfo.lang}') lang_exists
+  , a.episode_status 
+  , a.currency
+  , a.price 
+  , a.ending_type 
+  , a.depend_episode
+  , TRIM(fn_get_episode_title_lang(a.depend_episode, '${userInfo.lang}')) depend_episode_title
+  , a.unlock_style 
+  , a.unlock_episodes 
+  , a.unlock_scenes 
+  , a.unlock_coupon 
+  , a.sale_price
+  , a.one_currency
+  , a.one_price
+  , a.first_reward_currency
+  , a.first_reward_quantity
+  , a.sortkey 
+  , a.chapter_number
+  , fn_check_episode_in_progress(${userInfo.userkey}, a.episode_id) in_progress
+  , fn_check_episode_in_history(${userInfo.userkey}, a.episode_id) in_history
+  , fn_get_design_info(a.square_image_id, 'url') title_image_url
+  , fn_get_design_info(a.square_image_id, 'key') title_image_key
+  , fn_get_design_info(a.popup_image_id, 'url') popup_image_url
+  , fn_get_design_info(a.popup_image_id, 'key') popup_image_key
+  , TRIM(fn_get_episode_summary_lang(a.episode_id, '${userInfo.lang}')) summary
+  , fn_get_count_scene_in_history(${userInfo.userkey}, a.episode_id, '${userInfo.lang}', 'total') total_scene_count
+  , fn_get_count_scene_in_history(${userInfo.userkey}, a.episode_id, '${userInfo.lang}', 'played') played_scene_count
+  , CASE WHEN a.episode_type = 'ending' THEN fn_check_user_ending(${userInfo.userkey}, a.episode_id) 
+         ELSE 0 END ending_open
+FROM list_episode a
+WHERE a.project_id = ${userInfo.project_id}
+AND a.episode_type IN ('chapter', 'ending')
+ORDER BY a.episode_type, a.sortkey;  
+`);
+
   const mainEpisodes = []; // 메인 에피소드
 
   const endingEpisodes = []; // 엔딩
