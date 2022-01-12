@@ -47,6 +47,7 @@ import {
   getProfileCurrencyCurrent,
   updateUserMinicutHistoryVer2,
   insertUserProperty,
+  requestTutorialReward,
 } from "./accountController";
 import { logger } from "../logger";
 import {
@@ -1224,6 +1225,7 @@ export const clientHome = (req, res) => {
     getCoinExchangeProductList(req, res);
   // 코인 상품 환전 리스트
   else if (func === "coinExchangePurchase") coinExchangePurchase(req, res);
+  else if (func === "requestTutorialReward") requestTutorialReward(req, res);
   else {
     //  res.status(400).send(`Wrong Func : ${func}`);
     logger.error(`clientHome Error`);

@@ -2156,6 +2156,38 @@ export const updateTutorialStep = async (req, res) => {
   logAction(userkey, "update_tutorial", req.body);
 };
 
+// * 유저 튜토리얼 보상 요청하기
+export const requestTutorialReward = async (req, res) => {
+  const {
+    body: { userkey },
+  } = req;
+
+  // 튜토리얼 스텝 3으로 올린다.
+  const updateQuery = `
+  UPDATE user_tutorial
+     SET tutorial_step = 3
+   WHERE userkey = ${userkey};
+  `;
+
+  // 튜터리얼 보상 지급 쿼리
+  const propertyQuery = `
+  CALL sp_insert_user_property(${userkey}, 'gem', 6, 'tutorial');
+  `;
+
+  const result = await transactionDB(`${updateQuery} ${propertyQuery}`);
+
+  if (!result.state) {
+    respondDB(res, 80048, result.error);
+    return;
+  }
+
+  const responseData = { new_tutorial_step: 3 };
+
+  responseData.bank = await getUserBankInfo(req.body);
+
+  res.status(200).json(responseData);
+};
+
 // * 유저 미니컷 히스토리 업데이트 (IFYOU 버전)
 export const updateUserMinicutHistoryVer2 = async (req, res) => {
   const {
