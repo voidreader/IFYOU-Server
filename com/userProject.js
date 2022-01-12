@@ -533,6 +533,14 @@ export const updateUserNickname = async(req, res) =>{
     return;
   }
 
+  // 금칙어 검사
+  result = await DB(`SELECT fn_check_prohibited_words_exists(?) prohibited_check FROM DUAL;`, [nickname]);
+  if(result.row[0].prohibited_check > 0){
+    logger.error(`updateUserNickname error 3`);
+    respondDB(res, 80103);
+    return;
+  }
+
   result = await DB(`UPDATE table_account SET nickname = ? WHERE userkey = ?;`, [nickname, userkey]);
   if(!result.state){
     logger.error(`updateUserNickname error 4 ${result.error}`);
