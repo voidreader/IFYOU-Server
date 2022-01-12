@@ -2101,7 +2101,12 @@ export const resetUserEpisodeProgress = async (req, res) => {
 // * 튜토리얼 단계 업데이트2022.01.11
 export const updateTutorialStep = async (req, res) => {
   const {
-    body: { userkey, tutorial_step, first_project_id, first_episode_id },
+    body: {
+      userkey,
+      tutorial_step,
+      first_project_id = -1,
+      first_episode_id = -1,
+    },
   } = req;
 
   const userTutorial = await DB(
