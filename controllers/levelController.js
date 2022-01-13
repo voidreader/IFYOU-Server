@@ -133,14 +133,13 @@ export const updateUserLevelProcess = async (req, res) => {
   //* 이벤트 기간(단발성) - 보너스 재화 
   if(level_bonus_check > 0){
     currentQuery = `INSERT INTO user_mail(userkey, mail_type, currency, quantity, expire_date, connected_project) 
-    VALUES(?, 'event', ?, ?, DATE_ADD(NOW(), INTERVAL 1 YEAR), ?);`;
+    VALUES(?, 'event', ?, ?, DATE_ADD(NOW(), INTERVAL 1 YEAR), -1);`;
     if(target_level === 5){
 
       sendQuery += mysql.format(currentQuery, [
         userkey,
         "gem",
         "3",
-        project_id,
       ]);
 
     }else if(target_level === 8){
@@ -149,13 +148,11 @@ export const updateUserLevelProcess = async (req, res) => {
         userkey,
         "gem",
         "3",
-        project_id,
       ]);
       sendQuery += mysql.format(currentQuery, [
         userkey,
         "coin",
         "500",
-        project_id,
       ]);
 
     }else if(target_level === 11){
@@ -164,13 +161,11 @@ export const updateUserLevelProcess = async (req, res) => {
         userkey,
         "gem",
         "5",
-        project_id,
       ]);
       sendQuery += mysql.format(currentQuery, [
         userkey,
         "coin",
         "1000",
-        project_id,
       ]);      
 
     }else if(target_level === 14){
@@ -179,13 +174,11 @@ export const updateUserLevelProcess = async (req, res) => {
         userkey,
         "gem",
         "5",
-        project_id,
       ]);
       sendQuery += mysql.format(currentQuery, [
         userkey,
         "coin",
         "1500",
-        project_id,
       ]);
 
     }
