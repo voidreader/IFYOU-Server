@@ -1879,11 +1879,10 @@ export const registerClientAccount = async (req, res) => {
   // 테스트 서버만 적용할 것.
   //if (isLive < 1) {
 
-  //* 기본 코인 재화 처리 
+  //* 기본 코인 재화 처리
   const userResult = await DB(Q_CLIENT_LOGIN_BY_GAMEBASE, [gamebaseid]);
   if (userResult.state && userResult.row.length > 0) {
-    
-    // 기본 코인 재화 지급 
+    // 기본 코인 재화 지급
     await DB(UQ_ACCQUIRE_CURRENCY, [
       userResult.row[0].userkey,
       "profileBackground19",
@@ -1897,7 +1896,7 @@ export const registerClientAccount = async (req, res) => {
       "newbie",
     ]);
 
-    // 프로필에 바로 적용  
+    // 프로필에 바로 적용
     await DB(UQ_SAVE_USER_PROFILE, [
       userResult.row[0].userkey,
       "profileBackground19",
@@ -1906,7 +1905,7 @@ export const registerClientAccount = async (req, res) => {
       0,
       1600,
       1600,
-      0
+      0,
     ]);
     await DB(UQ_SAVE_USER_PROFILE, [
       userResult.row[0].userkey,
@@ -1916,15 +1915,14 @@ export const registerClientAccount = async (req, res) => {
       0,
       800,
       1200,
-      0
+      0,
     ]);
 
     // 그 외 재화는 메일 발송
-    await DB(UQ_SEND_MAIL_NEWBIE, [userResult.row[0].userkey, 'ifyouFrame01']);
-    await DB(UQ_SEND_MAIL_NEWBIE, [userResult.row[0].userkey, 'ifyouFrame02']);
-    await DB(UQ_SEND_MAIL_NEWBIE, [userResult.row[0].userkey, 'ifyouFrame03']);
-    await DB(UQ_SEND_MAIL_NEWBIE, [userResult.row[0].userkey, 'ifyouFrame04']);
-
+    await DB(UQ_SEND_MAIL_NEWBIE, [userResult.row[0].userkey, "ifyouFrame01"]);
+    await DB(UQ_SEND_MAIL_NEWBIE, [userResult.row[0].userkey, "ifyouFrame02"]);
+    await DB(UQ_SEND_MAIL_NEWBIE, [userResult.row[0].userkey, "ifyouFrame03"]);
+    await DB(UQ_SEND_MAIL_NEWBIE, [userResult.row[0].userkey, "ifyouFrame04"]);
   }
   //}
 
@@ -1995,7 +1993,7 @@ export const loginClient = async (req, res) => {
         accountInfo.account.userkey,
       ]);
       await DB(
-        `UPDATE table_account SET nickname = CONCAT(nickname, uid) WHERE userkey = ?;`,
+        `UPDATE table_account SET nickname = CONCAT('GUEST', uid) WHERE userkey = ?;`,
         [accountInfo.account.userkey]
       );
     }
