@@ -48,6 +48,8 @@ import {
   UQ_INSERT_USER_TIMEDEAL,
   Q_SELECT_PROJECT_ALL_MINICUT,
   Q_SELECT_USER_GALLERY_IMAGES,
+  UQ_SAVE_USER_PROFILE,
+  UQ_SEND_MAIL_NEWBIE,
 } from "../USERQStore";
 
 import { logger } from "../logger";
@@ -1876,26 +1878,53 @@ export const registerClientAccount = async (req, res) => {
   // 임시로직, 신규유저 재화 지급
   // 테스트 서버만 적용할 것.
   //if (isLive < 1) {
+
+  //* 기본 코인 재화 처리 
   const userResult = await DB(Q_CLIENT_LOGIN_BY_GAMEBASE, [gamebaseid]);
   if (userResult.state && userResult.row.length > 0) {
+    
+    // 기본 코인 재화 지급 
     await DB(UQ_ACCQUIRE_CURRENCY, [
       userResult.row[0].userkey,
-      "countessOneTime",
+      "profileBackground19",
       1,
       "newbie",
     ]);
     await DB(UQ_ACCQUIRE_CURRENCY, [
       userResult.row[0].userkey,
-      "honeybloodOneTime",
+      "ifyouPortrait01",
       1,
       "newbie",
     ]);
-    await DB(UQ_ACCQUIRE_CURRENCY, [
+
+    // 프로필에 바로 적용  
+    await DB(UQ_SAVE_USER_PROFILE, [
       userResult.row[0].userkey,
-      "gem",
-      1000,
-      "newbie",
+      "profileBackground19",
+      0,
+      0,
+      0,
+      1600,
+      1600,
+      0
     ]);
+    await DB(UQ_SAVE_USER_PROFILE, [
+      userResult.row[0].userkey,
+      "ifyouPortrait01",
+      1,
+      0,
+      0,
+      800,
+      1200,
+      0
+    ]);
+
+    // 그 외 재화는 메일 발송
+    await DB(UQ_SEND_MAIL_NEWBIE, [userResult.row[0].userkey, 'ifyouFrame01']);
+    await DB(UQ_SEND_MAIL_NEWBIE, [userResult.row[0].userkey, 'ifyouFrame02']);
+    await DB(UQ_SEND_MAIL_NEWBIE, [userResult.row[0].userkey, 'ifyouFrame03']);
+    await DB(UQ_SEND_MAIL_NEWBIE, [userResult.row[0].userkey, 'ifyouFrame04']);
+
   }
   //}
 
