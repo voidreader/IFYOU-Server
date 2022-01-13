@@ -2,11 +2,7 @@ import mysql from "mysql2/promise";
 import { response } from "express";
 import { DB, logAction, transactionDB } from "../mysqldb";
 import { logger } from "../logger";
-import { 
-  respondDB,
-  adminLogInsert,
-  respondAdminSuccess, 
-} from "../respondent";
+import { respondDB, adminLogInsert, respondAdminSuccess } from "../respondent";
 import { gamebaseAPI, inappAPI } from "../com/gamebaseAPI";
 import { getUserBankInfo } from "./bankController";
 
@@ -415,7 +411,7 @@ export const productInsertOrUpdate = async (req, res) => {
     }
   }
   responseData.productLang = await getProductLangList(masterId);
-  adminLogInsert(req, "product_update"); 
+  adminLogInsert(req, "product_update");
   res.status(200).json(responseData);
 };
 
@@ -463,7 +459,6 @@ export const productDetailDelete = async (req, res) => {
 
   const detailList = await getProductDetailList(id, product_type);
   respondAdminSuccess(req, res, detailList, "product_detail_delete");
-
 };
 
 //! 상품 전체 삭제
@@ -519,7 +514,6 @@ export const productAllDelete = async (req, res) => {
   }
 
   respondAdminSuccess(req, res, null, "product_delete", productAllList);
-
 };
 
 //* 상품 끝
@@ -530,8 +524,12 @@ export const productAllDelete = async (req, res) => {
 export const getAllProductList = async (req, res) => {
   logger.info(`getAllProductList`);
 
-  const bannerQuery = `(SELECT banner_id FROM list_product_lang WHERE master_id = a.product_master_id AND lang = 'KO')`;
-  const detailImageQuery = `(SELECT detail_image_id FROM list_product_lang WHERE master_id = a.product_master_id AND lang = 'KO')`;
+  const {
+    body: { lang = "KO" },
+  } = req;
+
+  const bannerQuery = `(SELECT banner_id FROM list_product_lang WHERE master_id = a.product_master_id AND lang = '${lang}')`;
+  const detailImageQuery = `(SELECT detail_image_id FROM list_product_lang WHERE master_id = a.product_master_id AND lang = '${lang}')`;
 
   const result = await DB(
     `SELECT product_master_id
