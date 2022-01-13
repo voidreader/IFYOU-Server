@@ -81,7 +81,7 @@ export const updateUserLevelProcess = async (req, res) => {
   let level_bonus_check = 0; 
   result = await DB(`
   SELECT CASE WHEN ${target_level} = 5 OR ${target_level} = 8 OR ${target_level} = 11 OR ${target_level} = 14 THEN 1 ELSE 0 END level_bonus_check
-  FROM DUAL WHERE now() between '2022-01-13 00:00:00' AND '2022-01-25 23:59:59';`);
+  FROM DUAL WHERE now() between '2022-01-19 00:00:00' AND '2022-01-25 23:59:59';`);
   if(result.row.length > 0){
     level_bonus_check = result.row[0].level_bonus_check; 
   }
