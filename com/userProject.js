@@ -450,20 +450,22 @@ export const getEndingSelectionList = async (req, res) => {
 
 ///////////////////// 새로운 선택지 로그 끝 ///////////////////////
 
-//! 리셋 카운드 
-export const getProjectResetInfo = async (userInfo) =>{
+//! 리셋 카운드
+export const getProjectResetInfo = async (userInfo) => {
   console.log(`getProjectResetInfo`, userInfo);
 
-  const result = await DB(`
+  const result = await DB(
+    `
   SELECT 
   ${userInfo.project_id} project_id
   , fn_get_user_project_reset_count(?, ?) reset_count 
   FROM DUAL;
-  `, [userInfo.userkey, userInfo.project_id]);
+  `,
+    [userInfo.userkey, userInfo.project_id]
+  );
 
-  return result.row; 
+  return result.row;
 };
-
 
 // 유저 UID 밸리데이션 체크
 export const checkUserIdValidation = async (req, res) => {
@@ -505,53 +507,63 @@ export const checkUserIdValidation = async (req, res) => {
   res.status(200).json(responseData);
 };
 
-// 닉네임 변경 
-export const updateUserNickname = async(req, res) =>{
-  
+// 닉네임 변경
+export const updateUserNickname = async (req, res) => {
   const {
-    body:{ userkey, nickname = "", }
+    body: { userkey, nickname = "" },
   } = req;
 
-  if(!nickname){
+  if (!nickname) {
     logger.error(`updateUserNickname error 1`);
     respondDB(res, 80019);
-    return;    
+    return;
   }
 
-  if(nickname.length > 12){
+  if (nickname.length > 12) {
     logger.error(`updateUserNickname error 2`);
     respondDB(res, 80101);
-    return;        
+    return;
   }
 
-
-  // 닉네임 중복 검사 
-  let result = await DB(`SELECT * FROM table_account WHERE userkey <> ? AND nickname = ?;`, [userkey, nickname]);
-  if(!result.state || result.row.length > 0){
+  // 닉네임 중복 검사
+  let result = await DB(
+    `SELECT * FROM table_account WHERE userkey <> ? AND nickname = ?;`,
+    [userkey, nickname]
+  );
+  if (!result.state || result.row.length > 0) {
     logger.error(`updateUserNickname error 3`);
     respondDB(res, 80100);
     return;
   }
 
   // 금칙어 검사
-  result = await DB(`SELECT fn_check_prohibited_words_exists(?) prohibited_check FROM DUAL;`, [nickname]);
-  if(result.row.length > 0){
-    if(result.row[0].prohibited_check > 0){
+  result = await DB(
+    `SELECT fn_check_prohibited_words_exists(?) prohibited_check FROM DUAL;`,
+    [nickname]
+  );
+  if (result.row.length > 0) {
+    if (result.row[0].prohibited_check > 0) {
       logger.error(`updateUserNickname error 3`);
       respondDB(res, 80103);
       return;
     }
   }
 
-  result = await DB(`UPDATE table_account SET nickname = ? WHERE userkey = ?;`, [nickname, userkey]);
-  if(!result.state){
+  result = await DB(
+    `UPDATE table_account SET nickname = ? WHERE userkey = ?;`,
+    [nickname, userkey]
+  );
+  if (!result.state) {
     logger.error(`updateUserNickname error 4 ${result.error}`);
     respondDB(res, 80026, result.error);
-    return;    
+    return;
   }
 
-  result = await DB(`SELECT userkey, nickname FROM table_account WHERE userkey = ?;`, [userkey]);
+  result = await DB(
+    `SELECT userkey, nickname FROM table_account WHERE userkey = ?;`,
+    [userkey]
+  );
 
   logAction(userkey, "nickname_update", { userkey, nickname });
-  res.status(200).json(result.row);
+  res.status(200).json(result.row[0]);
 };
