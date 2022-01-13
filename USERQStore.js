@@ -507,3 +507,12 @@ FROM DUAL;
 export const UQ_INSERT_USER_TIMEDEAL = `
 INSERT INTO user_timedeal_limit (userkey, timedeal_type, target_id, end_date, is_end) VALUES (?, ?, ?, DATE_ADD(NOW(), INTERVAL ? MINUTE), 0);
 `;
+
+// 가입 시에 디폴트 재화 바로 적용 
+export const UQ_SAVE_USER_PROFILE = `
+INSERT INTO user_profile_currency ( userkey, currency, sorting_order, pos_x, pos_y, width, height, angle ) 
+VALUES( ?, ?, ?, ?, ?, ?, ?, ? );
+`;
+
+export const UQ_SEND_MAIL_NEWBIE = `INSERT INTO user_mail( userkey, mail_type, currency, quantity, expire_date, connected_project ) 
+VALUES(?, 'newbie', ?, 1, DATE_ADD(NOW(), INTERVAL 1 YEAR), -1);`
