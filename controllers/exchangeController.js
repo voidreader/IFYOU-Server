@@ -41,6 +41,7 @@ export const coinExchangePurchase = async (req, res) => {
     return;
   }
 
+  let coin = 0;
   let currentQuery = ``;
   let exchangeQuery = ``;
   let result = await DB(
@@ -87,7 +88,7 @@ export const coinExchangePurchase = async (req, res) => {
 
     // 코인 획득
     currentQuery = `CALL pier.sp_insert_user_property(?, 'coin', ?, 'coin_exchange');`; //코인 환전
-    const coin = coin_quantity + bonus_quantity;
+    coin = coin_quantity + bonus_quantity;
     if (coin > 0) exchangeQuery += mysql.format(currentQuery, [userkey, coin]);
 
     if (exchangeQuery) {
@@ -114,6 +115,7 @@ export const coinExchangePurchase = async (req, res) => {
   }
 
   const responseData = {};
+  responseData.gotCoin = coin;
   responseData.bank = await getUserBankInfo(req.body);
 
   const coinExchangeProduct = await DB(`
