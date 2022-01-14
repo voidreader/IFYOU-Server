@@ -32,7 +32,7 @@ export const userProfileSave = async (req, res) => {
     WHERE userkey = ? 
     AND currency IN ( SELECT currency FROM com_currency WHERE currency_type IN ('portrait', 'frame') );
     `;
-  }else{  //꾸미기
+  }else if(kind === "deco"){  //꾸미기
     currentQuery = `
     DELETE FROM user_profile_currency
     WHERE userkey = ? 
