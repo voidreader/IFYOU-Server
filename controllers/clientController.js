@@ -494,6 +494,7 @@ ORDER BY rand() LIMIT 1;
           , a.loading_text 
         FROM list_loading_detail a
       WHERE a.loading_id = ${loadingID}
+        AND a.lang = '${lang}'
       ORDER BY rand();
     `);
 
