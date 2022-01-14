@@ -2828,7 +2828,30 @@ export const getProfileCurrencyCurrent = async (req, res) => {
   } = req;
 
   const responseData = {};
-
+  
+  console.log(mysql.format(`  SELECT 
+  a.currency
+  , CASE WHEN currency_type = 'wallpaper' THEN
+    fn_get_bg_info(resource_image_id, 'url')
+  ELSE 
+    fn_get_design_info(resource_image_id, 'url')
+  END currency_url
+  , CASE WHEN currency_type = 'wallpaper' THEN
+    fn_get_bg_info(resource_image_id, 'key')
+  ELSE 
+    fn_get_design_info(resource_image_id, 'key')
+  END currency_key
+  , sorting_order
+  , pos_x
+  , pos_y 
+  , width
+  , height
+  , angle 
+  , currency_type
+  FROM user_profile_currency a, com_currency b 
+  WHERE userkey = ?
+  AND a.currency = b.currency
+  ORDER BY sorting_order;`, [userkey]));
   let result = await DB(
     `
   SELECT 
@@ -2859,7 +2882,18 @@ export const getProfileCurrencyCurrent = async (req, res) => {
     [userkey]
   );
   responseData.currency = result.row;
-
+  console.log(mysql.format(`    SELECT 
+  text_id 
+  , input_text
+  , font_size
+  , color_rgb
+  , sorting_order
+  , pos_x
+  , pos_y 
+  , angle 
+  FROM user_profile_text
+  WHERE userkey = ?
+  ORDER BY sorting_order; `, [userkey]));
   result = await DB(
     `
   SELECT 

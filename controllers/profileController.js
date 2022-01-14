@@ -30,13 +30,13 @@ export const userProfileSave = async (req, res) => {
     currentQuery = `
     DELETE FROM user_profile_currency
     WHERE userkey = ? 
-    AND currency IN ( SELECT currency FROM com_currency WHERE currency_type IN ('portrait', 'frame') AND is_coin = 1 );
+    AND currency IN ( SELECT currency FROM com_currency WHERE currency_type IN ('portrait', 'frame') );
     `;
   }else{  //꾸미기
     currentQuery = `
     DELETE FROM user_profile_currency
     WHERE userkey = ? 
-    AND currency NOT IN ( SELECT currency FROM com_currency WHERE currency_type IN ('portrait', 'frame') AND is_coin = 1 );
+    AND currency NOT IN ( SELECT currency FROM com_currency WHERE currency_type IN ('portrait', 'frame') );
     `;
   }
   currencyQuery = mysql.format(currentQuery, [userkey]); 
