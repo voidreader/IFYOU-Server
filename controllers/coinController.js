@@ -417,7 +417,7 @@ export const getCoinProductTypeList = async (req, res) => {
     , CASE WHEN currency <> '' THEN fn_get_user_property(?, currency) ELSE 0 END quantity
     , CASE WHEN currency <> '' THEN CAST(fn_get_currency_info(currency, 'unique') AS signed integer) ELSE 0 END is_unique
     , '${currency_type}' currency_type
-    , fn_get_localize_text(fn_get_standard_text_id('currency_type', '${currency_type}'), ${lang}) currency_type_name
+    , fn_get_localize_text(fn_get_standard_text_id('currency_type', '${currency_type}'), '${lang}') currency_type_name
     FROM com_coin_product a
     WHERE coin_product_id > 0
     AND is_public > 0
@@ -428,6 +428,7 @@ export const getCoinProductTypeList = async (req, res) => {
     `,
     [lang, userkey]
   );
+
   let list = await getCoinProductList(userkey, lang, result.row);
   // eslint-disable-next-line no-restricted-syntax
   for (const item of list) {
@@ -454,7 +455,7 @@ export const getCoinProductTypeList = async (req, res) => {
         , 0 quantity
         , 0 is_unique
         , '${currency_type}' currency_type
-        , fn_get_localize_text(fn_get_standard_text_id('currency_type', '${currency_type}'), ${lang}) currency_type_name
+        , fn_get_localize_text(fn_get_standard_text_id('currency_type', '${currency_type}'), '${lang}') currency_type_name
         FROM com_coin_product a 
         WHERE coin_product_id > 0
         AND is_public > 0 
@@ -484,7 +485,7 @@ export const getCoinProductTypeList = async (req, res) => {
         , fn_get_user_property(?, a.currency)  quantity
         , CAST(fn_get_currency_info(a.currency, 'unique') AS signed integer) is_unique
         , '${currency_type}' currency_type
-        , fn_get_localize_text(fn_get_standard_text_id('currency_type', '${currency_type}'), ${lang}) currency_type_name
+        , fn_get_localize_text(fn_get_standard_text_id('currency_type', '${currency_type}'), '${lang}') currency_type_name
         FROM com_coin_product a, com_currency b 
         WHERE a.currency = b.currency
         AND coin_product_id > 0
