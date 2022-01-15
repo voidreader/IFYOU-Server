@@ -900,10 +900,12 @@ SELECT a.sound_id
 , a.sound_key 
 , a.game_volume
 , a.public_name sound_name
-FROM list_sound a 
+FROM list_sound a, list_sound_lang b  
 WHERE a.project_id = ?
 AND a.sound_type  = 'bgm'
 AND a.is_public = 1
+AND a.sound_id = b.sound_id 
+AND b.lang = ? 
 ORDER BY sound_id;
 `;
 
