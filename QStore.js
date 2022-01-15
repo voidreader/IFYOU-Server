@@ -899,7 +899,7 @@ SELECT a.sound_id
 , a.sound_url 
 , a.sound_key 
 , a.game_volume
-, a.public_name sound_name
+, b.public_name sound_name
 FROM list_sound a, list_sound_lang b  
 WHERE a.project_id = ?
 AND a.sound_type  = 'bgm'
