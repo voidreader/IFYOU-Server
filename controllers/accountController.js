@@ -450,7 +450,7 @@ const getUserCollectionProgress = async (userInfo) => {
   const userEnding = await DB(Q_USER_ENDING_COUNT, [
     userInfo.project_id,
     userInfo.userkey,
-    "KO",
+    userInfo.lang,
   ]);
 
   if (userEnding.row[0].cnt === 0 || projectEnding.row[0].cnt === 0) {
@@ -544,7 +544,7 @@ export const updateUserIllustHistory = async (req, res) => {
   logger.info(`updateUserIllustHistory ${JSON.stringify(req.body)}`);
 
   const {
-    body: { project_id, userkey, illust_id, illust_type },
+    body: { project_id, userkey, illust_id, illust_type, lang = "KO", },
   } = req;
 
   const result = await DB(Q_UPDATE_USER_ILLUST_HISTORY, [
@@ -564,9 +564,17 @@ export const updateUserIllustHistory = async (req, res) => {
   const refresh = await DB(Q_SELECT_USER_GALLERY_IMAGES, [
     userkey,
     userkey,
+    lang,
+    lang,
     project_id,
+    lang,
+    lang,
     project_id,
+    lang,
+    lang,
     project_id,
+    lang,
+    lang,
     project_id,
   ]);
 
@@ -598,6 +606,8 @@ export const updateUserMissionHistory = async (req, res) => {
 
   // 업데이트하고 재조회
   const refresh = await DB(Q_SELECT_USER_MISSION_HISTORY, [
+    userInfo.lang,
+    userInfo.lang,
     userInfo.userkey,
     userInfo.project_id,
   ]);
@@ -994,9 +1004,17 @@ const getUserIllustHistory = async (userInfo) => {
   const result = await DB(Q_SELECT_USER_ILLUST_HISTORY, [
     userInfo.userkey,
     userInfo.userkey,
+    userInfo.lang, 
+    userInfo.lang,
     userInfo.project_id,
+    userInfo.lang, 
+    userInfo.lang,
     userInfo.project_id,
+    userInfo.lang, 
+    userInfo.lang,
     userInfo.project_id,
+    userInfo.lang, 
+    userInfo.lang,
     userInfo.project_id,
   ]);
 
@@ -1010,9 +1028,17 @@ const getUserGalleryHistory = async (userInfo) => {
   const publicImages = await DB(Q_SELECT_USER_GALLERY_IMAGES, [
     userInfo.userkey,
     userInfo.userkey,
+    userInfo.lang, 
+    userInfo.lang,
     userInfo.project_id,
+    userInfo.lang, 
+    userInfo.lang,   
     userInfo.project_id,
+    userInfo.lang, 
+    userInfo.lang,
     userInfo.project_id,
+    userInfo.lang, 
+    userInfo.lang,
     userInfo.project_id,
   ]);
 
@@ -1101,6 +1127,8 @@ const getUserFavorHistory = async (userInfo) => {
 const getUserMissionHistory = async (userInfo) => {
   const result = await DB(Q_SELECT_USER_MISSION_HISTORY, [
     userInfo.userkey,
+    userInfo.lang,
+    userInfo.lang,
     userInfo.project_id,
   ]);
 
@@ -1360,7 +1388,7 @@ export const updateUserEpisodePlayRecord = async (req, res) => {
   // * 2021.08.09 : OneTime. 1회 플레이에 대한 처리를 진행한다. (user_episode_purchase, episodePurchase 갱신 필요)
   // * 2021.12.12 : ending 선택지 로그 히스토리 때문에 sp_insert_user_ending_new 프로시저로 변경 - JE
   const {
-    body: { userkey, project_id, episodeID, nextEpisodeID = -1 },
+    body: { userkey, project_id, episodeID, nextEpisodeID = -1, lang = "KO", },
   } = req;
 
   logger.info(`updateUserEpisodePlayRecord [${JSON.stringify(req.body)}]`);
@@ -1598,17 +1626,17 @@ const arrangeBubbleSet = (allBubbleSet) => {
 };
 
 // 프로젝트 화폐정보
-const getProjectCurrency = async (project_id) => {
+const getProjectCurrency = async (project_id, lang) => {
   const result = await DB(
     `
   SELECT cc.currency
-     , cc.origin_name 
+     , fn_get_localize_text(cc.local_code, ?) origin_name
      , cc.currency_type 
      , cc.local_code
      , cc.is_unique 
   FROM com_currency cc WHERE connected_project = ?;
   `,
-    [project_id]
+    [lang, project_id]
   );
 
   return result.row;
@@ -2303,7 +2331,7 @@ export const requestTutorialReward = async (req, res) => {
 // * 유저 미니컷 히스토리 업데이트 (IFYOU 버전)
 export const updateUserMinicutHistoryVer2 = async (req, res) => {
   const {
-    body: { userkey, project_id, minicut_id, minicut_type },
+    body: { userkey, project_id, minicut_id, minicut_type, lang = "KO", },
   } = req;
 
   const updateResult = await DB(
@@ -2326,7 +2354,7 @@ export const updateUserMinicutHistoryVer2 = async (req, res) => {
 // ? 유저 미니컷 히스토리 업데이트
 export const updateUserMinicutHistory = async (req, res) => {
   const {
-    body: { userkey, project_id, minicut_id, minicut_type },
+    body: { userkey, project_id, minicut_id, minicut_type, lang = "KO", },
   } = req;
 
   const updateResult = await DB(
@@ -2445,7 +2473,7 @@ const getProjectResources = async (project_id, lang, bubbleID) => {
   query += mysql.format(Q_SELECT_PROJECT_DETAIL, [lang, project_id]); // 0. detail 프로젝트 상세정보
   query += mysql.format(Q_SELECT_PROJECT_DRESS_CODE, [project_id]); // 1. dressCode 의상정보
   query += mysql.format(Q_SELECT_PROJECT_NAME_TAG, [project_id]); // 2. nametag 네임태그
-  query += mysql.format(Q_SELECT_PROJECT_BGM, [project_id]); // 3. bgms. BGM
+  query += mysql.format(Q_SELECT_PROJECT_BGM, [project_id, lang]); // 3. bgms. BGM
   query += mysql.format(Q_SELECT_PROJECT_ALL_ILLUST, [lang, project_id]); // 4. illusts 일러스트
   query += mysql.format(Q_SELECT_PROJECT_MODEL_ALL_FILES, [project_id]); // 5. models 캐릭터 모델
   query += mysql.format(Q_SELECT_PROJECT_LIVE_OBJECT_ALL_FILES, [project_id]); // 6. liveObjects 라이브 오브제
@@ -2581,7 +2609,7 @@ export const getUserSelectedStory = async (req, res) => {
 
   storyInfo.selectionProgress = await getUserProjectSelectionProgress(userInfo); // 프로젝트 선택지 Progress
   storyInfo.missions = await getProjectAllMission(userInfo); // 프로젝트의 모든 도전과제
-  storyInfo.currency = await getProjectCurrency(userInfo.project_id); // 화폐정보 추가
+  storyInfo.currency = await getProjectCurrency(userInfo.project_id, userInfo.lang); // 화폐정보 추가
 
   const voiceData = await getUserVoiceHistory(userInfo);
   storyInfo.voiceHistory = voiceData.voiceHistory; // 화자별로 포장된 보이스

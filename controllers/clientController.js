@@ -290,23 +290,25 @@ const getEpisodeDownloadResources = async (req, res, result) => {
   const background = await DB(Q_SCRIPT_RESOURCE_BG, [
     userInfo.project_id,
     userInfo.episode_id,
-    userInfo.project_id,
-    userInfo.episode_id,
+    userInfo.lang,
   ]);
   // 이미지
   const image = await DB(Q_SCRIPT_RESOURCE_IMAGE, [
     userInfo.project_id,
     userInfo.episode_id,
+    userInfo.lang,
   ]);
   // 일러스트
   const illust = await DB(Q_SCRIPT_RESOURCE_ILLUST, [
     userInfo.project_id,
     userInfo.episode_id,
+    userInfo.lang,
   ]);
   // 이모티콘
   const emoticon = await DB(Q_SCRIPT_RESOURCE_EMOTICON, [
     userInfo.project_id,
     userInfo.episode_id,
+    userInfo.lang,
   ]);
 
   ret.background = background.row;
@@ -494,7 +496,7 @@ ORDER BY rand() LIMIT 1;
           , a.loading_text 
         FROM list_loading_detail a
       WHERE a.loading_id = ${loadingID}
-        AND a.lang = '${lang}'
+      AND a.lang = '${lang}'
       ORDER BY rand();
     `);
 
@@ -587,7 +589,7 @@ const getDistinctProjectGenre = async (req, res) => {
   const result = await DB(
     `
   SELECT DISTINCT fn_get_localize_text(ls.text_id, ?) genre_name
-       , fn_get_localize_text(ls.text_id, 'KO') origin_name
+       , fn_get_localize_text(ls.text_id, ?) origin_name
     FROM list_project_genre genre
       , list_project_master ma
       , list_standard ls 
@@ -597,7 +599,7 @@ const getDistinctProjectGenre = async (req, res) => {
     AND ls.code = genre.genre_code 
     AND ma.service_package LIKE CONCAT('%', ?, '%')
   ;`,
-    [lang, build]
+    [lang, lang, build]
   );
 
   res.status(200).json(result.row);
@@ -811,7 +813,7 @@ export const getMainLoadingImageRandom = async (req, res) => {
     ifnull(fn_get_design_info(image_id, 'url'), '') image_url 
     , ifnull(fn_get_design_info(image_id, 'key'), '') image_key
     FROM list_main_loading a
-    WHERE lang = 'KO' 
+    WHERE lang = ${lang}
     AND sysdate() BETWEEN start_date AND end_date
     AND is_public = 1 
     AND image_id in(SELECT design_id FROM list_design WHERE design_id = a.image_id AND design_type = 'main_loading');

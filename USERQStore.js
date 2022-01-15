@@ -99,7 +99,23 @@ WHERE upd.userkey = ?
 
 ////////// ! 유저 앨범, 도전과제, 호감도 /////////////
 export const Q_SELECT_USER_MISSION_HISTORY = `
-SELECT lm.*
+SELECT 
+  lm.mission_id 
+  , fn_get_mission_name(lm.mission_id, ?) mission_name
+  , fn_get_mission_hint(lm.mission_id, ?) mission_hint
+  , mission_type
+  , is_hidden
+  , project_id
+  , mission_condition
+  , mission_figure
+  , id_condition
+  , reward_exp
+  , reward_currency
+  , reward_quantity
+  , image_url
+  , image_key
+  , start_date
+  , end_date
   FROM list_mission lm 
      , user_mission um 
  WHERE um.userkey = ?
@@ -152,8 +168,8 @@ SELECT 'illust' illust_type
      , li.image_name  illust_name
      , fn_get_design_info(li.thumbnail_id, 'url') thumbnail_url
      , fn_get_design_info(li.thumbnail_id, 'key') thumbnail_key
-     , fn_get_illust_localized_text(li.illust_id, 'illust', 'KO', 'name') public_name
-     , fn_get_illust_localized_text(li.illust_id, 'illust', 'KO', 'summary') summary
+     , fn_get_illust_localized_text(li.illust_id, 'illust', ?, 'name') public_name
+     , fn_get_illust_localized_text(li.illust_id, 'illust', ?, 'summary') summary
      , 0 is_minicut
      , li.is_public
      , li.image_url
@@ -171,8 +187,8 @@ SELECT 'live_illust' illust_type
     , lli.live_illust_name  illust_name
     , fn_get_design_info(lli.thumbnail_id, 'url') thumbnail_url
     , fn_get_design_info(lli.thumbnail_id, 'key') thumbnail_key
-    , fn_get_illust_localized_text(lli.live_illust_id , 'live2d', 'KO', 'name') public_name
-    , fn_get_illust_localized_text(lli.live_illust_id, 'live2d', 'KO', 'summary') summary    
+    , fn_get_illust_localized_text(lli.live_illust_id , 'live2d', ?, 'name') public_name
+    , fn_get_illust_localized_text(lli.live_illust_id, 'live2d', ?, 'summary') summary    
     , 0 is_minicut
     , lli.is_public
     , '' image_url
@@ -190,8 +206,8 @@ SELECT 'live_object' illust_type
     , a.live_object_name  illust_name
     , fn_get_design_info(a.thumbnail_id, 'url') thumbnail_url
     , fn_get_design_info(a.thumbnail_id, 'key') thumbnail_key
-    , fn_get_minicut_localized_text(a.live_object_id, 'live2d', 'KO', 'name') public_name
-    , fn_get_minicut_localized_text(a.live_object_id, 'live2d', 'KO', 'summary') summary
+    , fn_get_minicut_localized_text(a.live_object_id, 'live2d', ?, 'name') public_name
+    , fn_get_minicut_localized_text(a.live_object_id, 'live2d', ?, 'summary') summary
     , 1 is_minicut
     , a.is_public
     , '' image_url
@@ -209,8 +225,8 @@ SELECT 'live_object' illust_type
     , a.image_name  illust_name
     , fn_get_design_info(a.thumbnail_id, 'url') thumbnail_url
     , fn_get_design_info(a.thumbnail_id, 'key') thumbnail_key
-    , fn_get_minicut_localized_text(a.minicut_id, 'minicut', 'KO', 'name') public_name
-    , fn_get_minicut_localized_text(a.minicut_id, 'minicut', 'KO', 'summary') summary
+    , fn_get_minicut_localized_text(a.minicut_id, 'minicut', ?, 'name') public_name
+    , fn_get_minicut_localized_text(a.minicut_id, 'minicut', ?, 'summary') summary
     , 1 is_minicut
     , a.is_public
     , a.image_url
@@ -252,8 +268,8 @@ SELECT 'illust' illust_type
      , li.image_name  illust_name
      , fn_get_design_info(li.thumbnail_id, 'url') thumbnail_url
      , fn_get_design_info(li.thumbnail_id, 'key') thumbnail_key
-     , fn_get_illust_localized_text(li.illust_id, 'illust', 'KO', 'name') public_name
-     , fn_get_illust_localized_text(li.illust_id, 'illust', 'KO', 'summary') summary
+     , fn_get_illust_localized_text(li.illust_id, 'illust', ?, 'name') public_name
+     , fn_get_illust_localized_text(li.illust_id, 'illust', ?, 'summary') summary
      , 0 is_minicut
      , li.is_public
      , li.image_url
@@ -270,8 +286,8 @@ SELECT 'live2d' illust_type
     , lli.live_illust_name  illust_name
     , fn_get_design_info(lli.thumbnail_id, 'url') thumbnail_url
     , fn_get_design_info(lli.thumbnail_id, 'key') thumbnail_key
-    , fn_get_illust_localized_text(lli.live_illust_id , 'live2d', 'KO', 'name') public_name
-    , fn_get_illust_localized_text(lli.live_illust_id, 'live2d', 'KO', 'summary') summary    
+    , fn_get_illust_localized_text(lli.live_illust_id , 'live2d', ?, 'name') public_name
+    , fn_get_illust_localized_text(lli.live_illust_id, 'live2d', ?, 'summary') summary    
     , 0 is_minicut
     , lli.is_public
     , '' image_url
@@ -288,8 +304,8 @@ SELECT 'live2d' illust_type
     , a.live_object_name  illust_name
     , fn_get_design_info(a.thumbnail_id, 'url') thumbnail_url
     , fn_get_design_info(a.thumbnail_id, 'key') thumbnail_key
-    , fn_get_minicut_localized_text(a.live_object_id, 'live2d', 'KO', 'name') public_name
-    , fn_get_minicut_localized_text(a.live_object_id, 'live2d', 'KO', 'summary') summary
+    , fn_get_minicut_localized_text(a.live_object_id, 'live2d', ?, 'name') public_name
+    , fn_get_minicut_localized_text(a.live_object_id, 'live2d', ?, 'summary') summary
     , 1 is_minicut
     , a.is_public
     , '' image_url
@@ -306,8 +322,8 @@ SELECT 'live2d' illust_type
     , a.image_name  illust_name
     , fn_get_design_info(a.thumbnail_id, 'url') thumbnail_url
     , fn_get_design_info(a.thumbnail_id, 'key') thumbnail_key
-    , fn_get_minicut_localized_text(a.minicut_id, 'minicut', 'KO', 'name') public_name
-    , fn_get_minicut_localized_text(a.minicut_id, 'minicut', 'KO', 'summary') summary
+    , fn_get_minicut_localized_text(a.minicut_id, 'minicut', ?, 'name') public_name
+    , fn_get_minicut_localized_text(a.minicut_id, 'minicut', ?, 'summary') summary
     , 1 is_minicut
     , a.is_public
     , a.image_url
