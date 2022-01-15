@@ -11,12 +11,12 @@ import {
   Q_SELECT_COUPONS_FOR_UNLOCK,
 } from "../QStore";
 import { logger } from "../logger";
-import { 
-  respond, 
-  respondRedirect, 
+import {
+  respond,
+  respondRedirect,
   respondDB,
   adminLogInsert,
-  respondAdminSuccess,  
+  respondAdminSuccess,
 } from "../respondent";
 import { postSelectProjectEpisodeList } from "./episodeController";
 
@@ -120,8 +120,13 @@ export const createProjectLoading = async (req, res) => {
     return;
   }
 
-  respondAdminSuccess(req, res, null, "loading_insert", getProjectLoadingMaster);
- 
+  respondAdminSuccess(
+    req,
+    res,
+    null,
+    "loading_insert",
+    getProjectLoadingMaster
+  );
 };
 
 // * 프로젝트 로딩 디테일 수정
@@ -182,7 +187,13 @@ export const updateProjectLoadingDetail = async (req, res) => {
     return;
   }
 
-  respondAdminSuccess(req, res, null, "loading_detail_update", getProjectLoadingDetail);
+  respondAdminSuccess(
+    req,
+    res,
+    null,
+    "loading_detail_update",
+    getProjectLoadingDetail
+  );
 };
 
 export const deleteProjectLoading = async (req, res) => {
@@ -195,8 +206,13 @@ export const deleteProjectLoading = async (req, res) => {
   DELETE FROM list_loading_appear WHERE loading_id = ${loading_id};
   DELETE FROM list_loading WHERE loading_id = ${loading_id}`);
 
-  respondAdminSuccess(req, res, null, "loading_delete", getProjectLoadingMaster);
-
+  respondAdminSuccess(
+    req,
+    res,
+    null,
+    "loading_delete",
+    getProjectLoadingMaster
+  );
 };
 
 // ? 작품별 로딩 관리 끝
@@ -323,7 +339,7 @@ export const checkSideUnlockByEpisode = async (userInfo) => {
 
 //! 사건ID 해금 조회
 export const checkSideUnlockByScene = async (userInfo) => {
-  const { userkey, project_id, scene_id, lang = "KO", } = userInfo;
+  const { userkey, project_id, scene_id, lang = "KO" } = userInfo;
 
   const locekdSideList = await DB(
     `
@@ -414,7 +430,7 @@ export const checkSideUnlockByScene = async (userInfo) => {
 
 //! 미션 해금 조회(에피소드)
 export const checkMissionByEpisode = async (userInfo) => {
-  const { userkey, project_id, episodeID, lang = "KO", } = userInfo;
+  const { userkey, project_id, episodeID, lang = "KO" } = userInfo;
 
   const locekdMissionList = await DB(
     `
@@ -505,7 +521,7 @@ export const checkMissionByEpisode = async (userInfo) => {
 
 //! 미션 해금 조회(사건)
 export const checkMissionByScence = async (userInfo) => {
-  const { userkey, project_id, scene_id, lang = "KO", } = userInfo;
+  const { userkey, project_id, scene_id, lang = "KO" } = userInfo;
 
   const locekdMissionList = await DB(
     `
@@ -596,7 +612,7 @@ export const checkMissionByScence = async (userInfo) => {
 
 //! 미션 해금 조회(drop)
 export const checkMissionByDrop = async (userInfo) => {
-  const { userkey, project_id, mission_id, lang = "KO", } = userInfo;
+  const { userkey, project_id, mission_id, lang = "KO" } = userInfo;
 
   //! 미션 확인
   const missionCheck = await DB(
@@ -631,7 +647,7 @@ export const checkMissionByDrop = async (userInfo) => {
     , fn_get_mission_name(a.mission_id, ?) mission_name
     , fn_get_mission_hint(a.mission_id, ?) mission_hint
     , image_url
-    , image_key FROM list_mission WHERE mission_id = ?;`,
+    , image_key FROM list_mission a WHERE mission_id = ?;`,
     [lang, lang, mission_id]
   );
 
@@ -740,8 +756,13 @@ export const postUpdateEpisodeSorting = async (req, res) => {
     return;
   }
 
-  respondAdminSuccess(req, res, null, "episode_sorting", postSelectProjectEpisodeList);
-
+  respondAdminSuccess(
+    req,
+    res,
+    null,
+    "episode_sorting",
+    postSelectProjectEpisodeList
+  );
 };
 
 // 선택한 스토리 디테일 정보
@@ -835,7 +856,7 @@ export const postRegisterStory = async (req, res) => {
 
   // 다시 기본 리스트 호출
   respondAdminSuccess(req, res, null, "project_insert", home);
-  
+
   // INSERT INTO list_project(project_type, title) VALUES (
   // res.render("registerStory", { pageTitle: "Register Story" });
 }; // 스토리 신규 등록 끝
