@@ -228,7 +228,7 @@ export const checkSideUnlockByEpisode = async (userInfo) => {
   const locekdSideList = await DB(
     `
   SELECT a.episode_id   
-  , fn_get_episode_title_lang(a.episode_id, 'KO') title 
+  , fn_get_episode_title_lang(a.episode_id, ${userInfo.lang}) title 
   , a.unlock_episodes 
   FROM list_episode a 
   WHERE a.project_id = ?
@@ -323,12 +323,12 @@ export const checkSideUnlockByEpisode = async (userInfo) => {
 
 //! 사건ID 해금 조회
 export const checkSideUnlockByScene = async (userInfo) => {
-  const { userkey, project_id, scene_id } = userInfo;
+  const { userkey, project_id, scene_id, lang = "KO", } = userInfo;
 
   const locekdSideList = await DB(
     `
   SELECT a.episode_id   
-  , fn_get_episode_title_lang(a.episode_id, 'KO') title 
+  , fn_get_episode_title_lang(a.episode_id, ?) title 
   , a.unlock_scenes 
   FROM list_episode a 
   WHERE a.project_id = ?
@@ -339,7 +339,7 @@ export const checkSideUnlockByScene = async (userInfo) => {
   AND a.unlock_scenes LIKE CONCAT('%', ${scene_id}, '%')
   AND a.episode_id NOT IN (SELECT z.episode_id FROM user_side z WHERE z.userkey = ?);  
   `,
-    [project_id, userkey]
+    [lang, project_id, userkey]
   );
 
   if (!locekdSideList.state || locekdSideList.row.length === 0) return [];
@@ -414,11 +414,16 @@ export const checkSideUnlockByScene = async (userInfo) => {
 
 //! 미션 해금 조회(에피소드)
 export const checkMissionByEpisode = async (userInfo) => {
-  const { userkey, project_id, episodeID } = userInfo;
+  const { userkey, project_id, episodeID, lang = "KO", } = userInfo;
 
   const locekdMissionList = await DB(
     `
-    SELECT mission_id, mission_name, mission_hint, image_url, image_key, id_condition 
+    SELECT mission_id
+    , fn_get_mission_name(a.mission_id, ?) mission_name
+    , fn_get_mission_hint(a.mission_id, ?) mission_hint
+    ,image_url
+    , image_key
+    , id_condition 
     FROM list_mission
     WHERE project_id = ?
     AND mission_type = 'episode'
@@ -427,7 +432,7 @@ export const checkMissionByEpisode = async (userInfo) => {
     AND id_condition LIKE CONCAT('%', ?, '%')
     AND mission_id NOT IN(SELECT mission_id FROM user_mission WHERE userkey = ?);  
     `,
-    [project_id, episodeID, userkey]
+    [lang, lang, project_id, episodeID, userkey]
   );
 
   if (!locekdMissionList.state || locekdMissionList.row.length === 0) return [];
@@ -500,11 +505,16 @@ export const checkMissionByEpisode = async (userInfo) => {
 
 //! 미션 해금 조회(사건)
 export const checkMissionByScence = async (userInfo) => {
-  const { userkey, project_id, scene_id } = userInfo;
+  const { userkey, project_id, scene_id, lang = "KO", } = userInfo;
 
   const locekdMissionList = await DB(
     `
-    SELECT mission_id, mission_name, mission_hint, image_url, image_key, id_condition 
+    SELECT mission_id
+    , fn_get_mission_name(mission_id, ?) mission_name
+    , fn_get_mission_hint(mission_id, ?) mission_hint
+    , image_url
+    , image_key
+    , id_condition 
     FROM list_mission
     WHERE project_id = ?
     AND mission_type = 'event'
@@ -513,7 +523,7 @@ export const checkMissionByScence = async (userInfo) => {
     AND id_condition LIKE CONCAT('%', ?, '%')
     AND mission_id NOT IN(SELECT mission_id FROM user_mission WHERE userkey = ?);  
     `,
-    [project_id, scene_id, userkey]
+    [lang, lang, project_id, scene_id, userkey]
   );
 
   if (!locekdMissionList.state || locekdMissionList.row.length === 0) return [];
@@ -586,7 +596,7 @@ export const checkMissionByScence = async (userInfo) => {
 
 //! 미션 해금 조회(drop)
 export const checkMissionByDrop = async (userInfo) => {
-  const { userkey, project_id, mission_id } = userInfo;
+  const { userkey, project_id, mission_id, lang = "KO", } = userInfo;
 
   //! 미션 확인
   const missionCheck = await DB(
@@ -617,8 +627,12 @@ export const checkMissionByDrop = async (userInfo) => {
   }
 
   const missionResult = await DB(
-    `SELECT mission_id, mission_name, mission_hint, image_url, image_key FROM list_mission WHERE mission_id = ?;`,
-    [mission_id]
+    `SELECT mission_id
+    , fn_get_mission_name(a.mission_id, ?) mission_name
+    , fn_get_mission_hint(a.mission_id, ?) mission_hint
+    , image_url
+    , image_key FROM list_mission WHERE mission_id = ?;`,
+    [lang, lang, mission_id]
   );
 
   if (!missionResult.state) {
