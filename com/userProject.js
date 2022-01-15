@@ -260,7 +260,7 @@ export const getTop3SelectionList = async (req, res) => {
     , a.selection_group selectionGroup
     , a.selection_no selectionNo
     , a.selection_order selectionOrder
-    , ${lang} selection_content
+    , '${lang}' selection_content
     , CASE WHEN a.selection_group = b.selection_group AND a.selection_no = b.selection_no 
     THEN 1 ELSE 0 END selected
     , (SELECT sortkey FROM list_episode WHERE episode_id = a.episode_id) sortkey
@@ -289,7 +289,7 @@ export const getTop3SelectionList = async (req, res) => {
     , a.selection_group selectionGroup
     , a.selection_no selectionNo
     , a.selection_order selectionOrder
-    , ${lang} selection_content
+    , '${lang}' selection_content
     , CASE WHEN a.selection_group = b.selection_group AND a.selection_no = b.selection_no 
     THEN 1 ELSE 0 END selected
     , (SELECT sortkey FROM list_episode WHERE episode_id = a.episode_id) sortkey
@@ -309,7 +309,7 @@ export const getTop3SelectionList = async (req, res) => {
     , a.selection_group selectionGroup
     , a.selection_no selectionNo
     , a.selection_order selectionOrder
-    , ${lang} selection_content
+    , '${lang}' selection_content
     , CASE WHEN a.selection_group = b.selection_group AND a.selection_no = b.selection_no 
     THEN 1 ELSE 0 END selected
     , (SELECT sortkey FROM list_episode WHERE episode_id = a.episode_id) sortkey  
@@ -412,7 +412,7 @@ export const getEndingSelectionList = async (req, res) => {
   , fn_get_episode_title_lang(a.episode_id, ?) title
   , a.selection_group
   , a.selection_no
-  , ${lang} selection_content
+  , '${lang}' selection_content
   , (SELECT sortkey FROM list_episode WHERE episode_id = a.episode_id) sortkey
   , fn_get_script_data(a.episode_id, a.selection_group, a.selection_no, '${lang}') script_data
   FROM list_selection a, user_selection_ending b

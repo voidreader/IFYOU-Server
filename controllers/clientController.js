@@ -813,7 +813,7 @@ export const getMainLoadingImageRandom = async (req, res) => {
     ifnull(fn_get_design_info(image_id, 'url'), '') image_url 
     , ifnull(fn_get_design_info(image_id, 'key'), '') image_key
     FROM list_main_loading a
-    WHERE lang = ${lang}
+    WHERE lang = '${lang}'
     AND sysdate() BETWEEN start_date AND end_date
     AND is_public = 1 
     AND image_id in(SELECT design_id FROM list_design WHERE design_id = a.image_id AND design_type = 'main_loading');
