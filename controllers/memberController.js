@@ -855,11 +855,11 @@ export const requestGameUserProperty = async (req, res) => {
   res.status(200).json(responseData);
 };
 
-export const getUserMissionList = async (userkey) => {
+export const getUserMissionList = async (userkey, lang) => {
   const result = await DB(
     `
   SELECT project_id 
-  , fn_get_project_name(project_id) project_name 
+  , fn_get_project_name_new(project_id, ?) project_name 
   , count(*) mission_total
   , fn_get_mission_count(project_id, ?, 'N') user_total
   , fn_get_mission_count(project_id, ?, 'Y') user_reward
@@ -867,16 +867,17 @@ export const getUserMissionList = async (userkey) => {
   FROM list_mission a LEFT OUTER JOIN user_mission b
   ON a.mission_id = b.mission_id AND userkey = ? 
   GROUP BY project_id;`,
-    [userkey, userkey, userkey]
+    [lang, userkey, userkey, userkey]
   );
 
   return result.row;
 };
 
-export const getUserMissionDetail = async (userkey, project_id) => {
+export const getUserMissionDetail = async (userkey, project_id, lang) => {
   const result = await DB(
     ` SELECT a.mission_id
-  , mission_name
+  , fn_get_mission_name(a.mission_id, ?) mission_name
+  , fn_get_mission_hint(a.mission_id, ?) mission_hint
   , CASE WHEN a.mission_id = b.mission_id THEN 'O' ELSE 'X' END unlock_check
   , ifnull(DATE_FORMAT(open_date, '%Y-%m-%d %T'), '-') open_date
   , CASE WHEN unlock_state = 1 THEN DATE_FORMAT(receive_date, '%Y-%m-%d %T') ELSE '-' END reward_date
@@ -884,7 +885,7 @@ export const getUserMissionDetail = async (userkey, project_id) => {
   ON a.mission_id = b.mission_id AND userkey = ?
   WHERE project_id = ?
   ORDER BY mission_id;`,
-    [userkey, project_id]
+    [lang, lang, userkey, project_id]
   );
 
   return result.row;
@@ -894,7 +895,11 @@ export const getUserMissionDetail = async (userkey, project_id) => {
 export const userMissionList = async (req, res) => {
   logger.info(`userMissionList`);
 
-  const result = await getUserMissionList(req.params.id);
+  const {
+    body: { lang = "KO", }
+  } = req;
+
+  const result = await getUserMissionList(req.params.id, lang);
 
   res.status(200).json(result);
 };
@@ -916,7 +921,7 @@ export const userMissonClear = async (req, res) => {
 
   const {
     params: { id },
-    body: { mission_type = "", project_id = "", mission_id = "" },
+    body: { mission_type = "", project_id = "", mission_id = "", lang = "KO", },
   } = req;
 
   console.log(req.body);
@@ -956,7 +961,7 @@ export const userMissonClear = async (req, res) => {
 
   // 리스트와 상세 재조회
   const responseData = {};
-  responseData.missionList = await getUserMissionList(id);
+  responseData.missionList = await getUserMissionList(id, lang);
   responseData.missionDetail = await getUserMissionDetail(id, project_id);
 
   adminLogInsert(req, "user_mission_clear");
