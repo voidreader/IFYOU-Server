@@ -65,6 +65,24 @@ export const respondDB = async (res, errorCode, serverError) => {
   respondError(res, serverError, errorCode, koMessage);
 };
 
+export const responDBCoinShop = async (res, errorCode, lang, serverError) => {
+  const result = await DB(
+    `SELECT ${lang} as message FROM com_localize WHERE id = ? ;`,
+    [errorCode]
+  );
+
+  // 한국 메세지를 따로 전달하는걸로 하자.(개발자를 위해서)
+  let message = ``;
+
+  if (result.row === 0) {
+    message = "이 에러에 해당하는 텍스트가 없습니다.";
+  } else {
+    message = result.row[0].message;
+  }
+
+  respondError(res, serverError, errorCode, message);
+};
+
 //! func 추가 : 함수명
 export const respond = (result, res, func) => {
   if (!result.state) {
