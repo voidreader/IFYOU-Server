@@ -1020,8 +1020,6 @@ const getUserGalleryHistory = async (userInfo) => {
 
   console.log("!!! gallery total images count : ", images.length);
 
-  const finalResult = [];
-
   // * illust_type이 illust, minicut인 경우 live_pair_id가 존재하는 경우
   // * live개체 오픈 이력 있음 => illust or minicut 제거
   // * live개체의 오픈 이력이 없음 => live 개체를 목록에서 제거
@@ -1882,7 +1880,14 @@ export const registerClientAccount = async (req, res) => {
   //* 기본 코인 재화 처리
   const userResult = await DB(Q_CLIENT_LOGIN_BY_GAMEBASE, [gamebaseid]);
   if (userResult.state && userResult.row.length > 0) {
-    // 기본 코인 재화 지급
+    // 가입시 재화 지급
+    await DB(UQ_ACCQUIRE_CURRENCY, [
+      userResult.row[0].userkey,
+      "gem",
+      150,
+      "newbie",
+    ]);
+
     await DB(UQ_ACCQUIRE_CURRENCY, [
       userResult.row[0].userkey,
       "profileBackground19",
@@ -2828,8 +2833,10 @@ export const getProfileCurrencyCurrent = async (req, res) => {
   } = req;
 
   const responseData = {};
-  
-  console.log(mysql.format(`  SELECT 
+
+  console.log(
+    mysql.format(
+      `  SELECT 
   a.currency
   , CASE WHEN currency_type = 'wallpaper' THEN
     fn_get_bg_info(resource_image_id, 'url')
@@ -2851,7 +2858,10 @@ export const getProfileCurrencyCurrent = async (req, res) => {
   FROM user_profile_currency a, com_currency b 
   WHERE userkey = ?
   AND a.currency = b.currency
-  ORDER BY sorting_order;`, [userkey]));
+  ORDER BY sorting_order;`,
+      [userkey]
+    )
+  );
   let result = await DB(
     `
   SELECT 
@@ -2882,7 +2892,9 @@ export const getProfileCurrencyCurrent = async (req, res) => {
     [userkey]
   );
   responseData.currency = result.row;
-  console.log(mysql.format(`    SELECT 
+  console.log(
+    mysql.format(
+      `    SELECT 
   text_id 
   , input_text
   , font_size
@@ -2893,7 +2905,10 @@ export const getProfileCurrencyCurrent = async (req, res) => {
   , angle 
   FROM user_profile_text
   WHERE userkey = ?
-  ORDER BY sorting_order; `, [userkey]));
+  ORDER BY sorting_order; `,
+      [userkey]
+    )
+  );
   result = await DB(
     `
   SELECT 
