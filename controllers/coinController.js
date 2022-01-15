@@ -2,7 +2,7 @@ import mysql from "mysql2/promise";
 import { response } from "express";
 import { DB, logAction, transactionDB } from "../mysqldb";
 import { logger } from "../logger";
-import { respondDB } from "../respondent";
+import { respondDB, responDBCoinShop } from "../respondent";
 import { getUserBankInfo } from "./bankController";
 import { getCurrencyQuantity } from "./accountController";
 import { getEqualConditionQuery, getInConditionQuery } from "../com/com";
@@ -270,7 +270,7 @@ export const getCoinProductSearchDetail = async (req, res) => {
 
   if (!whereQuery) {
     logger.info(`getCoinProductSearchDetail search no`);
-    respondDB(res, 80098);
+    responDBCoinShop(res, 80098, lang);
     return;
   }
 
@@ -339,7 +339,7 @@ export const coinProductSearchDelete = async (req, res) => {
   logger.info(`coinProductSearchDelete`);
 
   const {
-    body: { userkey, kind = "", search_word = "" },
+    body: { userkey, kind = "", search_word = "", lang = "KO", },
   } = req;
 
   let result = ``;
@@ -351,7 +351,7 @@ export const coinProductSearchDelete = async (req, res) => {
     ]);
     if (!result.state) {
       logger.error(`coinProductSearchDelete Error 1 ${result.error}`);
-      respondDB(res, 80026, result.error);
+      responDBCoinShop(res, 80026, lang, result.error);
       return;
     }
   } else {
@@ -361,7 +361,7 @@ export const coinProductSearchDelete = async (req, res) => {
     );
     if (!result.state || result.row.length === 0) {
       logger.error(`coinProductSearchDelete Error 2`);
-      respondDB(res, 80019);
+      responDBCoinShop(res, 80019, lang);
       return;
     }
 
@@ -371,7 +371,7 @@ export const coinProductSearchDelete = async (req, res) => {
     );
     if (!result.state) {
       logger.error(`coinProductSearchDelete Error 3 ${result.error}`);
-      respondDB(res, 80026, result.error);
+      responDBCoinShop(res, 80026, lang, result.error);
       return;
     }
   }
@@ -588,6 +588,7 @@ export const userCoinPurchase = async (req, res) => {
       currency = "",
       sell_price = 0,
       pay_price = 0,
+      lang = "KO",
     },
   } = req;
 
@@ -595,7 +596,7 @@ export const userCoinPurchase = async (req, res) => {
 
   if (userkey === 0 || coin_product_id === 0 || pay_price === 0 || !currency) {
     logger.error(`userCoinPurchase Error 1-1`);
-    respondDB(res, 80019, req.body);
+    responDBCoinShop(res, 80019, lang, req.body);
     return;
   }
 
@@ -611,7 +612,7 @@ export const userCoinPurchase = async (req, res) => {
   );
   if (!result.state || result.row.length === 0) {
     logger.error(`userCoinPurchase Error 1-2`);
-    respondDB(res, 80097);
+    responDBCoinShop(res, 80097, lang);
     return;
   }
 
@@ -644,7 +645,7 @@ export const userCoinPurchase = async (req, res) => {
 
   if (productCount <= quantityCount) {
     logger.error(`userCoinPurchase Error 2`);
-    respondDB(res, 80025);
+    responDBCoinShop(res, 80025, lang);
     return;
   }
 
@@ -652,7 +653,7 @@ export const userCoinPurchase = async (req, res) => {
   const userCoin = await getCurrencyQuantity(userkey, "coin");
   if (userCoin < pay_price) {
     logger.error(`userCoinPurchase Error 3`);
-    respondDB(res, 80013);
+    responDBCoinShop(res, 80013, lang);
     return;
   }
 
@@ -689,7 +690,7 @@ export const userCoinPurchase = async (req, res) => {
 
   if (!purchaseResult.state) {
     logger.error(`userCoinPurchase Error 4 ${purchaseResult.error}`);
-    respondDB(res, 80026, purchaseResult.error);
+    responDBCoinShop(res, 80026, lang, purchaseResult.error);
     return;
   }
 

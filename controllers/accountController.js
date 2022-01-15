@@ -2310,12 +2310,13 @@ export const requestTutorialReward = async (req, res) => {
   `;
 
   // 튜터리얼 보상 지급 쿼리
-  const propertyQuery = `
-  CALL sp_insert_user_property(${userkey}, 'gem', 6, 'tutorial');
-  `;
+  // 2022.01.15 JE - 보상 재화 추가
+  const currentQuery = `INSERT INTO user_mail(userkey, mail_type, currency, quantity, expire_date, connected_project)  
+  VALUES(?, 'tutorial', ?, ?, DATE_ADD(NOW(), INTERVAL 1 YEAR), -1);`;
+  let propertyQuery = mysql.format(currentQuery, [userkey, 'gem', '6']);
+  propertyQuery += mysql.format(currentQuery, [userkey, 'tutorialBadge', '1']);
 
   const result = await transactionDB(`${updateQuery} ${propertyQuery}`);
-
   if (!result.state) {
     respondDB(res, 80048, result.error);
     return;
@@ -2324,6 +2325,7 @@ export const requestTutorialReward = async (req, res) => {
   const responseData = { new_tutorial_step: 3 };
 
   responseData.bank = await getUserBankInfo(req.body);
+  responseData.unreadMailCount = await getUserUnreadMailCount(userkey);
 
   res.status(200).json(responseData);
 };
