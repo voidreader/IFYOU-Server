@@ -1,7 +1,8 @@
 /* eslint-disable no-restricted-syntax */
+import mysql from "mysql2/promise";
 import { restart } from "nodemon";
 import { response } from "express";
-import { DB, logAction } from "../mysqldb";
+import { DB, logAction, transactionDB } from "../mysqldb";
 import {
   Q_MODEL_RESOURCE_INFO,
   Q_EMOTICON_SLAVE,
@@ -1054,6 +1055,159 @@ const failResponse = (req, res) => {
   respondDB(res, 80033, "에러메세지");
 };
 
+//! 라이브 스크립트 업데이트 
+export const livePairScriptUpdate = async (req, res) => {
+  logger.info(`livePairScriptUpdate`);
+
+  const {
+    body:{ project_id = -1, }
+  } = req;
+
+  if(project_id === -1){
+    logger.error(`livePairScriptUpdate 1`);
+    respondDB(res, 80019);
+    return;    
+  }
+  
+  let result = ``; 
+  let currentQuery = ``; 
+  let updateQuery = ``;
+  let recoveryQuery = ``;
+
+  //* 라이브 일러스트 
+  result = await DB(`
+  SELECT 
+  image_name
+  , live_illust_name 
+  FROM list_illust a, list_live_illust b
+  WHERE a.project_id = ?   
+  AND a.live_pair_id = b.live_illust_id
+  AND a.illust_id > 0 AND b.live_illust_id > 0;`, [project_id]);
+  if(result.row.length > 0) {
+    for(const item of result.row){
+      
+      // eslint-disable-next-line no-await-in-loop
+      result = await DB(`
+      SELECT 
+      script_no
+      , episode_id
+      , template
+      , script_data 
+      FROM list_script 
+      WHERE project_id = ? 
+      AND template = 'illust' 
+      AND script_data = ?;`, [project_id, item.live_illust_name]);
+      if(result.state && result.row.length > 0 ) {
+        
+        currentQuery = `INSERT INTO admin_live_pair_script(script_no, project_id, episode_id, origin_template, origin_script_data, update_template, update_script_data) 
+        VALUES(?, ?, ?, ?, ?, ?, ?);`; 
+        recoveryQuery += mysql.format(currentQuery, [
+          result.row[0].script_no
+          , project_id
+          , result.row[0].episode_id
+          , result.row[0].template
+          , result.row[0].script_data
+          , result.row[0].template
+          , item.image_name
+        ]);
+
+        currentQuery = `UPDATE list_script SET script_data = ? WHERE script_no = ?;`; 
+        updateQuery += mysql.format(currentQuery, [item.image_name, result.row[0].script_no]);
+
+      }
+    }
+  }
+
+  //* 라이브 오브제
+  result = await DB(`
+  SELECT 
+  image_name
+  , live_object_name
+  FROM list_minicut a, list_live_object b 
+  WHERE a.project_id = ?
+  AND a.live_pair_id = b.live_object_id 
+  AND a.minicut_id > 0 AND b.live_object_id > 0;`, [project_id]);
+  if(result.row.length > 0){
+    for(const item of result.row){
+
+      // eslint-disable-next-line no-await-in-loop
+      result = await DB(`
+      SELECT 
+      script_no
+      , episode_id
+      , template
+      , script_data
+      FROM list_script 
+      WHERE project_id = ? 
+      AND template = 'live_object'
+      AND script_data = ?;
+      `, [project_id, item.image_name]);
+      if(result.state && result.row.length > 0) {
+
+        currentQuery = `INSERT INTO admin_live_pair_script(script_no, project_id, episode_id, origin_template, origin_script_data, update_template, update_script_data) 
+        VALUES(?, ?, ?, ?, ?, ?, ?);`; 
+        recoveryQuery += mysql.format(currentQuery, [
+          result.row[0].script_no
+          , project_id
+          , result.row[0].episode_id
+          , result.row[0].template
+          , result.row[0].script_data
+          , 'image'
+          , result.row[0].script_data
+        ]);
+
+        currentQuery = `UPDATE list_script SET template = 'image' WHERE script_no = ?;`;  
+        updateQuery += mysql.format(currentQuery, [result.row[0].script_no]);
+      }
+
+      
+      // eslint-disable-next-line no-await-in-loop
+      result = await DB(`
+      SELECT 
+      script_no
+      , episode_id
+      , template
+      , script_data
+      FROM list_script 
+      WHERE project_id = ? 
+      AND template = 'live_object' 
+      AND script_data = ?;
+      `, [project_id, item.live_object_name]);
+      if(result.state && result.row.length > 0) {
+        
+        currentQuery = `INSERT INTO admin_live_pair_script(script_no, project_id, episode_id, origin_template, origin_script_data, update_template, update_script_data) 
+        VALUES(?, ?, ?, ?, ?, ?, ?);`; 
+        recoveryQuery += mysql.format(currentQuery, [
+          result.row[0].script_no
+          , project_id
+          , result.row[0].episode_id
+          , result.row[0].template
+          , result.row[0].script_data
+          , 'image'
+          , item.image_name
+        ]);
+        
+        currentQuery = `UPDATE list_script SET template = 'image', script_data = ? WHERE script_no = ?;`;  
+        updateQuery += mysql.format(currentQuery, [item.image_name, result.row[0].script_no]);
+      }
+    }
+  }
+
+  console.log(recoveryQuery);
+  console.log(updateQuery);
+
+
+  /*result = await transactionDB(updateQuery);
+  if(!result.state || result.row.length === 0){
+    logger.error(`livePairScriptUpdate ${result.error}`);
+    respondDB(res, 80026, result.error);
+    return;   
+  }*/
+
+  res.status(200).json({ code: "OK", koMessage: "성공" });  
+
+};
+
 // clientHome에서 func에 따라 분배
 // controller에서 또다시 controller로 보내는것이 옳을까..? ㅠㅠ
 export const clientHome = (req, res) => {
@@ -1229,6 +1383,7 @@ export const clientHome = (req, res) => {
   // 코인 상품 환전 리스트
   else if (func === "coinExchangePurchase") coinExchangePurchase(req, res);
   else if (func === "requestTutorialReward") requestTutorialReward(req, res);
+  else if (func === "livePairScriptUpdate") livePairScriptUpdate(req, res);
   else {
     //  res.status(400).send(`Wrong Func : ${func}`);
     logger.error(`clientHome Error`);
