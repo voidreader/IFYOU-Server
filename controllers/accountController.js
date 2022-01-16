@@ -50,6 +50,14 @@ import {
   Q_SELECT_USER_GALLERY_IMAGES,
   UQ_SAVE_USER_PROFILE,
   UQ_SEND_MAIL_NEWBIE,
+  Q_SELECT_PROJECT_RESET_COIN_PRICE,
+  Q_SELECT_EPISODE_LOADING,
+  Q_SELECT_MISSION_ALL,
+  Q_SELECT_PROJECT_CURRENCY,
+  Q_SELECT_SCENE_HISTORY,
+  Q_SELECT_SIDE_STORY,
+  Q_SELECT_EPISODE_PROGRESS,
+  Q_SELECT_EPISODE_HISTORY,
 } from "../USERQStore";
 
 import { logger } from "../logger";
@@ -2468,7 +2476,7 @@ const getEpisodeLoadingList = async (project_id) => {
 
 // * 2021.12.19 프로젝트 리소스 한번에 가져오기
 // * 쿼리 통합
-const getProjectResources = async (project_id, lang, bubbleID) => {
+const getProjectResources = async (project_id, lang, bubbleID, userkey) => {
   const responseData = {};
 
   let query = "";
@@ -2488,6 +2496,17 @@ const getProjectResources = async (project_id, lang, bubbleID) => {
     bubbleID,
   ]); // 8. bubbleSprite 말풍선 스프라이트
   query += mysql.format(Q_SELECT_PROJECT_ALL_MINICUT, [lang, project_id]); // 9. minicuts 미니컷
+  query += mysql.format(Q_SELECT_PROJECT_RESET_COIN_PRICE, [userkey, project_id, project_id]); // 10. 기준정보, 리셋횟수, 프리패스currency 
+  query += mysql.format(Q_SELECT_EPISODE_LOADING, [project_id]); // 11. 에피소드 로딩 리스트 
+  query += mysql.format(Q_SELECT_MISSION_ALL, [lang, lang, userkey, project_id]); // 12. 모든 도전 과제
+  query += mysql.format(Q_SELECT_PROJECT_CURRENCY, [lang, project_id]); // 13. 프로젝트 화폐 정보 
+  query += mysql.format(Q_USER_EPISODE_SCENE_PROGRESS, [userkey, project_id]); // 14. 유저별 에피소드 상황 히스토리 
+  query += mysql.format(Q_SELECT_SCENE_HISTORY, [userkey, project_id]); // 15. 유저, 프로젝트에서 경험한 모든 사건 ID 목록 
+  query += mysql.format(Q_SELECT_USER_DRESS_PROGRESS, [userkey, project_id]); // 16. 유저 의상 진행 정보 
+  query += mysql.format(Q_USER_EPISODE_PURCHASE, [userkey, project_id]); // 17. 에피소드 구매 정보
+  query += mysql.format(Q_SELECT_SIDE_STORY, [lang, lang, lang, lang, lang, userkey, lang, userkey, lang, userkey, project_id]); // 18. 에피소드 사이드 스토리 
+  query += mysql.format(Q_SELECT_EPISODE_PROGRESS,[userkey, project_id]); // 19. 에피소드 progress
+  query += mysql.format(Q_SELECT_EPISODE_HISTORY, [userkey, project_id]); // 20. 에피소드 히스토리 
 
   const result = await DB(query);
 
@@ -2534,6 +2553,58 @@ const getProjectResources = async (project_id, lang, bubbleID) => {
     liveIllusts[item.live_illust_name].push(item); // 배열에 추가한다.
   }); // 라이브 일러스트 포장 끝
 
+  // 기준 정보, 리셋 횟수, 프리패스 
+  const { first_reset_price, reset_increment_rate, reset_count } = result.row[10];
+  // * 기준정보를 가져와서 리셋 카운트에 따른 코인 비용 구하기!
+  let resetPrice = 0;
+  if (reset_count <= 0) {
+    //리셋하지 않은 경우
+    resetPrice = first_reset_price;
+  } else {
+    // 리셋한 경우(리셋횟수만큼 증가)
+    resetPrice = first_reset_price;
+    for (let i = 0; i < reset_count; i++) {
+      resetPrice = Math.floor(
+        resetPrice + resetPrice * (reset_increment_rate / 100)
+      );
+    }
+  }
+
+  const scenceProgress = []; 
+  if(result.row[14].length > 0) {
+    
+    // eslint-disable-next-line no-restricted-syntax
+    for(const item of result.row[14]){
+      scenceProgress.push(item.scene_id); 
+    }
+  }
+  const scenceHistory = [];
+  if(result.row[15].length > 0){
+   
+   // eslint-disable-next-line no-restricted-syntax
+   for(const item of result.row[15]){
+    scenceHistory.push(item.scene_id); 
+   }   
+
+  }
+
+  const episodeProgress = []; 
+  if(result.row[19].length > 0){
+   
+    // eslint-disable-next-line no-restricted-syntax
+   for(const item of result.row[19]){
+    episodeProgress.push(item.episode_id); 
+   }  
+  }
+  const episodeHistory = []; 
+  if(result.row[20].length > 0){
+   
+    // eslint-disable-next-line no-restricted-syntax
+   for(const item of result.row[20]){
+    episodeHistory.push(item.episode_id); 
+   }
+  }
+
   responseData.detail = result.row[0];
   responseData.dressCode = result.row[1];
   responseData.nametag = result.row[2];
@@ -2544,6 +2615,17 @@ const getProjectResources = async (project_id, lang, bubbleID) => {
   responseData.liveIllusts = liveIllusts;
   responseData.bubbleSprite = result.row[8];
   responseData.minicuts = result.row[9];
+  responseData.resetData = { resetPrice, reset_count };
+  responseData.episodeLoadingList = result.row[11]; 
+  responseData.missions = result.row[12];
+  responseData.currency = result.row[13];
+  responseData.sceneProgress = scenceProgress;
+  responseData.sceneHistory = scenceHistory;
+  responseData.episodeProgress = episodeProgress;
+  responseData.episodeHistory = episodeHistory;
+  responseData.dressProgress = result.row[16];
+  responseData.episodePurchase = result.row[17];
+  responseData.sides = result.row[18]; 
 
   return responseData;
 };
@@ -2562,7 +2644,7 @@ export const getUserSelectedStory = async (req, res) => {
     body: {
       userkey,
       project_id,
-      userBubbleVersion = 0,
+      userBubbleVersion = 0, 
       clientBubbleSetID = -1,
       lang = "KO",
     },
@@ -2590,67 +2672,29 @@ export const getUserSelectedStory = async (req, res) => {
   const storyInfo = {}; // * 결과값
 
   // 가장 최신 작업
-  storyInfo.resetData = await getProjectResetCoinPrice(
-    userInfo.userkey,
-    userInfo.project_id
-  ); // 작품 리셋 카운트 및 소모 가격
-  storyInfo.galleryImages = await getUserGalleryHistory(userInfo); // 갤러리 공개 이미지
+  //storyInfo.resetData = await getProjectResetCoinPrice(
+  //  userInfo.userkey,
+  //  userInfo.project_id
+  //); // 작품 리셋 카운트 및 소모 가격
 
+  storyInfo.galleryImages = await getUserGalleryHistory(userInfo); // 갤러리 공개 이미지 
+ 
   storyInfo.freepasProduct = await getProjectFreepassProduct(
     userInfo.project_id,
     userInfo.userkey
   ); // 프리패스 상품 리스트
   storyInfo.freepassPrice = await getProjectFreepassPrice(userInfo); // 프리패스 가격 정보
   storyInfo.projectCurrent = await getUserProjectCurrent(userInfo); // 프로젝트 현재 플레이 지점 !
-
-  storyInfo.episodeLoadingList = await getEpisodeLoadingList(
-    userInfo.project_id
-  ); // 에피소드 로딩 리스트
-
-  // 유저 소유
-  storyInfo.userProperty = await getUserProjectProperty(userInfo);
-
+  storyInfo.userProperty = await getUserProjectProperty(userInfo); // 유저 소유
   storyInfo.selectionProgress = await getUserProjectSelectionProgress(userInfo); // 프로젝트 선택지 Progress
-  storyInfo.missions = await getProjectAllMission(userInfo); // 프로젝트의 모든 도전과제
-  storyInfo.currency = await getProjectCurrency(
-    userInfo.project_id,
-    userInfo.lang
-  ); // 화폐정보 추가
 
   const voiceData = await getUserVoiceHistory(userInfo);
   storyInfo.voiceHistory = voiceData.voiceHistory; // 화자별로 포장된 보이스
   storyInfo.rawVoiceHistory = voiceData.rawVoiceHistory; // 리스트 그대로 형태의 보이스
-
   storyInfo.progress = await getUserCollectionProgress(userInfo); // 수집요소 진행률
-
-  // * 사건 정보
-  storyInfo.sceneProgress = await getUserEpisodeSceneProgress(userInfo); // 유저 사건ID 진행도
-  storyInfo.sceneHistory = await getUserProjectSceneHistory(userInfo); // 유저가 한번이라도 오픈한 프로젝트별 사건ID (신규 입력만, 삭제나 변경 없음)
-
-  // * 에피소드 정보
-  storyInfo.episodeProgress = await getUserEpisodeProgress(userInfo); // ! 유저 에피소드 진행도
-  // storyInfo.episodeProgressVer2 = await getUserEpisodeProgressVer2(userInfo); // 유저 에피소드 진행도 버전2
-  storyInfo.episodeHistory = await getUserEpisodeHistory(userInfo); // 유저 에피소드 히스토리 (삭제, 변경없음)
-
-  // * 작품 목록
   storyInfo.episodes = await requestMainEpisodeList(userInfo); // 유저의 정규 에피소드 리스트
-  storyInfo.sides = await requestSideEpisodeList(userInfo); // 유저의 사이드 에피소드 리스트
-
-  storyInfo.dressProgress = await getUserProjectDressProgress(userInfo); // 유저 의상 정보
   //storyInfo.favorProgress = await getUserFavorHistory(userInfo); // 유저 호감도 진행도
   // storyInfo.illustHistory = await getUserIllustHistory(userInfo); // 유저 일러스트 히스토리
-
-  storyInfo.episodePurchase = await getUserEpisodePurchaseInfo(userInfo); // 에피소드 구매 정보
-
-  // * 2021.10.01 프리패스 타임딜 처리
-  storyInfo.userFreepassTimedeal = await checkFreepassTimedealAppear(
-    userInfo.userkey,
-    userInfo.project_id,
-    storyInfo.episodePurchase,
-    storyInfo.userProperty.freepass
-  );
-
-  // * 기준정보
 
   // 작품 기준정보
   //storyInfo.galleryBanner = await getProjectGalleryBannerInfo(userInfo); // 갤러리 상단 배너
@@ -2659,10 +2703,12 @@ export const getUserSelectedStory = async (req, res) => {
   storyInfo.freepassTitle = await getProjectFreepassTitleInfo(userInfo); // 프리패스 타이틀
   storyInfo.bubbleMaster = bubbleMaster; // 말풍선 마스터 정보
 
+
   const projectResources = await getProjectResources(
     userInfo.project_id,
     userInfo.lang,
-    userInfo.bubbleID
+    userInfo.bubbleID,
+    userInfo.userkey, 
   );
   if (projectResources == null) {
     respondDB(res, 80026, "프로젝트 리소스 로딩 오류");
@@ -2679,12 +2725,32 @@ export const getUserSelectedStory = async (req, res) => {
   storyInfo.liveObjects = projectResources.liveObjects; // 라이브 오브젝트
   storyInfo.liveIllusts = projectResources.liveIllusts; // 라이브 일러스트
   storyInfo.bubbleSprite = projectResources.bubbleSprite; // 프로젝트 말풍선 스프라이트 정보
+  storyInfo.resetData = projectResources.resetData; // 작품 리셋 카운트 및 소모 가격
+  storyInfo.episodeLoadingList = projectResources.episodeLoadingList; // 에피소드 로딩 리스트
+  storyInfo.missions = projectResources.missions; // 프로젝트의 모든 도전과제
+  storyInfo.currency = projectResources.currency; // 화폐정보 추가
+  //* 사건 정보 
+  storyInfo.sceneProgress = projectResources.sceneProgress; // 유저 사건ID 진행도
+  console.log(storyInfo.sceneProgress);
+  storyInfo.sceneHistory = projectResources.sceneHistory; // 유저가 한번이라도 오픈한 프로젝트별 사건ID (신규 입력만, 삭제나 변경 없음)
+  //* 에피소드 정보 
+  storyInfo.episodeProgress = projectResources.episodeProgress; // ! 유저 에피소드 진행도
+  storyInfo.episodeHistory = projectResources.episodeHistory; // 유저 에피소드 히스토리 
+  storyInfo.dressProgress = projectResources.dressProgress; // 유저 의상 정보
+  storyInfo.episodePurchase = projectResources.episodePurchase; // 에피소드 구매 정보
+  storyInfo.userFreepassTimedeal = await checkFreepassTimedealAppear(
+    userInfo.userkey,
+    userInfo.project_id,
+    storyInfo.episodePurchase,
+    storyInfo.userProperty.freepass
+  ); // * 2021.10.01 프리패스 타임딜 처리
+  storyInfo.sides = projectResources.sides; // 유저의 사이드 에피소드 리스트
 
   // * 말풍선 상세 정보 (버전체크를 통해서 필요할때만 내려준다)
   // 버전 + 같은 세트 ID인지도 체크하도록 추가.
   if (
     userInfo.userBubbleVersion < userInfo.bubble_ver ||
-    userInfo.clientBubbleSetID != userInfo.bubbleID
+    userInfo.clientBubbleSetID !== userInfo.bubbleID
   ) {
     // logger.info(`!!! Response with BubbleSetDetail`);
     const allBubbleSet = await getProjectBubbleSetDetail(userInfo); // * 프로젝트 말풍선 세트 상세 정보
