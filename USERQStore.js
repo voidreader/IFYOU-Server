@@ -380,6 +380,116 @@ SELECT a.minicut_id
  WHERE a.project_id = ?;
 `;
 
+export const Q_SELECT_PROJECT_RESET_COIN_PRICE = `
+SELECT 
+  first_reset_price
+  , reset_increment_rate 
+  , fn_get_user_project_reset_count(? , ?) reset_count
+  FROM com_server 
+  WHERE server_no = 1;
+`;
+
+export const Q_SELECT_EPISODE_LOADING = `
+SELECT 
+a.loading_id 
+, a.image_id 
+, fn_get_design_info(a.image_id, 'url') image_url
+, fn_get_design_info(a.image_id, 'key') image_key
+, a.loading_name
+FROM list_loading a
+WHERE a.project_id = ?;`;
+
+export const Q_SELECT_MISSION_ALL = `
+SELECT a.mission_id
+  , fn_get_mission_name(a.mission_id, ?) mission_name
+  , fn_get_mission_hint(a.mission_id, ?) mission_hint
+  , a.mission_type 
+  , a.is_hidden 
+  , a.reward_currency 
+  , a.reward_quantity 
+  , a.reward_exp 
+  , a.image_url 
+  , a.image_key 
+  , b.unlock_state 
+  , fn_get_design_info((SELECT icon_image_id FROM com_currency WHERE currency = reward_currency), 'url') icon_image_url
+  , fn_get_design_info((SELECT icon_image_id FROM com_currency WHERE currency = reward_currency), 'key') icon_image_key
+  , fn_get_mission_name(a.mission_id, 'KO') origin_name
+  FROM list_mission a 
+  LEFT OUTER JOIN user_mission b ON a.mission_id = b.mission_id AND b.userkey = ? 
+  WHERE a.project_id = ?;
+`;
+
+export const Q_SELECT_PROJECT_CURRENCY = `
+SELECT cc.currency
+  , fn_get_localize_text(cc.local_code, ?) origin_name
+  , cc.currency_type 
+  , cc.local_code
+  , cc.is_unique 
+  FROM com_currency cc WHERE connected_project = ?;
+`;
+
+export const Q_SELECT_SCENE_HISTORY = `
+SELECT hist.scene_id
+  FROM user_scene_hist hist
+  WHERE hist.userkey = ?
+  AND hist.project_id = ?;
+`;
+
+export const Q_SELECT_SIDE_STORY = `
+SELECT a.episode_id 
+, a.project_id 
+, a.episode_type
+, TRIM(fn_get_episode_title_lang(a.episode_id, ?)) title 
+, fn_check_episode_lang_exists(a.episode_id, ?) lang_exists
+, a.episode_status 
+, a.currency
+, a.price 
+, a.ending_type 
+, a.depend_episode
+, TRIM(fn_get_episode_title_lang(a.depend_episode, ?)) depend_episode_title
+, a.unlock_style 
+, a.unlock_episodes 
+, a.unlock_scenes 
+, a.unlock_coupon 
+, a.sale_price 
+, a.one_currency
+, a.one_price
+, a.first_reward_currency
+, a.first_reward_quantity
+, a.sortkey 
+, a.chapter_number
+, 0 in_progress
+, TRIM(fn_get_episode_title_lang(a.episode_id, ?)) indexed_title
+, fn_get_design_info(a.square_image_id, 'url') title_image_url
+, fn_get_design_info(a.square_image_id, 'key') title_image_key
+, fn_get_design_info(a.popup_image_id, 'url') popup_image_url
+, fn_get_design_info(a.popup_image_id, 'key') popup_image_key
+, TRIM(fn_get_episode_summary_lang(a.episode_id, ?)) summary
+, fn_get_count_scene_in_history(?, a.episode_id, ?, 'total') total_scene_count
+, fn_get_count_scene_in_history(?, a.episode_id, ?, 'played') played_scene_count     
+, fn_check_special_episode_open(?, a.episode_id) is_open
+FROM list_episode a
+WHERE a.project_id = ?
+AND a.episode_type = 'side'
+ORDER BY a.episode_type, a.sortkey;  
+`;
+
+export const Q_SELECT_EPISODE_PROGRESS = `
+SELECT a.episode_id
+FROM user_episode_progress a 
+WHERE a.userkey = ?
+AND a.project_id = ?
+ORDER BY open_date DESC;
+`;
+
+export const Q_SELECT_EPISODE_HISTORY = `
+SELECT a.episode_id
+FROM user_episode_hist a 
+WHERE a.userkey = ?
+AND a.project_id = ?
+ORDER BY first_play DESC;
+`;
+
 // 유저의 프로젝트 메인 에피소드 (CHAPTER, ENDING) 조회
 export const UQ_SELECT_USER_MAIN_EPISODE = `
 SELECT a.episode_id 
