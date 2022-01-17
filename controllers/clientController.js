@@ -3,7 +3,7 @@ import mysql from "mysql2/promise";
 import { restart } from "nodemon";
 import { response } from "express";
 import { ImportExport } from "aws-sdk";
-import { DB, logAction, transactionDB } from "../mysqldb";
+import { DB, logAction, transactionDB, logDB } from "../mysqldb";
 import {
   Q_MODEL_RESOURCE_INFO,
   Q_EMOTICON_SLAVE,
@@ -1253,6 +1253,32 @@ export const livePairScriptUpdate = async (req, res) => {
   res.status(200).json({ code: "OK", koMessage: "성공" });
 };
 
+//! 유저별 광고 보기 히스토리 
+export const insertUserAdHistory = async(req, res) => {
+
+  const {
+    body: {
+      userkey, 
+      project_id = -1, 
+      ad_type = "", 
+    }
+  } = req;
+
+  const result = await logDB(`
+  INSERT INTO log_ad(
+    userkey
+    , project_id
+    , ad_type
+  ) VALUES(
+    ?
+    , ?
+    , ?
+  );
+  `, [userkey, project_id, ad_type]);
+
+  res.status(200).json({ code: "OK", koMessage: "성공" });
+};
+
 // clientHome에서 func에 따라 분배
 // controller에서 또다시 controller로 보내는것이 옳을까..? ㅠㅠ
 export const clientHome = (req, res) => {
@@ -1430,6 +1456,8 @@ export const clientHome = (req, res) => {
   else if (func === "requestTutorialReward") requestTutorialReward(req, res);
   else if (func === "livePairScriptUpdate") livePairScriptUpdate(req, res);
   //라이브 페어 일괄 업데이트
+  else if (func === "insertUserAdHistory") insertUserAdHistory(req, res);
+  //유저별 광고 히스토리 
   else {
     //  res.status(400).send(`Wrong Func : ${func}`);
     logger.error(`clientHome Error`);
