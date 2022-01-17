@@ -2004,6 +2004,24 @@ export const loginClient = async (req, res) => {
     accountInfo.bank = await getUserBankInfo(userInfo);
     accountInfo.unreadMailCount = accountInfo.account.unreadMailCount;
 
+    // 테이블에 uid 컬럼이 비어있으면, uid 업데이트 이후에 nickname 변경
+    if (accountInfo.account.uid === null || accountInfo.account.uid === "") {
+      console.log(`UPDATE UID`);
+      
+      await DB(`UPDATE table_account SET uid = ? WHERE userkey = ?`, [
+        accountInfo.account.pincode,
+        accountInfo.account.userkey,
+      ]);
+      await DB(
+        `UPDATE table_account SET nickname = CONCAT('GUEST', uid) WHERE userkey = ?;`,
+        [accountInfo.account.userkey]
+      );
+      
+      result = await DB(`SELECT uid , nickname FROM table_account WHERE userkey = ?;`, [accountInfo.account.userkey]);
+      accountInfo.account.uid = result.row[0].uid; 
+      accountInfo.account.nickname = result.row[0].nickname; 
+    }
+
     res.status(200).json(accountInfo);
 
     // gamebase에서 계정정보 추가로 받아오기.
@@ -2026,19 +2044,6 @@ export const loginClient = async (req, res) => {
       valid,
       userInfo.userkey,
     ]);
-
-    // 테이블에 uid 컬럼이 비어있으면, uid 업데이트 이후에 nickname 변경
-    if (accountInfo.account.uid === null || accountInfo.account.uid === "") {
-      console.log(`UPDATE UID`);
-      await DB(`UPDATE table_account SET uid = ? WHERE userkey = ?`, [
-        accountInfo.account.pincode,
-        accountInfo.account.userkey,
-      ]);
-      await DB(
-        `UPDATE table_account SET nickname = CONCAT('GUEST', uid) WHERE userkey = ?;`,
-        [accountInfo.account.userkey]
-      );
-    }
 
     // 로그 쌓기
     logAction(userInfo.userkey, "login", accountInfo.account);
