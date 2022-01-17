@@ -2707,8 +2707,10 @@ const getProjectResources = async (project_id, lang, bubbleID, userkey) => {
 
   // 기준 정보, 리셋 횟수, 프리패스
   const { first_reset_price, reset_increment_rate, reset_count } =
-    result.row[10];
+    result.row[10][0];
   // * 기준정보를 가져와서 리셋 카운트에 따른 코인 비용 구하기!
+  console.log(result.row[10][0]);
+
   let resetPrice = 0;
   if (reset_count <= 0) {
     //리셋하지 않은 경우
