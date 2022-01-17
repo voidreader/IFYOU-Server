@@ -66,7 +66,7 @@ export const updateUserLevelProcess = async (req, res) => {
     // eslint-disable-next-line no-restricted-syntax
     for(const item of result.row){
       total_experience -= item.experience; 
-      if(total_experience > 0) {
+      if(total_experience >= 0) {
         currentQuery = `CALL sp_insert_user_property(?,?,?,?);`;
         sendQuery += mysql.format(currentQuery, [
           userkey,
