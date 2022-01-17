@@ -104,6 +104,123 @@ export const updateWithdrawDate = (req, res) => {
   res.status(200).send("");
 };
 
+// * 유저가 저장한 프로필 꾸미기 저장 정보
+export const getProfileCurrencyCurrent = async (
+  req,
+  res,
+  needResponse = true
+) => {
+  logger.info(`getProfileCurrencyCurrent`);
+
+  const {
+    body: { userkey },
+  } = req;
+
+  const responseData = {};
+
+  console.log(
+    mysql.format(
+      `  SELECT 
+                a.currency
+                , CASE WHEN currency_type = 'wallpaper' THEN
+                  fn_get_bg_info(resource_image_id, 'url')
+                ELSE 
+                  fn_get_design_info(resource_image_id, 'url')
+                END currency_url
+                , CASE WHEN currency_type = 'wallpaper' THEN
+                  fn_get_bg_info(resource_image_id, 'key')
+                ELSE 
+                  fn_get_design_info(resource_image_id, 'key')
+                END currency_key
+                , sorting_order
+                , pos_x
+                , pos_y 
+                , width
+                , height
+                , angle 
+                , currency_type
+                FROM user_profile_currency a, com_currency b 
+                WHERE userkey = ?
+                AND a.currency = b.currency
+                ORDER BY sorting_order;`,
+      [userkey]
+    )
+  );
+  let result = await DB(
+    `
+  SELECT 
+  a.currency
+  , CASE WHEN currency_type = 'wallpaper' THEN
+    fn_get_bg_info(resource_image_id, 'url')
+  ELSE 
+    fn_get_design_info(resource_image_id, 'url')
+  END currency_url
+  , CASE WHEN currency_type = 'wallpaper' THEN
+    fn_get_bg_info(resource_image_id, 'key')
+  ELSE 
+    fn_get_design_info(resource_image_id, 'key')
+  END currency_key
+  , sorting_order
+  , pos_x
+  , pos_y 
+  , width
+  , height
+  , angle 
+  , currency_type
+  FROM user_profile_currency a, com_currency b 
+  WHERE userkey = ?
+  AND a.currency = b.currency
+  ORDER BY sorting_order; 
+  ; 
+  `,
+    [userkey]
+  );
+  responseData.currency = result.row;
+  console.log(
+    mysql.format(
+      `    SELECT 
+  text_id 
+  , input_text
+  , font_size
+  , color_rgb
+  , sorting_order
+  , pos_x
+  , pos_y 
+  , angle 
+  FROM user_profile_text
+  WHERE userkey = ?
+  ORDER BY sorting_order; `,
+      [userkey]
+    )
+  );
+  result = await DB(
+    `
+  SELECT 
+  text_id 
+  , input_text
+  , font_size
+  , color_rgb
+  , sorting_order
+  , pos_x
+  , pos_y 
+  , angle 
+  FROM user_profile_text
+  WHERE userkey = ?
+  ORDER BY sorting_order; 
+  ;
+  `,
+    [userkey]
+  );
+  responseData.text = result.row;
+
+  // 다른곳에서 쓸때는 그냥 response 없이 응답만.
+  if (!needResponse) {
+    return responseData;
+  }
+
+  res.status(200).json(responseData);
+};
+
 ////////// ! 재화 소모와 획득에 대한 처리 부분
 
 // * 유저 재화 입력
@@ -2007,7 +2124,7 @@ export const loginClient = async (req, res) => {
     // 테이블에 uid 컬럼이 비어있으면, uid 업데이트 이후에 nickname 변경
     if (accountInfo.account.uid === null || accountInfo.account.uid === "") {
       console.log(`UPDATE UID`);
-      
+
       await DB(`UPDATE table_account SET uid = ? WHERE userkey = ?`, [
         accountInfo.account.pincode,
         accountInfo.account.userkey,
@@ -2016,12 +2133,21 @@ export const loginClient = async (req, res) => {
         `UPDATE table_account SET nickname = CONCAT('GUEST', uid) WHERE userkey = ?;`,
         [accountInfo.account.userkey]
       );
-      
-      result = await DB(`SELECT uid , nickname FROM table_account WHERE userkey = ?;`, [accountInfo.account.userkey]);
-      accountInfo.account.uid = result.row[0].uid; 
-      accountInfo.account.nickname = result.row[0].nickname; 
+
+      result = await DB(
+        `SELECT uid , nickname FROM table_account WHERE userkey = ?;`,
+        [accountInfo.account.userkey]
+      );
+      accountInfo.account.uid = result.row[0].uid;
+      accountInfo.account.nickname = result.row[0].nickname;
     }
 
+    // getProfileCurrencyCurrent
+    // * 유저 Profile 정보 추가
+    req.body.userkey = accountInfo.account.userkey;
+    accountInfo.profile = await getProfileCurrencyCurrent(req, res, false);
+
+    // * 응답 처리
     res.status(200).json(accountInfo);
 
     // gamebase에서 계정정보 추가로 받아오기.
@@ -2327,8 +2453,8 @@ export const requestTutorialReward = async (req, res) => {
   // 2022.01.15 JE - 보상 재화 추가
   const currentQuery = `INSERT INTO user_mail(userkey, mail_type, currency, quantity, expire_date, connected_project)  
   VALUES(?, 'tutorial', ?, ?, DATE_ADD(NOW(), INTERVAL 1 YEAR), -1);`;
-  let propertyQuery = mysql.format(currentQuery, [userkey, 'gem', '6']);
-  propertyQuery += mysql.format(currentQuery, [userkey, 'tutorialBadge', '1']);
+  let propertyQuery = mysql.format(currentQuery, [userkey, "gem", "6"]);
+  propertyQuery += mysql.format(currentQuery, [userkey, "tutorialBadge", "1"]);
 
   const result = await transactionDB(`${updateQuery} ${propertyQuery}`);
   if (!result.state) {
@@ -2501,17 +2627,38 @@ const getProjectResources = async (project_id, lang, bubbleID, userkey) => {
     bubbleID,
   ]); // 8. bubbleSprite 말풍선 스프라이트
   query += mysql.format(Q_SELECT_PROJECT_ALL_MINICUT, [lang, project_id]); // 9. minicuts 미니컷
-  query += mysql.format(Q_SELECT_PROJECT_RESET_COIN_PRICE, [userkey, project_id, project_id]); // 10. 기준정보, 리셋횟수, 프리패스currency 
-  query += mysql.format(Q_SELECT_EPISODE_LOADING, [project_id]); // 11. 에피소드 로딩 리스트 
-  query += mysql.format(Q_SELECT_MISSION_ALL, [lang, lang, userkey, project_id]); // 12. 모든 도전 과제
-  query += mysql.format(Q_SELECT_PROJECT_CURRENCY, [lang, project_id]); // 13. 프로젝트 화폐 정보 
-  query += mysql.format(Q_USER_EPISODE_SCENE_PROGRESS, [userkey, project_id]); // 14. 유저별 에피소드 상황 히스토리 
-  query += mysql.format(Q_SELECT_SCENE_HISTORY, [userkey, project_id]); // 15. 유저, 프로젝트에서 경험한 모든 사건 ID 목록 
-  query += mysql.format(Q_SELECT_USER_DRESS_PROGRESS, [userkey, project_id]); // 16. 유저 의상 진행 정보 
+  query += mysql.format(Q_SELECT_PROJECT_RESET_COIN_PRICE, [
+    userkey,
+    project_id,
+    project_id,
+  ]); // 10. 기준정보, 리셋횟수, 프리패스currency
+  query += mysql.format(Q_SELECT_EPISODE_LOADING, [project_id]); // 11. 에피소드 로딩 리스트
+  query += mysql.format(Q_SELECT_MISSION_ALL, [
+    lang,
+    lang,
+    userkey,
+    project_id,
+  ]); // 12. 모든 도전 과제
+  query += mysql.format(Q_SELECT_PROJECT_CURRENCY, [lang, project_id]); // 13. 프로젝트 화폐 정보
+  query += mysql.format(Q_USER_EPISODE_SCENE_PROGRESS, [userkey, project_id]); // 14. 유저별 에피소드 상황 히스토리
+  query += mysql.format(Q_SELECT_SCENE_HISTORY, [userkey, project_id]); // 15. 유저, 프로젝트에서 경험한 모든 사건 ID 목록
+  query += mysql.format(Q_SELECT_USER_DRESS_PROGRESS, [userkey, project_id]); // 16. 유저 의상 진행 정보
   query += mysql.format(Q_USER_EPISODE_PURCHASE, [userkey, project_id]); // 17. 에피소드 구매 정보
-  query += mysql.format(Q_SELECT_SIDE_STORY, [lang, lang, lang, lang, lang, userkey, lang, userkey, lang, userkey, project_id]); // 18. 에피소드 사이드 스토리 
-  query += mysql.format(Q_SELECT_EPISODE_PROGRESS,[userkey, project_id]); // 19. 에피소드 progress
-  query += mysql.format(Q_SELECT_EPISODE_HISTORY, [userkey, project_id]); // 20. 에피소드 히스토리 
+  query += mysql.format(Q_SELECT_SIDE_STORY, [
+    lang,
+    lang,
+    lang,
+    lang,
+    lang,
+    userkey,
+    lang,
+    userkey,
+    lang,
+    userkey,
+    project_id,
+  ]); // 18. 에피소드 사이드 스토리
+  query += mysql.format(Q_SELECT_EPISODE_PROGRESS, [userkey, project_id]); // 19. 에피소드 progress
+  query += mysql.format(Q_SELECT_EPISODE_HISTORY, [userkey, project_id]); // 20. 에피소드 히스토리
 
   const result = await DB(query);
 
@@ -2558,8 +2705,9 @@ const getProjectResources = async (project_id, lang, bubbleID, userkey) => {
     liveIllusts[item.live_illust_name].push(item); // 배열에 추가한다.
   }); // 라이브 일러스트 포장 끝
 
-  // 기준 정보, 리셋 횟수, 프리패스 
-  const { first_reset_price, reset_increment_rate, reset_count } = result.row[10];
+  // 기준 정보, 리셋 횟수, 프리패스
+  const { first_reset_price, reset_increment_rate, reset_count } =
+    result.row[10];
   // * 기준정보를 가져와서 리셋 카운트에 따른 코인 비용 구하기!
   let resetPrice = 0;
   if (reset_count <= 0) {
@@ -2575,39 +2723,34 @@ const getProjectResources = async (project_id, lang, bubbleID, userkey) => {
     }
   }
 
-  const scenceProgress = []; 
-  if(result.row[14].length > 0) {
-    
+  const scenceProgress = [];
+  if (result.row[14].length > 0) {
     // eslint-disable-next-line no-restricted-syntax
-    for(const item of result.row[14]){
-      scenceProgress.push(item.scene_id); 
+    for (const item of result.row[14]) {
+      scenceProgress.push(item.scene_id);
     }
   }
   const scenceHistory = [];
-  if(result.row[15].length > 0){
-   
-   // eslint-disable-next-line no-restricted-syntax
-   for(const item of result.row[15]){
-    scenceHistory.push(item.scene_id); 
-   }   
-
+  if (result.row[15].length > 0) {
+    // eslint-disable-next-line no-restricted-syntax
+    for (const item of result.row[15]) {
+      scenceHistory.push(item.scene_id);
+    }
   }
 
-  const episodeProgress = []; 
-  if(result.row[19].length > 0){
-   
+  const episodeProgress = [];
+  if (result.row[19].length > 0) {
     // eslint-disable-next-line no-restricted-syntax
-   for(const item of result.row[19]){
-    episodeProgress.push(item.episode_id); 
-   }  
+    for (const item of result.row[19]) {
+      episodeProgress.push(item.episode_id);
+    }
   }
-  const episodeHistory = []; 
-  if(result.row[20].length > 0){
-   
+  const episodeHistory = [];
+  if (result.row[20].length > 0) {
     // eslint-disable-next-line no-restricted-syntax
-   for(const item of result.row[20]){
-    episodeHistory.push(item.episode_id); 
-   }
+    for (const item of result.row[20]) {
+      episodeHistory.push(item.episode_id);
+    }
   }
 
   responseData.detail = result.row[0];
@@ -2621,7 +2764,7 @@ const getProjectResources = async (project_id, lang, bubbleID, userkey) => {
   responseData.bubbleSprite = result.row[8];
   responseData.minicuts = result.row[9];
   responseData.resetData = { resetPrice, reset_count };
-  responseData.episodeLoadingList = result.row[11]; 
+  responseData.episodeLoadingList = result.row[11];
   responseData.missions = result.row[12];
   responseData.currency = result.row[13];
   responseData.sceneProgress = scenceProgress;
@@ -2630,7 +2773,7 @@ const getProjectResources = async (project_id, lang, bubbleID, userkey) => {
   responseData.episodeHistory = episodeHistory;
   responseData.dressProgress = result.row[16];
   responseData.episodePurchase = result.row[17];
-  responseData.sides = result.row[18]; 
+  responseData.sides = result.row[18];
 
   return responseData;
 };
@@ -2649,7 +2792,7 @@ export const getUserSelectedStory = async (req, res) => {
     body: {
       userkey,
       project_id,
-      userBubbleVersion = 0, 
+      userBubbleVersion = 0,
       clientBubbleSetID = -1,
       lang = "KO",
     },
@@ -2682,8 +2825,8 @@ export const getUserSelectedStory = async (req, res) => {
   //  userInfo.project_id
   //); // 작품 리셋 카운트 및 소모 가격
 
-  storyInfo.galleryImages = await getUserGalleryHistory(userInfo); // 갤러리 공개 이미지 
- 
+  storyInfo.galleryImages = await getUserGalleryHistory(userInfo); // 갤러리 공개 이미지
+
   storyInfo.freepasProduct = await getProjectFreepassProduct(
     userInfo.project_id,
     userInfo.userkey
@@ -2708,12 +2851,11 @@ export const getUserSelectedStory = async (req, res) => {
   storyInfo.freepassTitle = await getProjectFreepassTitleInfo(userInfo); // 프리패스 타이틀
   storyInfo.bubbleMaster = bubbleMaster; // 말풍선 마스터 정보
 
-
   const projectResources = await getProjectResources(
     userInfo.project_id,
     userInfo.lang,
     userInfo.bubbleID,
-    userInfo.userkey, 
+    userInfo.userkey
   );
   if (projectResources == null) {
     respondDB(res, 80026, "프로젝트 리소스 로딩 오류");
@@ -2734,13 +2876,13 @@ export const getUserSelectedStory = async (req, res) => {
   storyInfo.episodeLoadingList = projectResources.episodeLoadingList; // 에피소드 로딩 리스트
   storyInfo.missions = projectResources.missions; // 프로젝트의 모든 도전과제
   storyInfo.currency = projectResources.currency; // 화폐정보 추가
-  //* 사건 정보 
+  //* 사건 정보
   storyInfo.sceneProgress = projectResources.sceneProgress; // 유저 사건ID 진행도
   console.log(storyInfo.sceneProgress);
   storyInfo.sceneHistory = projectResources.sceneHistory; // 유저가 한번이라도 오픈한 프로젝트별 사건ID (신규 입력만, 삭제나 변경 없음)
-  //* 에피소드 정보 
+  //* 에피소드 정보
   storyInfo.episodeProgress = projectResources.episodeProgress; // ! 유저 에피소드 진행도
-  storyInfo.episodeHistory = projectResources.episodeHistory; // 유저 에피소드 히스토리 
+  storyInfo.episodeHistory = projectResources.episodeHistory; // 유저 에피소드 히스토리
   storyInfo.dressProgress = projectResources.dressProgress; // 유저 의상 정보
   storyInfo.episodePurchase = projectResources.episodePurchase; // 에피소드 구매 정보
   storyInfo.userFreepassTimedeal = await checkFreepassTimedealAppear(
@@ -2925,114 +3067,6 @@ export const getProfileCurrencyOwnList = async (req, res) => {
       current_cnt: item.current_cnt,
     });
   }
-
-  res.status(200).json(responseData);
-};
-
-// * 유저가 저장한 프로필 꾸미기 저장 정보
-export const getProfileCurrencyCurrent = async (req, res) => {
-  logger.info(`getProfileCurrencyCurrent`);
-
-  const {
-    body: { userkey },
-  } = req;
-
-  const responseData = {};
-
-  console.log(
-    mysql.format(
-      `  SELECT 
-  a.currency
-  , CASE WHEN currency_type = 'wallpaper' THEN
-    fn_get_bg_info(resource_image_id, 'url')
-  ELSE 
-    fn_get_design_info(resource_image_id, 'url')
-  END currency_url
-  , CASE WHEN currency_type = 'wallpaper' THEN
-    fn_get_bg_info(resource_image_id, 'key')
-  ELSE 
-    fn_get_design_info(resource_image_id, 'key')
-  END currency_key
-  , sorting_order
-  , pos_x
-  , pos_y 
-  , width
-  , height
-  , angle 
-  , currency_type
-  FROM user_profile_currency a, com_currency b 
-  WHERE userkey = ?
-  AND a.currency = b.currency
-  ORDER BY sorting_order;`,
-      [userkey]
-    )
-  );
-  let result = await DB(
-    `
-  SELECT 
-  a.currency
-  , CASE WHEN currency_type = 'wallpaper' THEN
-    fn_get_bg_info(resource_image_id, 'url')
-  ELSE 
-    fn_get_design_info(resource_image_id, 'url')
-  END currency_url
-  , CASE WHEN currency_type = 'wallpaper' THEN
-    fn_get_bg_info(resource_image_id, 'key')
-  ELSE 
-    fn_get_design_info(resource_image_id, 'key')
-  END currency_key
-  , sorting_order
-  , pos_x
-  , pos_y 
-  , width
-  , height
-  , angle 
-  , currency_type
-  FROM user_profile_currency a, com_currency b 
-  WHERE userkey = ?
-  AND a.currency = b.currency
-  ORDER BY sorting_order; 
-  ; 
-  `,
-    [userkey]
-  );
-  responseData.currency = result.row;
-  console.log(
-    mysql.format(
-      `    SELECT 
-  text_id 
-  , input_text
-  , font_size
-  , color_rgb
-  , sorting_order
-  , pos_x
-  , pos_y 
-  , angle 
-  FROM user_profile_text
-  WHERE userkey = ?
-  ORDER BY sorting_order; `,
-      [userkey]
-    )
-  );
-  result = await DB(
-    `
-  SELECT 
-  text_id 
-  , input_text
-  , font_size
-  , color_rgb
-  , sorting_order
-  , pos_x
-  , pos_y 
-  , angle 
-  FROM user_profile_text
-  WHERE userkey = ?
-  ORDER BY sorting_order; 
-  ;
-  `,
-    [userkey]
-  );
-  responseData.text = result.row;
 
   res.status(200).json(responseData);
 };
