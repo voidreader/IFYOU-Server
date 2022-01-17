@@ -2,6 +2,7 @@
 import mysql from "mysql2/promise";
 import { restart } from "nodemon";
 import { response } from "express";
+import { ImportExport } from "aws-sdk";
 import { DB, logAction, transactionDB } from "../mysqldb";
 import {
   Q_MODEL_RESOURCE_INFO,
@@ -113,7 +114,6 @@ import {
   getCoinExchangeProductList,
   coinExchangePurchase,
 } from "./exchangeController";
-import { ImportExport } from "aws-sdk";
 
 // * 클라이언트에서 호출하는 프로젝트 크레딧 리스트
 const getProjectCreditList = async (req, res) => {
@@ -1056,27 +1056,28 @@ const failResponse = (req, res) => {
   respondDB(res, 80033, "에러메세지");
 };
 
-//! 라이브 스크립트 업데이트 
+//! 라이브 스크립트 업데이트
 export const livePairScriptUpdate = async (req, res) => {
   logger.info(`livePairScriptUpdate`);
 
   const {
-    body:{ project_id = -1, }
+    body: { project_id = -1 },
   } = req;
 
-  if(project_id === -1){
+  if (project_id === -1) {
     logger.error(`livePairScriptUpdate 1`);
     respondDB(res, 80019);
-    return;    
+    return;
   }
-  
-  let result = ``; 
-  let currentQuery = ``; 
+
+  let result = ``;
+  let currentQuery = ``;
   let updateQuery = ``;
   let recoveryQuery = ``;
 
-  //* 라이브 일러스트 
-  result = await DB(`
+  //* 라이브 일러스트
+  result = await DB(
+    `
   SELECT 
   image_name
   , live_illust_name 
@@ -1085,12 +1086,14 @@ export const livePairScriptUpdate = async (req, res) => {
   AND a.live_pair_id = b.live_illust_id
   AND a.illust_id > 0 AND b.live_illust_id > 0
   AND a.is_public > 0 AND b.is_public > 0
-  ;`, [project_id]);
-  if(result.row.length > 0) {
-    for(const item of result.row){
-      
+  ;`,
+    [project_id]
+  );
+  if (result.row.length > 0) {
+    for (const item of result.row) {
       // eslint-disable-next-line no-await-in-loop
-      result = await DB(`
+      result = await DB(
+        `
       SELECT 
       script_no
       , episode_id
@@ -1102,31 +1105,37 @@ export const livePairScriptUpdate = async (req, res) => {
       AND template = 'illust' 
       AND script_data = ?
       AND episode_id IN ( SELECT episode_id FROM list_episode WHERE project_id = ? )
-      ;`, [project_id, item.live_illust_name, project_id]);
-      if(result.state && result.row.length > 0 ) {
-        for(const element of result.row){
+      ;`,
+        [project_id, item.live_illust_name, project_id]
+      );
+      if (result.state && result.row.length > 0) {
+        for (const element of result.row) {
           currentQuery = `INSERT INTO admin_live_pair_script_history(script_no, project_id, episode_id, lang, origin_template, origin_script_data, update_template, update_script_data) 
-          VALUES(?, ?, ?, ?, ?, ?, ?, ?);`; 
+          VALUES(?, ?, ?, ?, ?, ?, ?, ?);`;
           recoveryQuery += mysql.format(currentQuery, [
-            element.script_no
-            , project_id
-            , element.episode_id
-            , element.lang
-            , element.template
-            , element.script_data
-            , element.template
-            , item.image_name
+            element.script_no,
+            project_id,
+            element.episode_id,
+            element.lang,
+            element.template,
+            element.script_data,
+            element.template,
+            item.image_name,
           ]);
-  
-          currentQuery = `UPDATE list_script SET script_data = ? WHERE script_no = ?;`; 
-          updateQuery += mysql.format(currentQuery, [item.image_name, element.script_no]);
+
+          currentQuery = `UPDATE list_script SET script_data = ? WHERE script_no = ?;`;
+          updateQuery += mysql.format(currentQuery, [
+            item.image_name,
+            element.script_no,
+          ]);
         }
       }
     }
   }
 
   //* 라이브 오브제
-  result = await DB(`
+  result = await DB(
+    `
   SELECT 
   image_name
   , live_object_name
@@ -1135,13 +1144,15 @@ export const livePairScriptUpdate = async (req, res) => {
   AND a.live_pair_id = b.live_object_id 
   AND a.minicut_id > 0 AND b.live_object_id > 0
   AND a.is_public > 0 AND b.is_public > 0
-  ;`, [project_id]);
-  if(result.row.length > 0){
-    for(const item of result.row){
-
-      if(item.image_name === item.live_object_name) {      
+  ;`,
+    [project_id]
+  );
+  if (result.row.length > 0) {
+    for (const item of result.row) {
+      if (item.image_name === item.live_object_name) {
         // eslint-disable-next-line no-await-in-loop
-        result = await DB(`
+        result = await DB(
+          `
         SELECT 
         script_no
         , episode_id
@@ -1154,31 +1165,34 @@ export const livePairScriptUpdate = async (req, res) => {
         AND script_data = ?
         AND episode_id IN ( SELECT episode_id FROM list_episode WHERE project_id = ? )
         ;
-        `, [project_id, item.image_name, project_id]);
-        if(result.state && result.row.length > 0) {
-          for(const element of result.row){
+        `,
+          [project_id, item.image_name, project_id]
+        );
+        if (result.state && result.row.length > 0) {
+          for (const element of result.row) {
             currentQuery = `INSERT INTO admin_live_pair_script_history(script_no, project_id, episode_id, lang, origin_template, origin_script_data, update_template, update_script_data) 
-            VALUES(?, ?, ?, ?, ?, ?, ?, ?);`; 
+            VALUES(?, ?, ?, ?, ?, ?, ?, ?);`;
             recoveryQuery += mysql.format(currentQuery, [
-              element.script_no
-              , project_id
-              , element.episode_id
-              , element.lang
-              , element.template
-              , element.script_data
-              , 'image'
-              , element.script_data
+              element.script_no,
+              project_id,
+              element.episode_id,
+              element.lang,
+              element.template,
+              element.script_data,
+              "image",
+              element.script_data,
             ]);
-  
-            currentQuery = `UPDATE list_script SET template = 'image' WHERE script_no = ?;`;  
+
+            currentQuery = `UPDATE list_script SET template = 'image' WHERE script_no = ?;`;
             updateQuery += mysql.format(currentQuery, [element.script_no]);
           }
         }
-      } 
+      }
 
-      if(item.image_name !== item.live_object_name) {      
+      if (item.image_name !== item.live_object_name) {
         // eslint-disable-next-line no-await-in-loop
-        result = await DB(`
+        result = await DB(
+          `
         SELECT 
         script_no
         , episode_id
@@ -1191,42 +1205,52 @@ export const livePairScriptUpdate = async (req, res) => {
         AND script_data = ?
         AND episode_id IN ( SELECT episode_id FROM list_episode WHERE project_id = ? )
         ;
-        `, [project_id, item.live_object_name, project_id]);
-        if(result.state && result.row.length > 0) {
-          for(const element of result.row){
+        `,
+          [project_id, item.live_object_name, project_id]
+        );
+        if (result.state && result.row.length > 0) {
+          for (const element of result.row) {
             currentQuery = `INSERT INTO admin_live_pair_script_history(script_no, project_id, episode_id, lang, origin_template, origin_script_data, update_template, update_script_data) 
-            VALUES(?, ?, ?, ?, ?, ?, ?, ?);`; 
+            VALUES(?, ?, ?, ?, ?, ?, ?, ?);`;
             recoveryQuery += mysql.format(currentQuery, [
-              element.script_no
-              , project_id
-              , element.episode_id
-              , element.lang
-              , element.template
-              , element.script_data
-              , 'image'
-              , item.image_name
+              element.script_no,
+              project_id,
+              element.episode_id,
+              element.lang,
+              element.template,
+              element.script_data,
+              "image",
+              item.image_name,
             ]);
-            
-            currentQuery = `UPDATE list_script SET template = 'image', script_data = ? WHERE script_no = ?;`;  
-            updateQuery += mysql.format(currentQuery, [item.image_name, element.script_no]);
+
+            currentQuery = `UPDATE list_script SET template = 'image', script_data = ? WHERE script_no = ?;`;
+            updateQuery += mysql.format(currentQuery, [
+              item.image_name,
+              element.script_no,
+            ]);
           }
         }
       }
     }
   }
 
-  result = await transactionDB(`
-  ${recoveryQuery}
-  ${updateQuery}
-  `);
-  if(!result.state || result.row.length === 0){
-    logger.error(`livePairScriptUpdate ${result.error}`);
-    respondDB(res, 80026, result.error);
-    return;   
+  if (recoveryQuery) {
+    result = await transactionDB(`
+    ${recoveryQuery}
+    ${updateQuery}
+    `);
+    if (!result.state || result.row.length === 0) {
+      logger.error(`livePairScriptUpdate ${result.error}`);
+      respondDB(res, 80026, result.error);
+      return;
+    }
+  } else {
+    logger.error(`livePairScriptUpdate 2`);
+    respondDB(res, 80026, "데이터없음");
+    return;
   }
 
-  res.status(200).json({ code: "OK", koMessage: "성공" });  
-
+  res.status(200).json({ code: "OK", koMessage: "성공" });
 };
 
 // clientHome에서 func에 따라 분배
@@ -1404,9 +1428,8 @@ export const clientHome = (req, res) => {
   // 코인 상품 환전 리스트
   else if (func === "coinExchangePurchase") coinExchangePurchase(req, res);
   else if (func === "requestTutorialReward") requestTutorialReward(req, res);
-  else if (func === "livePairScriptUpdate") 
-    livePairScriptUpdate(req, res); 
-    //라이브 페어 일괄 업데이트
+  else if (func === "livePairScriptUpdate") livePairScriptUpdate(req, res);
+  //라이브 페어 일괄 업데이트
   else {
     //  res.status(400).send(`Wrong Func : ${func}`);
     logger.error(`clientHome Error`);
