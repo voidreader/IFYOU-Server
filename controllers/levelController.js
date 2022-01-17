@@ -80,7 +80,7 @@ export const updateUserLevelProcess = async (req, res) => {
         // eslint-disable-next-line no-await-in-loop
         result = await DB(`
         SELECT CASE WHEN ${item.next_level} = 5 OR ${item.next_level} = 8 OR ${item.next_level} = 11 OR ${item.next_level} = 15 THEN 1 ELSE 0 END level_bonus_check
-        FROM DUAL WHERE now() between '2022-01-17 00:00:00' AND '2022-01-25 23:59:59';`);
+        FROM DUAL WHERE now() between '2022-01-19 00:00:00' AND '2022-01-25 23:59:59';`);
         if(result.state && result.row.length > 0){
     
           level_bonus_check = result.row[0].level_bonus_check; 
