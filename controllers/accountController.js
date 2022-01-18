@@ -1671,10 +1671,17 @@ export const updateUserEpisodePlayRecord = async (req, res) => {
   // bank 정보 refresh
   responseData.bank = await getUserBankInfo(req.body);
 
+  const logResponse = {};
+  logResponse.projectCurrent = responseData.projectCurrent;
+  logResponse.unlockSide = responseData.unlockSide;
+  logResponse.unlockSide = responseData.unlockSide;
+
+  logger.info(JSON.stringify(responseData));
+
   res.status(200).json(responseData);
 
   // 이 시점에 클리어 후에 처리를 위한 로그 추가
-  logAction(userkey, "episode_clear_after", responseData);
+  logAction(userkey, "episode_clear_after", logResponse);
 };
 
 // 말풍선 세트 재배열

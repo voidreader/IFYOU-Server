@@ -131,12 +131,19 @@ export const transactionDB = async (sql, params) => {
 export const logAction = (userkey, action_type, log_data) => {
   // console.log(log_data);
   // console.log(JSON.stringify(log_data));
-
-  logDB(
-    `INSERT INTO log_action (userkey, action_type, log_data) 
-  VALUES(?, ?, ?);`,
-    [userkey, action_type, JSON.stringify(log_data)]
-  );
+  if (JSON.stringify(log_data).length > 520) {
+    logDB(
+      `INSERT INTO log_action (userkey, action_type, log_data) 
+    VALUES(?, ?, ?);`,
+      [userkey, action_type, JSON.stringify(log_data).substr(0, 520)]
+    );
+  } else {
+    logDB(
+      `INSERT INTO log_action (userkey, action_type, log_data) 
+    VALUES(?, ?, ?);`,
+      [userkey, action_type, JSON.stringify(log_data)]
+    );
+  }
 };
 
 // * 어드민 로그 기록

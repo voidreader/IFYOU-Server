@@ -244,7 +244,7 @@ export const checkSideUnlockByEpisode = async (userInfo) => {
   const locekdSideList = await DB(
     `
   SELECT a.episode_id   
-  , fn_get_episode_title_lang(a.episode_id, ${userInfo.lang}) title 
+  , fn_get_episode_title_lang(a.episode_id, '${userInfo.lang}') title 
   , a.unlock_episodes 
   FROM list_episode a 
   WHERE a.project_id = ?
@@ -435,8 +435,8 @@ export const checkMissionByEpisode = async (userInfo) => {
   const locekdMissionList = await DB(
     `
     SELECT mission_id
-    , fn_get_mission_name(a.mission_id, ?) mission_name
-    , fn_get_mission_hint(a.mission_id, ?) mission_hint
+    , fn_get_mission_name(mission_id, ?) mission_name
+    , fn_get_mission_hint(mission_id, ?) mission_hint
     ,image_url
     , image_key
     , id_condition 
