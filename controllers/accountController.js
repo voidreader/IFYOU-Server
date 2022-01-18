@@ -664,54 +664,6 @@ export const updateUserFavorHistory = async (req, res) => {
   res.status(200).send(refresh.row);
 };
 
-// 유저 일러스트 히스토리 업데이트
-export const updateUserIllustHistory = async (req, res) => {
-  logger.info(`updateUserIllustHistory ${JSON.stringify(req.body)}`);
-
-  const {
-    body: { project_id, userkey, illust_id, illust_type, lang = "KO" },
-  } = req;
-
-  const result = await DB(Q_UPDATE_USER_ILLUST_HISTORY, [
-    userkey,
-    project_id,
-    illust_id,
-    illust_type,
-  ]);
-
-  if (!result.state) {
-    logger.error(`updateUserIllustHistory Error ${result.error}`);
-    respondDB(res, 80026, result.error);
-    return;
-  }
-
-  // 업데이트하고 재조회
-  const refresh = await DB(Q_SELECT_USER_GALLERY_IMAGES, [
-    userkey,
-    userkey,
-    lang,
-    lang,
-    project_id,
-    lang,
-    lang,
-    project_id,
-    lang,
-    lang,
-    project_id,
-    lang,
-    lang,
-    project_id,
-  ]);
-
-  const responseData = {};
-
-  if (refresh.state) {
-    responseData.galleryImages = refresh.row;
-  } else responseData.galleryImages = [];
-
-  res.status(200).send(responseData);
-};
-
 // 유저 도전과제 히스토리 업데이트
 export const updateUserMissionHistory = async (req, res) => {
   logger.info(`updateUserMissionHistory ${JSON.stringify(req.body)}`);
@@ -2610,6 +2562,33 @@ const getEpisodeLoadingList = async (project_id) => {
   `);
 
   return result.row;
+};
+
+// 유저 일러스트 히스토리 업데이트
+export const updateUserIllustHistory = async (req, res) => {
+  logger.info(`updateUserIllustHistory ${JSON.stringify(req.body)}`);
+
+  const {
+    body: { project_id, userkey, illust_id, illust_type, lang = "KO" },
+  } = req;
+
+  const result = await DB(Q_UPDATE_USER_ILLUST_HISTORY, [
+    userkey,
+    project_id,
+    illust_id,
+    illust_type,
+  ]);
+
+  if (!result.state) {
+    logger.error(`updateUserIllustHistory Error ${result.error}`);
+    respondDB(res, 80026, result.error);
+    return;
+  }
+
+  const responseData = {};
+  responseData.galleryImages = await getUserGalleryHistory(req.body);
+
+  res.status(200).send(responseData);
 };
 
 // * 2021.12.19 프로젝트 리소스 한번에 가져오기
