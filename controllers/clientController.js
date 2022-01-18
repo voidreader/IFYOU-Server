@@ -86,15 +86,7 @@ import {
 import { getUserPropertyHistory, reportRequestError } from "./logController";
 import { useCoupon } from "./couponController";
 import { getUserBankInfo, getUserBankInfoWithResponse } from "./bankController";
-import {
-  applyPrize,
-  getClientPrizeTicketList,
-  getClientUserPrizeHistory,
-  userAddressList,
-  deleteAddress,
-  insertOrUpdateAddress,
-  addressDetail,
-} from "./prizeController";
+
 import { getProjectEpisodeProgressCount } from "./statController";
 import { userProfileSave } from "./profileController";
 import {
@@ -1085,7 +1077,7 @@ export const livePairScriptUpdate = async (req, res) => {
   WHERE a.project_id = ?   
   AND a.live_pair_id = b.live_illust_id
   AND a.illust_id > 0 AND b.live_illust_id > 0
-  AND a.is_public > 0 AND b.is_public > 0
+  
   ;`,
     [project_id]
   );
@@ -1143,7 +1135,7 @@ export const livePairScriptUpdate = async (req, res) => {
   WHERE a.project_id = ?
   AND a.live_pair_id = b.live_object_id 
   AND a.minicut_id > 0 AND b.live_object_id > 0
-  AND a.is_public > 0 AND b.is_public > 0
+  
   ;`,
     [project_id]
   );
@@ -1253,18 +1245,14 @@ export const livePairScriptUpdate = async (req, res) => {
   res.status(200).json({ code: "OK", koMessage: "성공" });
 };
 
-//! 유저별 광고 보기 히스토리 
-export const insertUserAdHistory = async(req, res) => {
-
+//! 유저별 광고 보기 히스토리
+export const insertUserAdHistory = async (req, res) => {
   const {
-    body: {
-      userkey, 
-      project_id = -1, 
-      ad_type = "", 
-    }
+    body: { userkey, project_id = -1, ad_type = "" },
   } = req;
 
-  const result = await logDB(`
+  const result = await logDB(
+    `
   INSERT INTO log_ad(
     userkey
     , project_id
@@ -1274,7 +1262,9 @@ export const insertUserAdHistory = async(req, res) => {
     , ?
     , ?
   );
-  `, [userkey, project_id, ad_type]);
+  `,
+    [userkey, project_id, ad_type]
+  );
 
   res.status(200).json({ code: "OK", koMessage: "성공" });
 };
@@ -1375,18 +1365,9 @@ export const clientHome = (req, res) => {
   else if (func === "getProjectCreditList") getProjectCreditList(req, res);
   else if (func === "checkUserIdValidation") checkUserIdValidation(req, res);
   else if (func === "makeInsertQuery") makeInsertQuery(req, res);
-  else if (func === "applyPrize") applyPrize(req, res);
   else if (func === "concatColumns") concatColumns(req, res);
   else if (func === "UnlockUserAllGalleryImage")
     UnlockUserAllGalleryImage(req, res);
-  else if (func === "getClientUserPrizeHistory")
-    getClientUserPrizeHistory(req, res);
-  else if (func === "getClientPrizeTicketList")
-    getClientPrizeTicketList(req, res);
-  else if (func === "addressDetail") addressDetail(req, res);
-  else if (func === "userAddressList") userAddressList(req, res);
-  else if (func === "deleteAddress") deleteAddress(req, res);
-  else if (func === "insertAddress") insertOrUpdateAddress(req, res);
   else if (func === "getUserBankInfoWithResponse")
     getUserBankInfoWithResponse(req, res);
   else if (func === "PrepareMissionData") PrepareMissionData(req, res);
@@ -1457,7 +1438,7 @@ export const clientHome = (req, res) => {
   else if (func === "livePairScriptUpdate") livePairScriptUpdate(req, res);
   //라이브 페어 일괄 업데이트
   else if (func === "insertUserAdHistory") insertUserAdHistory(req, res);
-  //유저별 광고 히스토리 
+  //유저별 광고 히스토리
   else {
     //  res.status(400).send(`Wrong Func : ${func}`);
     logger.error(`clientHome Error`);

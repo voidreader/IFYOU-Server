@@ -231,19 +231,11 @@ const OP_USER_MAIL = `/:id/op-user-mail`;
 const OP_USER_MAIL_DELETE = `/:id/op-user-mail-delete`;
 const OP_USER_GALLERY = `/:id/op-user-gallery`;
 const OP_USER_MISSION = `/:id/op-user-mission`;
-const OP_USER_CURRENCY_CONTROL = `/:id/op-user-currency-control`;  
+const OP_USER_CURRENCY_CONTROL = `/:id/op-user-currency-control`;
 const OP_USER_MISSION_DETAIL = `/:id/op-user-mission-detail`;
 const OP_USRE_MISSION_DELETE = `/:id/op-user-mission-delete`;
 const OP_USER_COLLECTION = `/:id/op-user-collection`;
 const OP_USER_COLLECTION_DETAIL = `/:id/op-user-collection-detail`;
-
-//* 응모권 
-const PRIZE_TICKET_LIST = `/prize-ticket-list`;
-const PRIZE_TICKET_DETAIL = `/:id/prize-ticket-detail`;
-const PRIZE_TICKET_UPDATE = `/prize-ticket-update`;
-const PRIZE_TICKET_DELETE = `/prize-ticket-delete`;
-const PRIZE_TICKET_ADDRESS = `/:id/prize-ticket-address`;
-const PRIZE_TICKET_SORTING = `/prize-ticket-sorting`;
 
 const routes = {
   home: HOME,
@@ -1034,8 +1026,8 @@ const routes = {
   comCouponRewardDelete: COM_COUPON_REWARD_DELETE,
   comCouponUsedList: COM_COUPON_USED_LIST,
   comCouponKeywordSearch: COM_COUPON_KEYWORD_SEARCH,
-  comCouponEpisodeSearch: COM_COUPON_EPISODE_SEARCH, 
-  comCouponEpisodeDelete: COM_COUPON_EPISODE_DELETE, 
+  comCouponEpisodeSearch: COM_COUPON_EPISODE_SEARCH,
+  comCouponEpisodeDelete: COM_COUPON_EPISODE_DELETE,
   ////////////////// 쿠폰 끝 ///////////
 
   ////////////////// 유저관리 시작 ///////////
@@ -1059,10 +1051,10 @@ const routes = {
   opUserGallery: OP_USER_GALLERY,
   opUserMission: OP_USER_MISSION,
   opUserCurrencyControl: OP_USER_CURRENCY_CONTROL,
-  opUserMissionDetail: OP_USER_MISSION_DETAIL, 
-  opUserMissionDelete: OP_USRE_MISSION_DELETE, 
-  opUserCollection: OP_USER_COLLECTION, 
-  opUserCollectionDetail: OP_USER_COLLECTION_DETAIL, 
+  opUserMissionDetail: OP_USER_MISSION_DETAIL,
+  opUserMissionDelete: OP_USRE_MISSION_DELETE,
+  opUserCollection: OP_USER_COLLECTION,
+  opUserCollectionDetail: OP_USER_COLLECTION_DETAIL,
 
   ////////////////// 유저관리 끝 ///////////
 
@@ -1074,15 +1066,6 @@ const routes = {
   projectLoadingDelete: PROJECT_LOADING_DELETE,
 
   ////////////////// 프로젝트 로딩 끝 ///////////
-
-  ////////////////// 응모권 시작 ///////////
-  prizeTicketList: PRIZE_TICKET_LIST, 
-  prizeTicketDetail: PRIZE_TICKET_DETAIL,
-  prizeTicketUpdate: PRIZE_TICKET_UPDATE, 
-  prizeTicketDelete: PRIZE_TICKET_DELETE, 
-  prizeTicketAddress: PRIZE_TICKET_ADDRESS,
-  prizeTicketSorting: PRIZE_TICKET_SORTING, 
-  ////////////////// 응모권 끝 ///////////
 };
 
 export default routes;

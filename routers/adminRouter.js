@@ -53,8 +53,8 @@ import {
   couponAllDelete,
   couponRewardDelete,
   couponKeywordSearch,
-  couponEpisodeCheck, 
-  couponEpisodeDelete, 
+  couponEpisodeCheck,
+  couponEpisodeDelete,
 } from "../controllers/couponController";
 import {
   userList,
@@ -72,18 +72,11 @@ import {
   requestGameUserProperty,
   userMissionList,
   userMissionDetail,
-  userMissonClear, 
-  userCollection, 
-  userCollectoinDetail
+  userMissonClear,
+  userCollection,
+  userCollectoinDetail,
 } from "../controllers/memberController";
-import {
-  prizeTicketList,
-  prizeTicketDetail,
-  prizeTicketInsertOrUpdate,
-  prizeTicketDelete,
-  addressUpdate,
-  prizeTicketSorting, 
-} from "../controllers/prizeController";
+
 import { uploadComModelZip } from "../middlewares";
 import routes from "../routes";
 
@@ -157,7 +150,7 @@ adminRouter.post(routes.comCouponRewardDelete, couponRewardDelete);
 adminRouter.post(routes.comCouponUsedList, usedCouponList);
 adminRouter.post(routes.comCouponKeywordSearch, couponKeywordSearch);
 adminRouter.post(routes.comCouponEpisodeSearch, couponEpisodeCheck);
-adminRouter.post(routes.comCouponEpisodeDelete, couponEpisodeDelete); 
+adminRouter.post(routes.comCouponEpisodeDelete, couponEpisodeDelete);
 
 //! 유저관리
 adminRouter.get(routes.comUserList, userList); //유저리스트
@@ -178,17 +171,10 @@ adminRouter.post(routes.opUserCurrencyControl, userCurrencyControl); // 재화 �
 adminRouter.post(routes.opUserCoupon, userCouponList); //쿠폰기록
 adminRouter.post(routes.opUserMail, userMailList); //우편함
 adminRouter.post(routes.opUserMailDelete, userMailCancel); //우편취소
-adminRouter.get(routes.opUserMission, userMissionList); //미션 리스트 
-adminRouter.post(routes.opUserMissionDetail, userMissionDetail); //미션 상세 
+adminRouter.get(routes.opUserMission, userMissionList); //미션 리스트
+adminRouter.post(routes.opUserMissionDetail, userMissionDetail); //미션 상세
 adminRouter.post(routes.opUserMissionDelete, userMissonClear); //미션 초기화
 adminRouter.get(routes.opUserCollection, userCollection); // 수집 리스트
 adminRouter.post(routes.opUserCollectionDetail, userCollectoinDetail); //수집 상세
-
-adminRouter.get(routes.prizeTicketList, prizeTicketList);  //응모권 리스트
-adminRouter.get(routes.prizeTicketDetail, prizeTicketDetail); //응모권 상세
-adminRouter.post(routes.prizeTicketUpdate, prizeTicketInsertOrUpdate); //응모권 등록/수정
-adminRouter.post(routes.prizeTicketDelete, prizeTicketDelete); //응모권 삭제
-adminRouter.post(routes.prizeTicketAddress, addressUpdate);  //배송지 변경
-adminRouter.post(routes.prizeTicketSorting, prizeTicketSorting); //정렬 업데이트
 
 export default adminRouter;
