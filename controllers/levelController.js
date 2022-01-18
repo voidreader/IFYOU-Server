@@ -107,7 +107,7 @@ export const updateUserLevelProcess = async (req, res) => {
         target_currency = item.currency; 
         target_quantity = item.quantity;
         target_experience = total_experience; 
-        icon_image_url = item.icon_image_keyl;
+        icon_image_url = item.icon_image_url;
         icon_image_key = item.icon_image_key;
         currency_type = item.currency_type;
         type_name = item.type_name; 
