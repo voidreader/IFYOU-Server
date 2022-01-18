@@ -1,7 +1,6 @@
 import express from "express";
 import { getBubbleMasterList } from "../controllers/bubbleController";
 import { clientHome } from "../controllers/clientController";
-import { postInsertModelDetail } from "../controllers/modelController";
 import { getCommonInfo, home } from "../controllers/storyController";
 import { clientCallMiddleware } from "../middlewares";
 import routes from "../routes";
