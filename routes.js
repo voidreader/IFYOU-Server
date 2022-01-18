@@ -192,17 +192,6 @@ const COM_MODEL_UPLOAD = `/com-model-upload`;
 const COM_MODEL_DELETE = `/com-model-delete`;
 const COM_MODEL_UPDATE = `/com-model-update`;
 
-//* 쿠폰
-const COM_COUPON_LIST = `/com-coupon-list`;
-const COM_COUPON_UPDATE = `/com-coupon-update`;
-const COM_COUPON_DETAIL_LIST = `/:id/com-coupon-detail-list`;
-const COM_COUPON_DELETE = `/:id/com-coupon-delete`;
-const COM_COUPON_REWARD_DELETE = `/:id/com-coupon-reward-delete`;
-const COM_COUPON_USED_LIST = `/:id/com-coupon-used-list`;
-const COM_COUPON_KEYWORD_SEARCH = `/com-coupon-keyword-search`;
-const COM_COUPON_EPISODE_SEARCH = `/com-coupon-episode-search`;
-const COM_COUPON_EPISODE_DELETE = `/:id/com-coupon-episode-delete`;
-
 //* 유저관리
 const COM_USER_LIST = `/com-user-list`;
 const COM_USER_DETAIL = `/:id/com-user-detail`;
@@ -1017,18 +1006,6 @@ const routes = {
   comModelDelete: COM_MODEL_DELETE,
   comModelUpdate: COM_MODEL_UPDATE,
   ////////////////// 공용 모델  ///////////
-
-  ////////////////// 쿠폰 시작 ///////////
-  comCouponList: COM_COUPON_LIST,
-  comCouponUpdate: COM_COUPON_UPDATE,
-  comCouponDetailList: COM_COUPON_DETAIL_LIST,
-  comCouponDelete: COM_COUPON_DELETE,
-  comCouponRewardDelete: COM_COUPON_REWARD_DELETE,
-  comCouponUsedList: COM_COUPON_USED_LIST,
-  comCouponKeywordSearch: COM_COUPON_KEYWORD_SEARCH,
-  comCouponEpisodeSearch: COM_COUPON_EPISODE_SEARCH,
-  comCouponEpisodeDelete: COM_COUPON_EPISODE_DELETE,
-  ////////////////// 쿠폰 끝 ///////////
 
   ////////////////// 유저관리 시작 ///////////
   comUserList: COM_USER_LIST,

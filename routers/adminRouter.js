@@ -46,17 +46,6 @@ import {
   productPrieodSearch,
 } from "../controllers/shopController";
 import {
-  couponList,
-  couponDetail,
-  usedCouponList,
-  couponInsertOrUpdate,
-  couponAllDelete,
-  couponRewardDelete,
-  couponKeywordSearch,
-  couponEpisodeCheck,
-  couponEpisodeDelete,
-} from "../controllers/couponController";
-import {
   userList,
   userDetail,
   userCurrencyList,
@@ -140,17 +129,6 @@ adminRouter.post(
   uploadComModelZipFile
 ); // zip 업로드
 adminRouter.post(routes.comModelUpdate, updateComModel); // 수정
-
-//! 쿠폰
-adminRouter.get(routes.comCouponList, couponList);
-adminRouter.get(routes.comCouponDetailList, couponDetail);
-adminRouter.post(routes.comCouponUpdate, couponInsertOrUpdate);
-adminRouter.post(routes.comCouponDelete, couponAllDelete);
-adminRouter.post(routes.comCouponRewardDelete, couponRewardDelete);
-adminRouter.post(routes.comCouponUsedList, usedCouponList);
-adminRouter.post(routes.comCouponKeywordSearch, couponKeywordSearch);
-adminRouter.post(routes.comCouponEpisodeSearch, couponEpisodeCheck);
-adminRouter.post(routes.comCouponEpisodeDelete, couponEpisodeDelete);
 
 //! 유저관리
 adminRouter.get(routes.comUserList, userList); //유저리스트
