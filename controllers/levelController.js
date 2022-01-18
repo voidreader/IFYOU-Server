@@ -27,6 +27,7 @@ export const updateUserLevelProcess = async (req, res) => {
   }
 
   const responseData = {};
+  const rewardList = [];
   let currentQuery = ``;
   let insertQuery = ``;
   let updateQuery = ``;
@@ -111,6 +112,12 @@ export const updateUserLevelProcess = async (req, res) => {
         currency_type = item.currency_type;
         type_name = item.type_name; 
         currency_name = item.currency_name;
+
+        rewardList.push({
+          level : target_level, 
+          currency : target_currency, 
+          quantity : target_quantity,
+        });
       }
     }
   }else{
@@ -187,6 +194,7 @@ export const updateUserLevelProcess = async (req, res) => {
       type_name,
       currency_name,
     };
+    responseData.rewardList = rewardList; 
   }
 
   //* 안 읽은 메일 건수
