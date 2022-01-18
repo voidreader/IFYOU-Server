@@ -47,6 +47,7 @@ export const readUserSingleMail = async (req, res, next) => {
      , a.currency 
      , a.quantity 
      , a.purchase_no
+     , a.paid
   FROM user_mail a 
  WHERE a.mail_no = ?
    AND a.is_receive = 0
@@ -65,9 +66,10 @@ export const readUserSingleMail = async (req, res, next) => {
 
   if (currentMail.mail_type === "inapp_origin") {
     // 구매확정메일 처리
-
     await userPurchaseConfirm(req, currentMail.purchase_no, res, next);
   } else {
+    // 일반 메일 처리
+
     // 재화 지급처리
     if (currentMail.quantity > 0) {
       const propertyInsert = await DB(
