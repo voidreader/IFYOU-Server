@@ -580,6 +580,9 @@ export const coinProductDetail = async (req, res) => {
 };
 
 //! 구매
+//* 2022.01.19 코인 사용할 시에 작품id 포함해서 전달(유/무료 스타 구분에 따른 후속 수정)
+//* 작품id는 com_currency의 connected_proejct에서 전달 
+//* 단일상품 : connected_proejct에서, 세트상품 : 모두 같은 작품일 경우 connected_proejct, 아닌 경우 -1 
 export const userCoinPurchase = async (req, res) => {
   const {
     body: {
@@ -602,7 +605,12 @@ export const userCoinPurchase = async (req, res) => {
 
   //* 판매 중인 상품인지 확인
   let result = await DB(
-    `SELECT ifnull(fn_get_currency_info(currency, 'type'), 'set') currency_type       
+    `SELECT ifnull(fn_get_currency_info(currency, 'type'), 'set') currency_type
+    , CASE WHEN currency = '' THEN 
+      fn_get_currency_set(coin_product_id)
+    ELSE 
+      currency 
+    END currency_list
     FROM com_coin_product 
     WHERE coin_product_id = ?
     AND is_public > 0 
@@ -616,15 +624,29 @@ export const userCoinPurchase = async (req, res) => {
     return;
   }
 
+  const { currency_type, currency_list, } = result.row[0];
+  const currencyList = currency_list.split(',');
+
   //* 해당 상품 개수 확인
   let productCount = 1;
   let quantityCount = 0;
-  if (result.row[0].currency_type === "set") {
+  if (currency_type === "set") {
     result = await DB(
       `SELECT count(*) cnt FROM com_coin_product_set WHERE coin_product_id = ?;`,
       [coin_product_id]
     );
     productCount = result.row[0].cnt;
+  }
+
+  //* 작품 체크
+  let projectId = -1; 
+  result = await DB(`SELECT connected_project FROM com_currency WHERE currency IN (?);`, [currencyList]);
+  if(result.state && result.row.length > 0){
+    projectId = result.row[0].connected_project; //초기값
+    // eslint-disable-next-line no-restricted-syntax
+    for(const item of result.row){
+      if(projectId !== item.connected_project) projectId = -1; //세트 상품 안에서 다른 작품이 있는 경우, -1로 변경 
+    }
   }
 
   //* 유니크와 소유재화수 셋팅
@@ -673,8 +695,8 @@ export const userCoinPurchase = async (req, res) => {
   }
   currencyText = currencyText.slice(0, -1); //세트 상품인 경우, 소유재화에 따라 코인 재화 리스트가 달라짐
   const purchaseQuery = mysql.format(
-    `CALL sp_use_user_property(?, 'coin', ?, 'coin_purchase', -1);`,
-    [userkey, pay_price]
+    `CALL sp_use_user_property(?, 'coin', ?, 'coin_purchase', ?);`,
+    [userkey, pay_price, projectId]
   );
   const userHistoryQuery = mysql.format(
     `
