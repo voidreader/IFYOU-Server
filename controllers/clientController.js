@@ -1248,7 +1248,7 @@ export const livePairScriptUpdate = async (req, res) => {
 //! 유저별 광고 보기 히스토리
 export const insertUserAdHistory = async (req, res) => {
   const {
-    body: { userkey, project_id = -1, ad_type = "" },
+    body: { userkey, project_id = -1, episode_id = -1, ad_type = "" },
   } = req;
 
   const result = await logDB(
@@ -1256,14 +1256,16 @@ export const insertUserAdHistory = async (req, res) => {
   INSERT INTO log_ad(
     userkey
     , project_id
+    , episode_id
     , ad_type
   ) VALUES(
     ?
-    , ?
-    , ?
+    ,?
+    ,?
+    ,?
   );
   `,
-    [userkey, project_id, ad_type]
+    [userkey, project_id, episode_id, ad_type]
   );
 
   res.status(200).json({ code: "OK", koMessage: "성공" });
