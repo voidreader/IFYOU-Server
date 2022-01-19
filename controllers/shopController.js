@@ -752,23 +752,25 @@ export const userPurchaseConfirm = async (req, purchase_no, res, next) => {
   //! 등록된 재화 확인(사용중인 상품 내에서 확인)
   const productInfo = await DB(
     `
-  SELECT currency, quantity 
-  , CASE WHEN first_purchase = '1' THEN 
-  fn_check_first_purchase(?, a.product_id, ?, a.from_date, a.to_date)
-  ELSE 0
-  END first_purchase_check
-  , first_purchase
-  FROM list_product_master a 
-  INNER JOIN list_product_detail b
-  ON a.product_master_id = b.master_id
+  SELECT currency
+       , quantity 
+       , CASE WHEN first_purchase = '1' THEN  fn_check_first_purchase(?, a.product_id, ?, a.from_date, a.to_date)
+         ELSE 0 END first_purchase_check
+       , first_purchase
+       , b.is_main is_main
+   FROM list_product_master a 
+        INNER JOIN list_product_detail b ON a.product_master_id = b.master_id
   WHERE product_id = ? AND ? BETWEEN DATE_FORMAT(from_date, '%Y-%m-%d 00:00:00') AND DATE_FORMAT(to_date, '%Y-%m-%d 23:59:59')
   UNION ALL 
-  SELECT currency, quantity, 0 first_purchase_check, 0 first_purchase
+  SELECT currency
+       , quantity
+       , 0 first_purchase_check
+       , 0 first_purchase
+       , 1 is_main
   FROM list_product_master a 
-  INNER JOIN list_product_daily b
-  ON a.product_master_id = b.master_id
-  WHERE product_id = ? AND ? BETWEEN DATE_FORMAT(from_date, '%Y-%m-%d 00:00:00') AND DATE_FORMAT(to_date, '%Y-%m-%d 23:59:59')
-  ;`,
+       INNER JOIN list_product_daily b ON a.product_master_id = b.master_id
+  WHERE product_id = ? 
+    AND ? BETWEEN DATE_FORMAT(from_date, '%Y-%m-%d 00:00:00') AND DATE_FORMAT(to_date, '%Y-%m-%d 23:59:59');`,
     [
       userkey,
       purchase_no,
@@ -809,14 +811,15 @@ export const userPurchaseConfirm = async (req, purchase_no, res, next) => {
     }
 
     if (firstCheck) {
-      const currentQuery = `INSERT INTO user_mail(userkey, mail_type, currency, quantity, expire_date, connected_project, purchase_no) 
-      VALUES(?, ?, ?, ?, DATE_ADD(NOW(), INTERVAL 1 YEAR), -1, ?);`;
+      const currentQuery = `INSERT INTO user_mail(userkey, mail_type, currency, quantity, expire_date, connected_project, purchase_no, paid) 
+      VALUES(?, ?, ?, ?, DATE_ADD(NOW(), INTERVAL 1 YEAR), -1, ?, ?);`;
 
       queryParams.push(userkey);
       queryParams.push(mailType);
       queryParams.push(item.currency);
       queryParams.push(item.quantity);
       queryParams.push(purchase_no);
+      queryParams.push(item.is_main); // 유료 재화 여부 추가
 
       insertQuery += mysql.format(currentQuery, queryParams);
     }
