@@ -153,12 +153,18 @@ export const coinExchangePurchase = async (req, res) => {
       // ! 선 소모 처리하기때문에 여기서 오류 났으면 소모된 스타 복구시켜야한다.
       // 복구 해준다... ㅠ
       exchangeQuery = ``;
-      exchangeQuery += mysql.format(
-        `CALL sp_insert_user_property_paid(${userkey}, 'gem', ${paid_sum}, 'recover', 1);`
-      );
-      exchangeQuery += mysql.format(
-        `CALL sp_insert_user_property_paid(${userkey}, 'gem', ${free_sum}, 'recover', 0);`
-      );
+
+      if (paid_sum > 0) {
+        exchangeQuery += mysql.format(
+          `CALL sp_insert_user_property_paid(${userkey}, 'gem', ${paid_sum}, 'recover', 1);`
+        );
+      }
+
+      if (free_sum > 0) {
+        exchangeQuery += mysql.format(
+          `CALL sp_insert_user_property_paid(${userkey}, 'gem', ${free_sum}, 'recover', 0);`
+        );
+      }
 
       await DB(exchangeQuery);
       return;
