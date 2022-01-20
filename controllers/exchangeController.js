@@ -41,7 +41,7 @@ export const coinExchangePurchase = async (req, res) => {
     return;
   }
 
-  const coin = 0;
+  let coin = 0;
   let currentQuery = ``;
   let exchangeQuery = ``;
   let result = await DB(
@@ -68,6 +68,8 @@ export const coinExchangePurchase = async (req, res) => {
 
   const { star_quantity, coin_quantity, bonus_quantity, exchange_check } =
     result.row[0];
+
+  // coin = coin_quantity + bonus_quantity;
 
   // eslint-disable-next-line no-lonely-if
   if (exchange_check === 0) {
@@ -111,8 +113,16 @@ export const coinExchangePurchase = async (req, res) => {
 
   // 비율에 따라서 유료, 무료 코인을 나눈다.
   // coin_quantity 로 구한다. bonus_quantity는 무료 코인이다.
-  const paidCoin = Math.floor((coin_quantity * ratePaidStar) / 100);
-  const freeCoin = bonus_quantity + (coin_quantity - paidCoin); // 프리코인 : 보너스코인 + 메인코인 - 유료 코인.
+  let paidCoin = Math.floor((coin_quantity * ratePaidStar) / 100);
+  let freeCoin = bonus_quantity + (coin_quantity - paidCoin); // 프리코인 : 보너스코인 + 메인코인 - 유료 코인.
+
+  if (paid_sum === 0 && free_sum === 0) {
+    console.log(`it's free exchange`);
+    paidCoin = 0;
+    freeCoin = bonus_quantity + coin_quantity;
+  }
+
+  coin = paidCoin + freeCoin;
 
   console.log(`paid coin : [${paidCoin}], free coin : [${freeCoin}]`);
 
