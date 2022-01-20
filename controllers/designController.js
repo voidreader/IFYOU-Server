@@ -8,7 +8,7 @@ import {
   respondRedirect,
   respondDB,
   respondError,
-  respondAdminSuccess, 
+  respondAdminSuccess,
   adminLogInsert,
 } from "../respondent";
 import { logger } from "../logger";
@@ -22,6 +22,21 @@ const s3 = new aws.S3({
 
 // 버킷!
 const bucketName = `pierstore/assets`;
+
+// 프리패스 뱃지 정보
+export const getProjectFreepassBadge = async ({ project_id }) => {
+  const result = await DB(`
+  SELECT fn_get_design_info(a.resource_image_id, 'url') image_url
+  , fn_get_design_info(a.resource_image_id, 'key') image_key
+FROM com_currency a
+WHERE a.connected_project = ${project_id}
+AND a.currency_type = 'badge'
+AND a.currency LIKE '%premiumpass%';
+  `);
+
+  if (result.row.length === 0) return { image_url: "", image_key: "" };
+  return result.row[0];
+};
 
 export const getProjectFreepassTitleInfo = async ({ project_id }) => {
   const result = await DB(
@@ -139,7 +154,7 @@ export const insertGraphicDesign = async (req, res) => {
     return;
   }
 
-  adminLogInsert(req, "design_insert"); 
+  adminLogInsert(req, "design_insert");
 
   respondRedirect(req, res, selectGraphicDesign, result, "insertGraphicDesign");
 };
@@ -173,7 +188,7 @@ export const deleteGraphicDesign = async (req, res) => {
     [design_id]
   );
 
-  adminLogInsert(req, "design_delete"); 
+  adminLogInsert(req, "design_delete");
 
   // 완료 후 redirect
   respondRedirect(req, res, selectGraphicDesign, result, "deleteGraphicDesign");
@@ -216,7 +231,7 @@ export const updateGraphicDesign = async (req, res) => {
     return;
   }
 
-  adminLogInsert(req, "design_update"); 
+  adminLogInsert(req, "design_update");
 
   // ? 재조회
   respondRedirect(
@@ -267,7 +282,7 @@ export const uploadGraphicDesignZip = async (req, res) => {
 
   const promises = [];
   const origins = []; // zip 파일내의 오리지널 파일 정보
-  let i = 1; 
+  let i = 1;
 
   // eslint-disable-next-line no-restricted-syntax
   for await (const e of zip) {
@@ -317,7 +332,7 @@ export const uploadGraphicDesignZip = async (req, res) => {
     } else {
       entry.autodrain(); // file 이 아니면 stream을 dispose. ..파일이 아닌게 올 수 도 있나..?
     }
-    i += 1; 
+    i += 1;
   } // end of for await
 
   // 모든 파일 업로드 후 DB 처리
@@ -402,7 +417,6 @@ export const registerComModel = async (req, res) => {
   }
 
   respondAdminSuccess(req, res, null, "com_model_insert", getComModelMaster);
-
 };
 
 // * 공통 모델 버전 업데이트
@@ -524,7 +538,7 @@ export const uploadComModelZipFile = async (req, res) => {
   } else {
     // 잘 들어갔으면  slave 조회 처리
 
-    adminLogInsert(req, "com_model_zip"); 
+    adminLogInsert(req, "com_model_zip");
 
     getComModelDetail(req, res);
     updateComModelVersion(model_id);
@@ -540,7 +554,6 @@ export const deleteComModel = async (req, res) => {
   await DB(`DELETE FROM com_model WHERE model_id = ${model_id}`);
 
   respondAdminSuccess(req, res, null, "com_model_delete", getComModelMaster);
-
 };
 
 // * 공요 모델 업데이트
@@ -565,7 +578,6 @@ export const updateComModel = async (req, res) => {
   }
 
   respondAdminSuccess(req, res, null, "com_model_update", getComModelMaster);
-
 };
 
 // * 클라이언트에서 사용하는 공용 모델 리스트

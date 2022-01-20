@@ -50,6 +50,7 @@ import {
   updateUserMinicutHistoryVer2,
   insertUserProperty,
   requestTutorialReward,
+  updateTutorialSelection,
 } from "./accountController";
 import { logger } from "../logger";
 import {
@@ -916,6 +917,52 @@ export const makeInsertQuery = async (req, res) => {
   res.status(200).send(insertQuery);
 };
 
+// 테이블 카피하기
+export const makeCopyInsert = async (req, res) => {
+  const {
+    body: { target, target_project, current_project },
+  } = req;
+
+  const columns = await DB(
+    `SELECT COLUMN_NAME, COLUMN_KEY FROM information_schema.COLUMNS c WHERE TABLE_NAME =? ORDER BY ORDINAL_POSITION;`,
+    [target]
+  );
+
+  let insertQuery = `INSERT INTO ${target} (`;
+  let colIndex = 0;
+
+  columns.row.forEach((item) => {
+    // 프라이머리 키는 하지 않음
+    if (item.COLUMN_KEY.includes("PRI")) return;
+
+    if (colIndex === 0) insertQuery += `${item.COLUMN_NAME}`;
+    else insertQuery += `, ${item.COLUMN_NAME}`;
+
+    colIndex += 1;
+  });
+
+  insertQuery += `) SELECT `;
+  colIndex = 0;
+  columns.row.forEach((item) => {
+    // 프라이머리 키는 하지 않음
+    if (item.COLUMN_KEY.includes("PRI")) return;
+
+    if (item.COLUMN_NAME.includes(`project_id`)) {
+      insertQuery += `${target_project} `;
+    } else {
+      insertQuery += `${item.COLUMN_NAME} `;
+    }
+
+    colIndex += 1;
+
+    if (colIndex < columns.row.length - 1) insertQuery += `,`;
+  });
+
+  insertQuery += ` FROM ${target} WHERE project_id = ${current_project};`;
+
+  res.status(200).send(insertQuery);
+};
+
 // * 유틸리티
 const concatColumns = async (req, res) => {
   const result = await DB(`
@@ -1356,6 +1403,8 @@ export const clientHome = (req, res) => {
   else if (func === "getUserRawPurchaseList") getUserRawPurchaseList(req, res);
   else if (func === "userPurchase") userPurchase(req, res);
   else if (func === "updateTutorialStep") updateTutorialStep(req, res);
+  else if (func === "updateTutorialSelection")
+    updateTutorialSelection(req, res);
   else if (func === "getUserPropertyHistory") getUserPropertyHistory(req, res);
   else if (func === "getAppCommonResources") getAppCommonResources(req, res);
   else if (func === "useCoupon") useCoupon(req, res);
@@ -1367,6 +1416,7 @@ export const clientHome = (req, res) => {
   else if (func === "getProjectCreditList") getProjectCreditList(req, res);
   else if (func === "checkUserIdValidation") checkUserIdValidation(req, res);
   else if (func === "makeInsertQuery") makeInsertQuery(req, res);
+  else if (func === "makeCopyInsert") makeCopyInsert(req, res);
   else if (func === "concatColumns") concatColumns(req, res);
   else if (func === "UnlockUserAllGalleryImage")
     UnlockUserAllGalleryImage(req, res);

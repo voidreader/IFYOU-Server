@@ -81,6 +81,7 @@ import {
 import { getConnectedGalleryImages } from "./episodeController";
 import {
   getProjectBgmBannerInfo,
+  getProjectFreepassBadge,
   getProjectFreepassBannerInfo,
   getProjectFreepassTitleInfo,
   getProjectGalleryBannerInfo,
@@ -406,6 +407,20 @@ export const purchaseFreepass = async (req, res) => {
     return;
   } // ? 젬 부족
 
+  // * 프리미엄 패스와 연결된 뱃지 조회
+  let passBadgeCurrnecy = "";
+  const passBadgeSelect = await DB(`
+  SELECT a.currency 
+  FROM com_currency a
+ WHERE a.connected_project = ${project_id}
+   AND a.currency_type = 'badge'
+   AND a.currency LIKE '%premiumpass%';
+  `);
+
+  if (passBadgeSelect.state && passBadgeSelect.row.length > 0) {
+    passBadgeCurrnecy = passBadgeSelect.row[0].currency; // 세팅
+  }
+
   // 조건들을 다 통과했으면 실제 구매처리를 시작한다.
   // TransactionDB 사용
   const useQuery = mysql.format(`CALL sp_use_user_property(?,?,?,?,?);`, [
@@ -416,12 +431,22 @@ export const purchaseFreepass = async (req, res) => {
     project_id,
   ]);
 
-  const buyQuery = mysql.format(`CALL sp_insert_user_property(?,?,?,?);`, [
+  let buyQuery = mysql.format(`CALL sp_insert_user_property(?,?,?,?);`, [
     userkey,
     currency,
     1,
     "freepass",
   ]);
+
+  // 연결된 뱃지 아이템 있으면 같이 지급하기.
+  if (passBadgeCurrnecy !== "") {
+    buyQuery += mysql.format(`CALL sp_insert_user_property(?,?,?,?);`, [
+      userkey,
+      passBadgeCurrnecy,
+      1,
+      "freepass",
+    ]);
+  }
 
   // 최종 재화 소모 및, 프리패스 구매 처리
   const finalResult = await transactionDB(`${useQuery}${buyQuery}`);
@@ -2332,6 +2357,21 @@ export const resetUserEpisodeProgress = async (req, res) => {
   logAction(userkey, "reset_progress", req.body);
 }; // * End of resetUserEpisodeProgress
 
+// * 선택지 튜토리얼 여부
+export const updateTutorialSelection = async (req, res) => {
+  const {
+    body: { userkey },
+  } = req;
+
+  const result = await DB(`
+  update user_tutorial 
+    SET tutorial_selection = 1
+  WHERE userkey = ${userkey};
+  `);
+
+  res.status(200).json(result.state);
+};
+
 // * 튜토리얼 단계 업데이트2022.01.11
 export const updateTutorialStep = async (req, res) => {
   const {
@@ -2836,7 +2876,9 @@ export const getUserSelectedStory = async (req, res) => {
   //storyInfo.galleryBanner = await getProjectGalleryBannerInfo(userInfo); // 갤러리 상단 배너
   storyInfo.bgmBanner = await getProjectBgmBannerInfo(userInfo); // BGM 배너
   storyInfo.freepassBanner = await getProjectFreepassBannerInfo(userInfo); // 프리패스 배너
-  storyInfo.freepassTitle = await getProjectFreepassTitleInfo(userInfo); // 프리패스 타이틀
+  storyInfo.freepassTitle = await getProjectFreepassTitleInfo(userInfo); // 프리패스 타이틀 // ! 1.1.10 삭제 대상
+  storyInfo.freepassBadge = await getProjectFreepassBadge(userInfo); // 프리패스 뱃지
+
   storyInfo.bubbleMaster = bubbleMaster; // 말풍선 마스터 정보
 
   const projectResources = await getProjectResources(
