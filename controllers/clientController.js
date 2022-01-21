@@ -1319,6 +1319,23 @@ export const insertUserAdHistory = async (req, res) => {
   res.status(200).json({ code: "OK", koMessage: "성공" });
 };
 
+//! 커밍순 리스트 
+export const getCommingList = async (req, res) => {
+  const result = await DB(`
+  SELECT a.comming_id 
+  , image_url
+  , image_key 
+  , title
+  FROM com_comming a, com_comming_lang b 
+  WHERE a.comming_id = b.comming_id 
+  AND lang = ?
+  AND now() BETWEEN from_date AND to_date
+  AND is_public > 0; 
+  `, [req.body.lang]);
+
+  res.status(200).json(result.row);
+};
+
 // clientHome에서 func에 따라 분배
 // controller에서 또다시 controller로 보내는것이 옳을까..? ㅠㅠ
 export const clientHome = (req, res) => {
@@ -1492,6 +1509,7 @@ export const clientHome = (req, res) => {
   //라이브 페어 일괄 업데이트
   else if (func === "insertUserAdHistory") insertUserAdHistory(req, res);
   //유저별 광고 히스토리
+  else if (func === "getCommingList") getCommingList(req, res);
   else {
     //  res.status(400).send(`Wrong Func : ${func}`);
     logger.error(`clientHome Error`);
