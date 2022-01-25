@@ -556,7 +556,7 @@ export const updateUserNickname = async (req, res) => {
   if (result.row.length > 0) {
     if (result.row[0].prohibited_check > 0) {
       logger.error(`updateUserNickname error 3`);
-      respondDB(res, 80103);
+      respondDB(res, 80109);
       return;
     }
   }
