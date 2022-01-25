@@ -1,4 +1,5 @@
 import aws from "aws-sdk";
+import { response } from "express";
 import { respondRedirect, respondError, respondDB } from "../respondent";
 import { logger } from "../logger";
 import { DB } from "../mysqldb";
@@ -105,17 +106,36 @@ export const getAppCommonResources = async (req, res) => {
 
   // * 2021.01.03 재화 아이콘
   const currencyIcons = await DB(`
-  SELECT DISTINCT fn_get_design_info(a.icon_image_id, 'url') icon_url
-     , fn_get_design_info(a.icon_image_id, 'key') icon_key
+  SELECT DISTINCT a.currency 
+       , fn_get_design_info(a.icon_image_id, 'url') icon_url
+       , fn_get_design_info(a.icon_image_id, 'key') icon_key
   FROM com_currency a 
  WHERE a.is_use > 0
    AND a.local_code > -1
    AND a.icon_image_id > 0
-   AND a.resource_image_id > 0
+   AND a.currency_type IN ('consumable', 'nonconsumable')
  ORDER BY a.currency_type ;
   `);
 
-  responseData.currencyIcons = currencyIcons.row;
+  console.log(`currencyIcons length : `, currencyIcons.row.length);
+
+  responseData.currency = {};
+
+  currencyIcons.row.forEach((item) => {
+    if (
+      !Object.prototype.hasOwnProperty.call(
+        responseData.currency,
+        item.currency
+      )
+    ) {
+      responseData.currency[item.currency] = {
+        image_url: item.icon_url,
+        image_key: item.icon_key,
+      };
+    }
+  });
+
+  // responseData.currencyIcons = currencyIcons.row;
   responseData.levelList = await getLevelListNoResponse();
 
   res.status(200).json(responseData);
