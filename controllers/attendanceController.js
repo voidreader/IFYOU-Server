@@ -32,9 +32,10 @@ export const attendanceList = async(req, res) => {
     AND b.currency = c.currency
     AND is_public > 0
     AND now() BETWEEN from_date AND to_date
-    AND ( is_loop > 0 OR ( fn_get_attendance_cnt(?, a.attendance_id, fn_get_attendance_max(?, a.attendance_id) ) < kind AND is_loop = 0 ) )
-    AND ( SELECT EXISTS (SELECT * FROM user_attendance WHERE userkey = ? AND attendance_id = a.attendance_id AND date(now()) = date(action_date) ) ) = 0;
-    `, [userkey, userkey, userkey, userkey, userkey]);
+    -- AND ( is_loop > 0 OR ( fn_get_attendance_cnt(?, a.attendance_id, fn_get_attendance_max(?, a.attendance_id) ) < kind AND is_loop = 0 ) )
+    -- AND ( SELECT EXISTS (SELECT * FROM user_attendance WHERE userkey = ? AND attendance_id = a.attendance_id AND date(now()) = date(action_date) ) ) = 0
+    ;
+    `, [userkey, userkey]);
     // eslint-disable-next-line no-restricted-syntax
     for(const item of result.row){ 
         const attendance_id = item.attendance_id.toString();
