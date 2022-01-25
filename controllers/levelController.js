@@ -33,14 +33,14 @@ export const updateUserLevelProcess = async (req, res) => {
   let updateQuery = ``;
   let sendQuery = ``;
 
-  let total_experience = current_experience+experience;
-  let level_bonus_check = 0; 
+  let total_experience = current_experience + experience;
+  let level_bonus_check = 0;
   let target_level = 0;
   let target_experience = 0;
   let target_currency = ``;
   let target_quantity = 0;
-  let icon_image_url = ``; 
-  let icon_image_key = ``; 
+  let icon_image_url = ``;
+  let icon_image_key = ``;
   let currency_type = ``;
   let type_name = ``;
   let currency_name = ``;
@@ -63,11 +63,11 @@ export const updateUserLevelProcess = async (req, res) => {
     AND next_level > ${current_level}
     AND experience <= ${total_experience};`
   );
-  if(result.row.length > 0){
+  if (result.row.length > 0) {
     // eslint-disable-next-line no-restricted-syntax
-    for(const item of result.row){
-      total_experience -= item.experience; 
-      if(total_experience >= 0) {
+    for (const item of result.row) {
+      total_experience -= item.experience;
+      if (total_experience >= 0) {
         currentQuery = `CALL sp_insert_user_property(?,?,?,?);`;
         sendQuery += mysql.format(currentQuery, [
           userkey,
@@ -75,71 +75,77 @@ export const updateUserLevelProcess = async (req, res) => {
           item.quantity,
           "levelup",
         ]);
-    
-        //* 2022.01.13 JE - 레벨업 이벤트 추가 보상(단발성 : 2022.01.19 ~ 25일 23시 59분)
-        //* 해당 되는 레벨(5, 8, 11, 15)들은 메일 발송 처리 
+
+        //* 2022.01.13 JE - 레벨업 이벤트 추가 보상(단발성 : 2022.01.19 ~ 02.07일 23시 59분)
+        //* 해당 되는 레벨(5, 8, 11, 15)들은 메일 발송 처리
         // eslint-disable-next-line no-await-in-loop
         result = await DB(`
         SELECT CASE WHEN ${item.next_level} = 5 OR ${item.next_level} = 8 OR ${item.next_level} = 11 OR ${item.next_level} = 15 THEN 1 ELSE 0 END level_bonus_check
-        FROM DUAL WHERE now() between '2022-01-19 00:00:00' AND '2022-01-25 23:59:59';`);
-        if(result.state && result.row.length > 0){
-    
-          level_bonus_check = result.row[0].level_bonus_check; 
+        FROM DUAL WHERE now() between '2022-01-19 00:00:00' AND '2022-02-07 23:59:59';`);
+        if (result.state && result.row.length > 0) {
+          level_bonus_check = result.row[0].level_bonus_check;
           currentQuery = `INSERT INTO user_mail(userkey, mail_type, currency, quantity, expire_date, connected_project) 
           VALUES(?, 'event', ?, ?, DATE_ADD(NOW(), INTERVAL 1 YEAR), -1);`;
-          if(level_bonus_check === 1){
-            if(item.next_level === 5){
-              sendQuery += mysql.format(currentQuery, [userkey,"gem","3"]);
-            }else if(item.next_level === 8){
-              sendQuery += mysql.format(currentQuery, [userkey,"gem","3"]);
-              sendQuery += mysql.format(currentQuery, [userkey,"coin","500"]);
-            }else if(item.next_level === 11){
-              sendQuery += mysql.format(currentQuery, [userkey,"gem","5"]);
-              sendQuery += mysql.format(currentQuery, [userkey,"coin","1000"]);    
-            }else if(item.next_level === 15){
-              sendQuery += mysql.format(currentQuery, [userkey,"gem","5"]);
-              sendQuery += mysql.format(currentQuery, [userkey,"coin","1500"]);
+          if (level_bonus_check === 1) {
+            if (item.next_level === 5) {
+              sendQuery += mysql.format(currentQuery, [userkey, "gem", "3"]);
+            } else if (item.next_level === 8) {
+              sendQuery += mysql.format(currentQuery, [userkey, "gem", "3"]);
+              sendQuery += mysql.format(currentQuery, [userkey, "coin", "500"]);
+            } else if (item.next_level === 11) {
+              sendQuery += mysql.format(currentQuery, [userkey, "gem", "5"]);
+              sendQuery += mysql.format(currentQuery, [
+                userkey,
+                "coin",
+                "1000",
+              ]);
+            } else if (item.next_level === 15) {
+              sendQuery += mysql.format(currentQuery, [userkey, "gem", "5"]);
+              sendQuery += mysql.format(currentQuery, [
+                userkey,
+                "coin",
+                "1500",
+              ]);
             }
           }
         }
-        
+
         target_level = item.next_level;
-        target_currency = item.currency; 
+        target_currency = item.currency;
         target_quantity = item.quantity;
-        target_experience = total_experience; 
+        target_experience = total_experience;
         icon_image_url = item.icon_image_url;
         icon_image_key = item.icon_image_key;
         currency_type = item.currency_type;
-        type_name = item.type_name; 
+        type_name = item.type_name;
         currency_name = item.currency_name;
 
         rewardList.push({
-          level : target_level, 
-          currency : target_currency, 
-          quantity : target_quantity,
+          level: target_level,
+          currency: target_currency,
+          quantity: target_quantity,
         });
       }
     }
-  }else{
+  } else {
     target_level = current_level;
-    target_experience = total_experience; 
+    target_experience = total_experience;
   }
 
-
-  //* 레벨 히스토리 누적 > 최종 currency로 히스토리 누적 
+  //* 레벨 히스토리 누적 > 최종 currency로 히스토리 누적
   currentQuery = `
   INSERT INTO user_level_history(userkey, current_level, experience, route, clear_id, project_id, currency, is_event ) 
   VALUES(?, ?, ?, ?, ?, ?, ?, ?);`;
   insertQuery = mysql.format(currentQuery, [
-  userkey,
-  current_level,
-  experience,
-  route,
-  clear_id,
-  project_id,
-  target_currency,
-  level_bonus_check, 
-  ]);   
+    userkey,
+    current_level,
+    experience,
+    route,
+    clear_id,
+    project_id,
+    target_currency,
+    level_bonus_check,
+  ]);
 
   //* 계정 테이블 업데이트
   currentQuery = `
@@ -194,7 +200,7 @@ export const updateUserLevelProcess = async (req, res) => {
       type_name,
       currency_name,
     };
-    responseData.rewardList = rewardList; 
+    responseData.rewardList = rewardList;
   }
 
   //* 안 읽은 메일 건수
@@ -208,7 +214,7 @@ export const updateUserLevelProcess = async (req, res) => {
     responseData.unreadMailCount = unreadMailResult.row[0].cnt;
 
   responseData.bank = await getUserBankInfo(req.body);
-  responseData.event = level_bonus_check; //레벨업 이벤츠 추가 보상 메일 발송 여부 
+  responseData.event = level_bonus_check; //레벨업 이벤츠 추가 보상 메일 발송 여부
 
   res.status(200).json(responseData);
 
