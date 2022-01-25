@@ -51,6 +51,7 @@ import {
   insertUserProperty,
   requestTutorialReward,
   updateTutorialSelection,
+  requestEpisodeFirstClearReward,
 } from "./accountController";
 import { logger } from "../logger";
 import {
@@ -808,17 +809,19 @@ export const getMainLoadingImageRandom = async (req, res) => {
 
   const result = await DB(
     `
-    SELECT 
-    ifnull(fn_get_design_info(b.image_id, 'url'), '') image_url 
-    , ifnull(fn_get_design_info(b.image_id, 'key'), '') image_key
-    FROM list_main_loading a, list_main_loading_lang b
-    WHERE a.main_loading_id = b.main_loading_id
-    AND b.lang = '${lang}'
-    AND sysdate() BETWEEN start_date AND end_date
-    AND is_public = 1 
-    AND b.image_id in( SELECT design_id FROM list_design WHERE design_id = a.image_id AND design_type = 'main_loading' );
-  `
+    SELECT fn_get_design_info(b.image_id, 'url') image_url 
+         , fn_get_design_info(b.image_id, 'key') image_key
+      FROM list_main_loading a
+         , list_main_loading_lang b
+     WHERE a.main_loading_id = b.main_loading_id
+       AND b.lang = ?
+       AND now() BETWEEN a.start_date AND a.end_date
+       AND a.is_public = 1;
+  `,
+    [lang]
   );
+
+  console.log(result.state, result.row);
 
   res.status(200).json(result.row);
 };
@@ -1323,9 +1326,10 @@ export const insertUserAdHistory = async (req, res) => {
   res.status(200).json({ code: "OK", koMessage: "성공" });
 };
 
-//! 커밍순 리스트 
+//! 커밍순 리스트
 export const getCommingList = async (req, res) => {
-  const result = await DB(`
+  const result = await DB(
+    `
   SELECT a.comming_id 
   , image_url
   , image_key 
@@ -1335,7 +1339,9 @@ export const getCommingList = async (req, res) => {
   AND lang = ?
   AND now() BETWEEN from_date AND to_date
   AND is_public > 0; 
-  `, [req.body.lang]);
+  `,
+    [req.body.lang]
+  );
 
   res.status(200).json(result.row);
 };
@@ -1514,6 +1520,8 @@ export const clientHome = (req, res) => {
   else if (func === "insertUserAdHistory") insertUserAdHistory(req, res);
   //유저별 광고 히스토리
   else if (func === "getCommingList") getCommingList(req, res);
+  else if (func === "requestEpisodeFirstClearReward")
+    requestEpisodeFirstClearReward(req, res);
   else if (func === "getAttendanceList") attendanceList(req, res); 
   //출석 보상 리스트 
   else if (func === "sendAttendanceReward") sendAttendanceReward(req, res); 

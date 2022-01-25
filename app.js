@@ -11,7 +11,6 @@ import { logger } from "./logger";
 
 // import { localsMiddleware } from "./middlewares";
 import routes from "./routes";
-import bubbleRouter from "./routers/bubbleRouter";
 
 import adminRouter from "./routers/adminRouter";
 
@@ -44,7 +43,6 @@ app.use(
 
 app.use(routes.home, globalRouter);
 app.use(routes.story, storyRouter);
-app.use(routes.bubble, bubbleRouter);
 app.use(routes.admin, adminRouter);
 
 logger.info(`Platform Node Starts`);
