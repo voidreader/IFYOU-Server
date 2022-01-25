@@ -1491,11 +1491,18 @@ export const updateUserEpisodePlayRecord = async (req, res) => {
   // * 2021.08.09 : OneTime. 1회 플레이에 대한 처리를 진행한다. (user_episode_purchase, episodePurchase 갱신 필요)
   // * 2021.12.12 : ending 선택지 로그 히스토리 때문에 sp_insert_user_ending_new 프로시저로 변경 - JE
   const {
-    body: { userkey, project_id, episodeID, nextEpisodeID = -1, lang = "KO" },
+    body: {
+      userkey,
+      project_id,
+      episodeID,
+      nextEpisodeID = -1,
+      lang = "KO",
+      ver = 0,
+    },
   } = req;
 
   logger.info(`updateUserEpisodePlayRecord [${JSON.stringify(req.body)}]`);
-  req.body.episode_id = episodeID;
+  req.body.episode_id = episodeID; // 이름.. 실수..
 
   const histQuery = `CALL sp_insert_user_episode_hist(?, ?, ?);`;
   const progressQuery = `CALL sp_update_user_episode_done(?, ?, ?);`;
@@ -1555,10 +1562,6 @@ export const updateUserEpisodePlayRecord = async (req, res) => {
     progressResult.row[0].forEach((element) => {
       responseData.episodeProgress.push(element.episode_id);
     });
-
-    // ! 버전 2 (완료 여부까지 함께)
-    // TODO 왜 ... ver2를 만들었는지 기억이 안난다...
-    // responseData.episodeProgressVer2 = progressResult.row[0];
   } else {
     logger.error(`updateUserEpisodePlayRecord Error 1 ${progressResult.error}`);
     respondDB(res, 80026, progressResult.error);
@@ -1604,43 +1607,32 @@ export const updateUserEpisodePlayRecord = async (req, res) => {
   // * 미션 해금 정보(2021.08.06)
   responseData.unlockMission = await checkMissionByEpisode(req.body);
 
-  // * 1회권 처리 - 1회권으로 플레이를 했는지 체크한다.
-  // ! IFYOU에서 안해요!
-  /*
-  const needOneTimePlayCount = await getEpisodeOneTimePlayable(
-    userkey,
-    episodeID
-  );
-
-  // * 1회권 차감, 에피소드 1회 플레이 했음을 처리.
-  if (needOneTimePlayCount) {
-    // 차감 처리 한다.
-    logger.info(
-      `It's OneTime Episode. [{$episodeID}] play count is set to zero :)`
-    );
-    await setZeroEpisodeOneTimePlayCount(userkey, episodeID);
-  }
-  */
-  // ? 1회권 처리 끝
-
   // * 2021.09.18 처리할꺼 다 하고, 첫 클리어 보상 입력처리.
-  const rewardPromise = [];
-  firstClearResult = firstClearResult.filter((reward) => reward.quantity > 0);
-  firstClearResult.forEach((reward) => {
-    console.log("first clear : ", reward);
-    rewardPromise.push(
-      addUserProperty(userkey, reward.currency, reward.quantity, "first_clear")
-    );
-  });
-
-  await Promise.all(rewardPromise)
-    .then((values) => {
-      console.log(values);
-    })
-    .catch((err) => {
-      console.log(err);
-      logger.error(err);
+  // * 2022.01.24 1.1.10 버전부터는 팝업 호출 이후에 획득 처리한다.
+  if (ver < 10) {
+    const rewardPromise = [];
+    firstClearResult = firstClearResult.filter((reward) => reward.quantity > 0);
+    firstClearResult.forEach((reward) => {
+      console.log("first clear : ", reward);
+      rewardPromise.push(
+        addUserProperty(
+          userkey,
+          reward.currency,
+          reward.quantity,
+          "first_clear"
+        )
+      );
     });
+
+    await Promise.all(rewardPromise)
+      .then((values) => {
+        console.log(values);
+      })
+      .catch((err) => {
+        console.log(err);
+        logger.error(err);
+      });
+  } // ? 구버전 처리 끝
 
   // * 2021.09.18 첫결제 보상 추가되면서 bank 추가
   // 첫 결제 보상 정보
@@ -1660,6 +1652,40 @@ export const updateUserEpisodePlayRecord = async (req, res) => {
   // 이 시점에 클리어 후에 처리를 위한 로그 추가
   logAction(userkey, "episode_clear_after", logResponse);
 };
+
+// * 유저 에피소드 첫 클리어 보상 요청 (실제 수신 처리)
+export const requestEpisodeFirstClearReward = async (req, res) => {
+  const {
+    body: { userkey, episode_id, is_double },
+  } = req;
+
+  const episodeFirstResult = await DB(`
+  SELECT a.first_reward_currency currency
+     , a.first_reward_quantity quantity
+  FROM list_episode a
+ WHERE a.episode_id = ${episode_id};
+  `);
+
+  // 없는 경우에 대한 처리
+  if (!episodeFirstResult.state || episodeFirstResult.row.length === 0) {
+    respondDB(res, 80026, episodeFirstResult.error);
+    return;
+  }
+
+  let { currency, quantity } = episodeFirstResult.row[0];
+  if (is_double) quantity *= 2;
+
+  // 재화 입력 대기
+  await addUserProperty(userkey, currency, quantity, "first_clear");
+
+  const responseData = {};
+  responseData.bank = await getUserBankInfo(req.body); // 뱅크 갱신
+  responseData.reward = { currency, quantity }; // 받은 물건
+
+  res.status(200).json(responseData); // 응답처리
+}; // ? END requestEpisodeFirstClearReward
+
+/////////////////////////////////////////////////////////////////////
 
 // 말풍선 세트 재배열
 const arrangeBubbleSet = (allBubbleSet) => {
@@ -2452,6 +2478,7 @@ export const requestTutorialReward = async (req, res) => {
   // 2022.01.15 JE - 보상 재화 추가
   const currentQuery = `INSERT INTO user_mail(userkey, mail_type, currency, quantity, expire_date, connected_project)  
   VALUES(?, 'tutorial', ?, ?, DATE_ADD(NOW(), INTERVAL 1 YEAR), -1);`;
+
   let propertyQuery = mysql.format(currentQuery, [userkey, "gem", "6"]);
   propertyQuery += mysql.format(currentQuery, [userkey, "tutorialBadge", "1"]);
 
@@ -2463,7 +2490,7 @@ export const requestTutorialReward = async (req, res) => {
 
   const responseData = { new_tutorial_step: 3 };
 
-  responseData.bank = await getUserBankInfo(req.body);
+  responseData.bank = await getUserBankInfo(req.body); // ! 1.1.10 부터  삭제대상
   responseData.unreadMailCount = await getUserUnreadMailCount(userkey);
 
   res.status(200).json(responseData);
