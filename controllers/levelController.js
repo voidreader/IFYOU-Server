@@ -17,6 +17,7 @@ export const updateUserLevelProcess = async (req, res) => {
       clear_id = -1,
       project_id = -1,
       lang = "KO",
+      ver = 0,
     },
   } = req;
 
@@ -68,13 +69,28 @@ export const updateUserLevelProcess = async (req, res) => {
     for (const item of result.row) {
       total_experience -= item.experience;
       if (total_experience >= 0) {
-        currentQuery = `CALL sp_insert_user_property(?,?,?,?);`;
-        sendQuery += mysql.format(currentQuery, [
-          userkey,
-          item.currency,
-          item.quantity,
-          "levelup",
-        ]);
+        if (ver >= 10) {
+          // version 1.1.10부터 메일지급
+          currentQuery = `CALL sp_send_user_mail(?,?,?,?,?,?);`;
+          sendQuery += mysql.format(currentQuery, [
+            userkey,
+            "levelup",
+            item.currency,
+            item.quantity,
+            -1,
+            365,
+          ]);
+        } else {
+          // 1.1.10 미만 버전에서는 바로지급
+
+          currentQuery = `CALL sp_insert_user_property(?,?,?,?);`;
+          sendQuery += mysql.format(currentQuery, [
+            userkey,
+            item.currency,
+            item.quantity,
+            "levelup",
+          ]);
+        }
 
         //* 2022.01.13 JE - 레벨업 이벤트 추가 보상(단발성 : 2022.01.19 ~ 02.07일 23시 59분)
         //* 해당 되는 레벨(5, 8, 11, 15)들은 메일 발송 처리
@@ -124,6 +140,8 @@ export const updateUserLevelProcess = async (req, res) => {
           level: target_level,
           currency: target_currency,
           quantity: target_quantity,
+          icon_image_url,
+          icon_image_key,
         });
       }
     }
