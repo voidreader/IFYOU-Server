@@ -15,6 +15,7 @@ export const attendanceList = async(req, res) => {
 
     let maxDaySeq = 0;
     const responseData = {};
+    const attendanceArray = [];
     // 반복이거나 아직 덜 받은 얘들만
     // 금일에 받은 출석 보상은 제외
     const result = await DB(`
@@ -38,6 +39,8 @@ export const attendanceList = async(req, res) => {
     for(const item of result.row){ 
         const attendance_id = item.attendance_id.toString();
         if (!Object.prototype.hasOwnProperty.call(responseData, attendance_id)) {  //attendance_id를 property로 선언
+            attendanceArray.push(item.attendance_id);
+            responseData.atendance = attendanceArray;
             responseData[attendance_id] = [];
         }
 
