@@ -235,6 +235,15 @@ export const getProjectFreepassPrice = async ({ userkey, project_id }) => {
     return {};
   }
 
+  // * 최소 가격을 스타 3으로 변경한다.
+  if (result.row[0].origin_freepass_price < 3) {
+    result.row[0].origin_freepass_price = 3;
+  }
+
+  if (result.row[0].sale_freepass_price < 3) {
+    result.row[0].sale_freepass_price = 3;
+  }
+
   return result.row[0];
 };
 
