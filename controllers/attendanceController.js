@@ -41,7 +41,7 @@ export const attendanceList = async (req, res) => {
     if (!Object.prototype.hasOwnProperty.call(responseData, attendance_id)) {
       //attendance_id를 property로 선언
       attendanceArray.push(item.attendance_id);
-      responseData.atendance = attendanceArray;
+      responseData.attendance = attendanceArray;
       responseData[attendance_id] = [];
     }
 
