@@ -108,10 +108,8 @@ import {
   getCoinExchangeProductList,
   coinExchangePurchase,
 } from "./exchangeController";
-import {
-  attendanceList, 
-  sendAttendanceReward,
-} from "./attendanceController";
+import { attendanceList, sendAttendanceReward } from "./attendanceController";
+import { updateSnippetPlayCount } from "./snippetController";
 
 // * 클라이언트에서 호출하는 프로젝트 크레딧 리스트
 const getProjectCreditList = async (req, res) => {
@@ -1522,10 +1520,11 @@ export const clientHome = (req, res) => {
   else if (func === "getCommingList") getCommingList(req, res);
   else if (func === "requestEpisodeFirstClearReward")
     requestEpisodeFirstClearReward(req, res);
-  else if (func === "getAttendanceList") attendanceList(req, res); 
-  //출석 보상 리스트 
-  else if (func === "sendAttendanceReward") sendAttendanceReward(req, res); 
-  //출석 보상 
+  else if (func === "getAttendanceList") attendanceList(req, res);
+  //출석 보상 리스트
+  else if (func === "sendAttendanceReward") sendAttendanceReward(req, res);
+  else if (func === "updateSnippetPlayCount") updateSnippetPlayCount(req, res);
+  //출석 보상
   else {
     //  res.status(400).send(`Wrong Func : ${func}`);
     logger.error(`clientHome Error`);
