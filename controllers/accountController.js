@@ -58,6 +58,8 @@ import {
   Q_SELECT_SIDE_STORY,
   Q_SELECT_EPISODE_PROGRESS,
   Q_SELECT_EPISODE_HISTORY,
+  Q_SELECT_PROJECT_ALL_BG,
+  Q_SELECT_PROJECT_ALL_EMOTICONS,
 } from "../USERQStore";
 
 import { logger } from "../logger";
@@ -89,6 +91,7 @@ import {
 import { getUserBankInfo } from "./bankController";
 import { getProjectFreepassProduct } from "./shopController";
 import { gamebaseAPI } from "../com/gamebaseAPI";
+import { getPlaySnippet, setDefaultProjectSnippet } from "./snippetController";
 
 dotenv.config();
 
@@ -2712,6 +2715,8 @@ const getProjectResources = async (project_id, lang, bubbleID, userkey) => {
   ]); // 18. 에피소드 사이드 스토리
   query += mysql.format(Q_SELECT_EPISODE_PROGRESS, [userkey, project_id]); // 19. 에피소드 progress
   query += mysql.format(Q_SELECT_EPISODE_HISTORY, [userkey, project_id]); // 20. 에피소드 히스토리
+  query += mysql.format(Q_SELECT_PROJECT_ALL_BG, [project_id]); // 21. 프로젝트 모든 배경
+  query += mysql.format(Q_SELECT_PROJECT_ALL_EMOTICONS, [project_id]); // 22. 프로젝트 모든 이모티콘
 
   const result = await DB(query);
 
@@ -2872,6 +2877,9 @@ export const getUserSelectedStory = async (req, res) => {
 
   // logger.info(`>>> getUserSelectedStory [${JSON.stringify(userInfo)}]`);
 
+  // default 스니핏 처리
+  await setDefaultProjectSnippet(userInfo);
+
   const storyInfo = {}; // * 결과값
 
   // 가장 최신 작업
@@ -2879,7 +2887,7 @@ export const getUserSelectedStory = async (req, res) => {
   //  userInfo.userkey,
   //  userInfo.project_id
   //); // 작품 리셋 카운트 및 소모 가격
-
+  storyInfo.userSnippet = await getPlaySnippet(userInfo); // 이번 진입에 플레이할 스니핏
   storyInfo.galleryImages = await getUserGalleryHistory(userInfo); // 갤러리 공개 이미지
 
   storyInfo.freepasProduct = await getProjectFreepassProduct(
@@ -2953,8 +2961,8 @@ export const getUserSelectedStory = async (req, res) => {
   // * 말풍선 상세 정보 (버전체크를 통해서 필요할때만 내려준다)
   // 버전 + 같은 세트 ID인지도 체크하도록 추가.
   if (
-    userInfo.userBubbleVersion < userInfo.bubble_ver ||
-    userInfo.clientBubbleSetID !== userInfo.bubbleID
+    userInfo.userBubbleVersion != userInfo.bubble_ver ||
+    userInfo.clientBubbleSetID != userInfo.bubbleID
   ) {
     // logger.info(`!!! Response with BubbleSetDetail`);
     const allBubbleSet = await getProjectBubbleSetDetail(userInfo); // * 프로젝트 말풍선 세트 상세 정보
