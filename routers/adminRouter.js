@@ -45,26 +45,6 @@ import {
   productDetailDelete,
   productPrieodSearch,
 } from "../controllers/shopController";
-import {
-  userList,
-  userDetail,
-  userCurrencyList,
-  userCouponList,
-  userMailList,
-  userMailCancel,
-  getAdminUserMissionList,
-  getAdminUserGalleryImageList,
-  userCurrencyControl,
-  requestGameUserList,
-  requestGameUserTicketProperty,
-  requestGameUserDetail,
-  requestGameUserProperty,
-  userMissionList,
-  userMissionDetail,
-  userMissonClear,
-  userCollection,
-  userCollectoinDetail,
-} from "../controllers/memberController";
 
 import { uploadComModelZip } from "../middlewares";
 import routes from "../routes";
@@ -129,30 +109,5 @@ adminRouter.post(
   uploadComModelZipFile
 ); // zip 업로드
 adminRouter.post(routes.comModelUpdate, updateComModel); // 수정
-
-//! 유저관리
-adminRouter.get(routes.comUserList, userList); //유저리스트
-adminRouter.post(routes.comUserDetail, userDetail); //상세정보
-adminRouter.get(routes.comUserCurrency, userCurrencyList); //재화기록
-adminRouter.get(routes.comUserCoupon, userCouponList); //쿠폰기록(삭제할 예정)
-adminRouter.get(routes.comUserMail, userMailList); //우편함(삭제할 예정)
-adminRouter.post(routes.comUserMailDelete, userMailCancel); //우편취소
-adminRouter.post(routes.comUserGallery, getAdminUserGalleryImageList); // 유저 갤러리 현황
-adminRouter.post(routes.comUserMission, getAdminUserMissionList); // 유저 미션 현황
-adminRouter.post(routes.comUserCurrencyControl, userCurrencyControl); // 재화 회수
-
-adminRouter.post(routes.opUserList, requestGameUserList); //유저리스트
-adminRouter.get(routes.opUserTicket, requestGameUserTicketProperty); // 유저 티켓 재화
-adminRouter.get(routes.opUserDetail, requestGameUserDetail); // 유저 상세정보
-adminRouter.post(routes.opUserCurrency, requestGameUserProperty); // 유저 모든 재화 기록
-adminRouter.post(routes.opUserCurrencyControl, userCurrencyControl); // 재화 회수
-adminRouter.post(routes.opUserCoupon, userCouponList); //쿠폰기록
-adminRouter.post(routes.opUserMail, userMailList); //우편함
-adminRouter.post(routes.opUserMailDelete, userMailCancel); //우편취소
-adminRouter.get(routes.opUserMission, userMissionList); //미션 리스트
-adminRouter.post(routes.opUserMissionDetail, userMissionDetail); //미션 상세
-adminRouter.post(routes.opUserMissionDelete, userMissonClear); //미션 초기화
-adminRouter.get(routes.opUserCollection, userCollection); // 수집 리스트
-adminRouter.post(routes.opUserCollectionDetail, userCollectoinDetail); //수집 상세
 
 export default adminRouter;

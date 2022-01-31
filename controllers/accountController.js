@@ -2718,12 +2718,36 @@ const getProjectResources = async (project_id, lang, bubbleID, userkey) => {
   query += mysql.format(Q_SELECT_PROJECT_ALL_BG, [project_id]); // 21. 프로젝트 모든 배경
   query += mysql.format(Q_SELECT_PROJECT_ALL_EMOTICONS, [project_id]); // 22. 프로젝트 모든 이모티콘
 
+  // * 모인 쿼리 실행
   const result = await DB(query);
 
   if (!result.state) {
     logger.error(result.error);
     return null;
   }
+
+  // * 일부 데이터 포장하기
+
+  // 22. 이모티콘
+  const emoticons = {};
+  result.row[22].forEach((item) => {
+    // 화자 - 이모티콘 이름으로 포장한다.
+    if (!Object.prototype.hasOwnProperty.call(emoticons, item.emoticon_owner)) {
+      emoticons[item.emoticon_owner] = {};
+    }
+
+    if (
+      !Object.prototype.hasOwnProperty.call(
+        emoticons[item.emoticon_owner],
+        item.image_name
+      )
+    ) {
+      emoticons[item.emoticon_owner][item.image_name] = {
+        image_url: item.image_url,
+        image_key: item.image_key,
+      };
+    }
+  });
 
   // 캐릭터 모델 파일 포장하기
   const models = {};
@@ -2818,6 +2842,8 @@ const getProjectResources = async (project_id, lang, bubbleID, userkey) => {
   responseData.nametag = result.row[2];
   responseData.bgms = result.row[3];
   responseData.illusts = result.row[4];
+  responseData.backgrounds = result.row[21];
+  responseData.emoticons = emoticons;
   responseData.models = models;
   responseData.liveObjects = liveObjects;
   responseData.liveIllusts = liveIllusts;
@@ -2890,31 +2916,8 @@ export const getUserSelectedStory = async (req, res) => {
   storyInfo.userSnippet = await getPlaySnippet(userInfo); // 이번 진입에 플레이할 스니핏
   storyInfo.galleryImages = await getUserGalleryHistory(userInfo); // 갤러리 공개 이미지
 
-  storyInfo.freepasProduct = await getProjectFreepassProduct(
-    userInfo.project_id,
-    userInfo.userkey
-  ); // 프리패스 상품 리스트
-  storyInfo.freepassPrice = await getProjectFreepassPrice(userInfo); // 프리패스 가격 정보
   storyInfo.projectCurrent = await getUserProjectCurrent(userInfo); // 프로젝트 현재 플레이 지점 !
   storyInfo.userProperty = await getUserProjectProperty(userInfo); // 유저 소유
-  storyInfo.selectionProgress = await getUserProjectSelectionProgress(userInfo); // 프로젝트 선택지 Progress
-
-  const voiceData = await getUserVoiceHistory(userInfo);
-  storyInfo.voiceHistory = voiceData.voiceHistory; // 화자별로 포장된 보이스
-  storyInfo.rawVoiceHistory = voiceData.rawVoiceHistory; // 리스트 그대로 형태의 보이스
-  storyInfo.progress = await getUserCollectionProgress(userInfo); // 수집요소 진행률
-  storyInfo.episodes = await requestMainEpisodeList(userInfo); // 유저의 정규 에피소드 리스트
-  //storyInfo.favorProgress = await getUserFavorHistory(userInfo); // 유저 호감도 진행도
-  // storyInfo.illustHistory = await getUserIllustHistory(userInfo); // 유저 일러스트 히스토리
-
-  // 작품 기준정보
-  //storyInfo.galleryBanner = await getProjectGalleryBannerInfo(userInfo); // 갤러리 상단 배너
-  storyInfo.bgmBanner = await getProjectBgmBannerInfo(userInfo); // BGM 배너
-  storyInfo.freepassBanner = await getProjectFreepassBannerInfo(userInfo); // 프리패스 배너
-  storyInfo.freepassTitle = await getProjectFreepassTitleInfo(userInfo); // 프리패스 타이틀 // ! 1.1.10 삭제 대상
-  storyInfo.freepassBadge = await getProjectFreepassBadge(userInfo); // 프리패스 뱃지
-
-  storyInfo.bubbleMaster = bubbleMaster; // 말풍선 마스터 정보
 
   const projectResources = await getProjectResources(
     userInfo.project_id,
@@ -2926,6 +2929,9 @@ export const getUserSelectedStory = async (req, res) => {
     respondDB(res, 80026, "프로젝트 리소스 로딩 오류");
     return;
   }
+
+  storyInfo.backgrounds = projectResources.backgrounds;
+  storyInfo.emoticons = projectResources.emoticons;
 
   storyInfo.detail = projectResources.detail; // 상세정보
   storyInfo.dressCode = projectResources.dressCode; // 의상정보
@@ -2957,6 +2963,30 @@ export const getUserSelectedStory = async (req, res) => {
     storyInfo.userProperty.freepass
   ); // * 2021.10.01 프리패스 타임딜 처리
   storyInfo.sides = projectResources.sides; // 유저의 사이드 에피소드 리스트
+
+  storyInfo.freepasProduct = await getProjectFreepassProduct(
+    userInfo.project_id,
+    userInfo.userkey
+  ); // 프리패스 상품 리스트
+  storyInfo.freepassPrice = await getProjectFreepassPrice(userInfo); // 프리패스 가격 정보
+
+  storyInfo.selectionProgress = await getUserProjectSelectionProgress(userInfo); // 프로젝트 선택지 Progress
+
+  const voiceData = await getUserVoiceHistory(userInfo);
+  storyInfo.voiceHistory = voiceData.voiceHistory; // 화자별로 포장된 보이스
+  storyInfo.rawVoiceHistory = voiceData.rawVoiceHistory; // 리스트 그대로 형태의 보이스
+  storyInfo.progress = await getUserCollectionProgress(userInfo); // 수집요소 진행률
+  storyInfo.episodes = await requestMainEpisodeList(userInfo); // 유저의 정규 에피소드 리스트
+  //storyInfo.favorProgress = await getUserFavorHistory(userInfo); // 유저 호감도 진행도
+  // storyInfo.illustHistory = await getUserIllustHistory(userInfo); // 유저 일러스트 히스토리
+
+  // 작품 기준정보
+  //storyInfo.galleryBanner = await getProjectGalleryBannerInfo(userInfo); // 갤러리 상단 배너
+  storyInfo.bgmBanner = await getProjectBgmBannerInfo(userInfo); // BGM 배너
+  storyInfo.freepassBanner = await getProjectFreepassBannerInfo(userInfo); // 프리패스 배너
+  storyInfo.freepassTitle = await getProjectFreepassTitleInfo(userInfo); // 프리패스 타이틀 // ! 1.1.10 삭제 대상
+  storyInfo.freepassBadge = await getProjectFreepassBadge(userInfo); // 프리패스 뱃지
+  storyInfo.bubbleMaster = bubbleMaster; // 말풍선 마스터 정보
 
   // * 말풍선 상세 정보 (버전체크를 통해서 필요할때만 내려준다)
   // 버전 + 같은 세트 ID인지도 체크하도록 추가.

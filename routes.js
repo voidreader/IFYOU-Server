@@ -192,39 +192,12 @@ const COM_MODEL_UPLOAD = `/com-model-upload`;
 const COM_MODEL_DELETE = `/com-model-delete`;
 const COM_MODEL_UPDATE = `/com-model-update`;
 
-//* 유저관리
-const COM_USER_LIST = `/com-user-list`;
-const COM_USER_DETAIL = `/:id/com-user-detail`;
-const COM_USER_CURRENCY = `/:id/com-user-currency`;
-const COM_USER_COUPON = `/:id/com-user-coupon`;
-const COM_USER_MAIL = `/:id/com-user-mail`;
-const COM_USER_MAIL_DELETE = `/:id/com-user-mail-delete`;
-const COM_USER_GALLERY = `/:id/com-user-gallery`;
-const COM_USER_MISSION = `/:id/com-user-mission`;
-const COM_USER_CURRENCY_CONTROL = `/:id/com-user-currency-control`;
-
 // * Admin 작품별 로딩화면
 const PROJECT_LOADING_MASTER = `/:id/project-loading-master`;
 const PROJECT_LOADING_DETAIL = `/:id/project-loading-detail`;
 const PROJECT_LOADING_CREATE = `/:id/project-loading-create`;
 const PROJECT_LOADING_UPDATE = `/:id/project-loading-update`;
 const PROJECT_LOADING_DELETE = `/:id/project-loading-delete`;
-
-//* 운영 - 유저 관리 Ver.2
-const OP_USER_LIST = `/op-user-list`;
-const OP_USER_TICKET = `/:id/op-user-ticket`; // 유저 티켓 재화 리스트
-const OP_USER_DETAIL = `/:id/op-user-detail`;
-const OP_USER_CURRENCY = `/:id/op-user-currency`;
-const OP_USER_COUPON = `/:id/op-user-coupon`;
-const OP_USER_MAIL = `/:id/op-user-mail`;
-const OP_USER_MAIL_DELETE = `/:id/op-user-mail-delete`;
-const OP_USER_GALLERY = `/:id/op-user-gallery`;
-const OP_USER_MISSION = `/:id/op-user-mission`;
-const OP_USER_CURRENCY_CONTROL = `/:id/op-user-currency-control`;
-const OP_USER_MISSION_DETAIL = `/:id/op-user-mission-detail`;
-const OP_USRE_MISSION_DELETE = `/:id/op-user-mission-delete`;
-const OP_USER_COLLECTION = `/:id/op-user-collection`;
-const OP_USER_COLLECTION_DETAIL = `/:id/op-user-collection-detail`;
 
 const routes = {
   home: HOME,
@@ -1006,34 +979,6 @@ const routes = {
   comModelDelete: COM_MODEL_DELETE,
   comModelUpdate: COM_MODEL_UPDATE,
   ////////////////// 공용 모델  ///////////
-
-  ////////////////// 유저관리 시작 ///////////
-  comUserList: COM_USER_LIST,
-  comUserDetail: COM_USER_DETAIL,
-  comUserCurrency: COM_USER_CURRENCY,
-  comUserCoupon: COM_USER_COUPON,
-  comUserMail: COM_USER_MAIL,
-  comUserMailDelete: COM_USER_MAIL_DELETE,
-  comUserGallery: COM_USER_GALLERY,
-  comUserMission: COM_USER_MISSION,
-  comUserCurrencyControl: COM_USER_CURRENCY_CONTROL,
-
-  opUserList: OP_USER_LIST,
-  opUserTicket: OP_USER_TICKET,
-  opUserDetail: OP_USER_DETAIL,
-  opUserCurrency: OP_USER_CURRENCY,
-  opUserCoupon: OP_USER_COUPON,
-  opUserMail: OP_USER_MAIL,
-  opUserMailDelete: OP_USER_MAIL_DELETE,
-  opUserGallery: OP_USER_GALLERY,
-  opUserMission: OP_USER_MISSION,
-  opUserCurrencyControl: OP_USER_CURRENCY_CONTROL,
-  opUserMissionDetail: OP_USER_MISSION_DETAIL,
-  opUserMissionDelete: OP_USRE_MISSION_DELETE,
-  opUserCollection: OP_USER_COLLECTION,
-  opUserCollectionDetail: OP_USER_COLLECTION_DETAIL,
-
-  ////////////////// 유저관리 끝 ///////////
 
   ////////////////// 프로젝트 로딩 시작 ///////////
   projectLoadingMaster: PROJECT_LOADING_MASTER,
