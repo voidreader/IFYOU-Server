@@ -119,6 +119,8 @@ export const getPlaySnippet = async (userInfo) => {
       , ls.sound_effect
       , ls.autoplay_row 
       , ifnull(ls.control, '') control
+      , ls.project_id 
+      , -1 episode_id -- 안쓰지만 클라이언트 때문에 집어넣었음
   FROM list_snippet_script ls
   WHERE ls.snippet_id = ${returnData.playSnippet.snippet_id}
     AND ls.lang = '${userInfo.lang}'
