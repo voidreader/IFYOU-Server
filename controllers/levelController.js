@@ -92,12 +92,12 @@ export const updateUserLevelProcess = async (req, res) => {
           ]);
         }
 
-        //* 2022.01.13 JE - 레벨업 이벤트 추가 보상(단발성 : 2022.01.19 ~ 02.07일 23시 59분)
+        //* 2022.01.13 JE - 레벨업 이벤트 추가 보상(단발성 : 2022.01.19 ~ 02.16일 23시 59분)
         //* 해당 되는 레벨(5, 8, 11, 15)들은 메일 발송 처리
         // eslint-disable-next-line no-await-in-loop
         result = await DB(`
         SELECT CASE WHEN ${item.next_level} = 5 OR ${item.next_level} = 8 OR ${item.next_level} = 11 OR ${item.next_level} = 15 THEN 1 ELSE 0 END level_bonus_check
-        FROM DUAL WHERE now() between '2022-01-19 00:00:00' AND '2022-02-07 23:59:59';`);
+        FROM DUAL WHERE now() between '2022-01-19 00:00:00' AND '2022-02-16 23:59:59';`);
         if (result.state && result.row.length > 0) {
           level_bonus_check = result.row[0].level_bonus_check;
           currentQuery = `INSERT INTO user_mail(userkey, mail_type, currency, quantity, expire_date, connected_project) 
