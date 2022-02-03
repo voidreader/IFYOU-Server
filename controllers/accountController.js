@@ -2047,13 +2047,15 @@ export const registerClientAccount = async (req, res) => {
   //* 기본 코인 재화 처리
   const userResult = await DB(Q_CLIENT_LOGIN_BY_GAMEBASE, [gamebaseid]);
   if (userResult.state && userResult.row.length > 0) {
-    // 가입시 재화 지급
-    await DB(UQ_ACCQUIRE_CURRENCY, [
-      userResult.row[0].userkey,
-      "gem",
-      150,
-      "newbie",
-    ]);
+    if (isLive == 0) {
+      // 가입시 재화 지급
+      await DB(UQ_ACCQUIRE_CURRENCY, [
+        userResult.row[0].userkey,
+        "gem",
+        150,
+        "newbie",
+      ]);
+    }
 
     await DB(UQ_ACCQUIRE_CURRENCY, [
       userResult.row[0].userkey,
