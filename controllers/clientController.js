@@ -52,6 +52,7 @@ import {
   requestTutorialReward,
   updateTutorialSelection,
   requestEpisodeFirstClearReward,
+  updateTutorialHowToPlay,
 } from "./accountController";
 import { logger } from "../logger";
 import {
@@ -1524,6 +1525,8 @@ export const clientHome = (req, res) => {
   //출석 보상 리스트
   else if (func === "sendAttendanceReward") sendAttendanceReward(req, res);
   else if (func === "updateSnippetPlayCount") updateSnippetPlayCount(req, res);
+  else if (func === "updateTutorialHowToPlay")
+    updateTutorialHowToPlay(req, res);
   //출석 보상
   else {
     //  res.status(400).send(`Wrong Func : ${func}`);
