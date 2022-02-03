@@ -306,6 +306,7 @@ SELECT ta.userkey
 , ifnull(t.tutorial_step, 0) tutorial_step 
 , ifnull(t.first_project_id, -1) first_project_id
 , ifnull(t.tutorial_selection, 0) tutorial_selection
+, t.how_to_play
 FROM table_account ta 
 LEFT OUTER JOIN user_tutorial t ON t.userkey = ta.userkey
 WHERE ta.gamebaseid  = ?;
@@ -328,6 +329,7 @@ SELECT ta.userkey
 , ifnull(t.tutorial_step, 0) tutorial_step 
 , ifnull(t.first_project_id, -1) first_project_id
 , ifnull(t.tutorial_selection, 0) tutorial_selection
+, t.how_to_play
 FROM table_account ta 
 LEFT OUTER JOIN user_tutorial t ON t.userkey = ta.userkey
 WHERE ta.userkey  = ?;
