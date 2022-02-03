@@ -380,6 +380,31 @@ SELECT a.minicut_id
  WHERE a.project_id = ?;
 `;
 
+// * 프로제트 모든 배경 리소스
+export const Q_SELECT_PROJECT_ALL_BG = `
+SELECT lb.bg_id
+     , lb.image_name
+     , lb.image_url
+     , lb.image_key
+     , lb.game_scale
+     , lb.live_pair_id
+  FROM list_bg lb
+ WHERE lb.project_id = ?;
+`;
+
+// * 프로젝트의 모든 이모티콘 리소스
+export const Q_SELECT_PROJECT_ALL_EMOTICONS = `
+SELECT lem.emoticon_owner
+     , les.emoticon_slave_id
+     , les.image_name
+     , les.image_url
+     , les.image_key
+  FROM list_emoticon_master lem
+     , list_emoticon_slave les 
+ WHERE lem.project_id = ?
+   AND les.emoticon_master_id = lem.emoticon_master_id;
+`;
+
 export const Q_SELECT_PROJECT_RESET_COIN_PRICE = `
 SELECT 
   first_reset_price
@@ -634,11 +659,11 @@ export const UQ_INSERT_USER_TIMEDEAL = `
 INSERT INTO user_timedeal_limit (userkey, timedeal_type, target_id, end_date, is_end) VALUES (?, ?, ?, DATE_ADD(NOW(), INTERVAL ? MINUTE), 0);
 `;
 
-// 가입 시에 디폴트 재화 바로 적용 
+// 가입 시에 디폴트 재화 바로 적용
 export const UQ_SAVE_USER_PROFILE = `
 INSERT INTO user_profile_currency ( userkey, currency, sorting_order, pos_x, pos_y, width, height, angle ) 
 VALUES( ?, ?, ?, ?, ?, ?, ?, ? );
 `;
 
 export const UQ_SEND_MAIL_NEWBIE = `INSERT INTO user_mail( userkey, mail_type, currency, quantity, expire_date, connected_project ) 
-VALUES(?, 'newbie', ?, 1, DATE_ADD(NOW(), INTERVAL 1 YEAR), -1);`
+VALUES(?, 'newbie', ?, 1, DATE_ADD(NOW(), INTERVAL 1 YEAR), -1);`;
