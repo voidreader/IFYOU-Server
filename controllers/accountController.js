@@ -2937,7 +2937,8 @@ export const getUserSelectedStory = async (req, res) => {
   //  userInfo.userkey,
   //  userInfo.project_id
   //); // 작품 리셋 카운트 및 소모 가격
-  storyInfo.userSnippet = await getPlaySnippet(userInfo); // 이번 진입에 플레이할 스니핏
+  // storyInfo.userSnippet = await getPlaySnippet(userInfo); // 이번 진입에 플레이할 스니핏
+  storyInfo.userSnippet = {};
   storyInfo.galleryImages = await getUserGalleryHistory(userInfo); // 갤러리 공개 이미지
 
   storyInfo.projectCurrent = await getUserProjectCurrent(userInfo); // 프로젝트 현재 플레이 지점 !
