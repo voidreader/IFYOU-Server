@@ -1646,7 +1646,6 @@ export const updateUserEpisodePlayRecord = async (req, res) => {
   const logResponse = {};
   logResponse.projectCurrent = responseData.projectCurrent;
   logResponse.unlockSide = responseData.unlockSide;
-  logResponse.unlockSide = responseData.unlockSide;
 
   logger.info(JSON.stringify(responseData));
 
