@@ -457,6 +457,15 @@ export const purchaseFreepass = async (req, res) => {
     respondDB(res, 80059, finalResult.error);
   }
 
+  //로그용으로 쌓기 위해 추가 
+  let chapter_number = 0;
+  const logResult = await DB(`
+  SELECT ifnull(chapter_number, 0) chapter_number
+  FROM list_episode le
+  WHERE episode_id = ( SELECT episode_id FROM user_project_current WHERE userkey = ? AND project_id = ? AND is_special = 0 );`, [userkey, project_id]);
+  if(logResult.state && logResult.row.length > 0) chapter_number = logResult.row[0].chapter_number;
+  req.body.chapter_number = chapter_number;
+
   // * 성공했으면 bank와 userProperty(프로젝트) 갱신해서 전달해주기
   const responseData = {};
   responseData.bank = await getUserBankInfo(req.body);
@@ -2484,6 +2493,8 @@ export const updateTutorialStep = async (req, res) => {
 
   res.status(200).json(responseData);
 
+  //로그용으로 쌓기 위해 추가
+  if(tutorial_step === 3) logAction(userkey, "tutorial_cancel", req.body);  
   logAction(userkey, "update_tutorial", req.body);
 };
 
@@ -2513,6 +2524,9 @@ export const requestTutorialReward = async (req, res) => {
     respondDB(res, 80048, result.error);
     return;
   }
+
+  //로그용으로 쌓기 위해 추가 
+  logAction(userkey, "tutorial_done", req.body);  
 
   const responseData = { new_tutorial_step: 3 };
 
@@ -2906,6 +2920,9 @@ export const getUserSelectedStory = async (req, res) => {
       lang = "KO",
     },
   } = req;
+
+  //로그용으로 쌓기 위해 추가 
+  logAction(userkey, "project_enter", req.body);
 
   // * 유저 정보
   const userInfo = {
