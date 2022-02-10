@@ -457,13 +457,17 @@ export const purchaseFreepass = async (req, res) => {
     respondDB(res, 80059, finalResult.error);
   }
 
-  //로그용으로 쌓기 위해 추가 
+  //로그용으로 쌓기 위해 추가
   let chapter_number = 0;
-  const logResult = await DB(`
+  const logResult = await DB(
+    `
   SELECT ifnull(chapter_number, 0) chapter_number
   FROM list_episode le
-  WHERE episode_id = ( SELECT episode_id FROM user_project_current WHERE userkey = ? AND project_id = ? AND is_special = 0 );`, [userkey, project_id]);
-  if(logResult.state && logResult.row.length > 0) chapter_number = logResult.row[0].chapter_number;
+  WHERE episode_id = ( SELECT episode_id FROM user_project_current WHERE userkey = ? AND project_id = ? AND is_special = 0 );`,
+    [userkey, project_id]
+  );
+  if (logResult.state && logResult.row.length > 0)
+    chapter_number = logResult.row[0].chapter_number;
   req.body.chapter_number = chapter_number;
 
   // * 성공했으면 bank와 userProperty(프로젝트) 갱신해서 전달해주기
@@ -2494,7 +2498,7 @@ export const updateTutorialStep = async (req, res) => {
   res.status(200).json(responseData);
 
   //로그용으로 쌓기 위해 추가
-  if(tutorial_step === 3) logAction(userkey, "tutorial_cancel", req.body);  
+  if (tutorial_step === 3) logAction(userkey, "tutorial_cancel", req.body);
   logAction(userkey, "update_tutorial", req.body);
 };
 
@@ -2525,8 +2529,8 @@ export const requestTutorialReward = async (req, res) => {
     return;
   }
 
-  //로그용으로 쌓기 위해 추가 
-  logAction(userkey, "tutorial_done", req.body);  
+  //로그용으로 쌓기 위해 추가
+  logAction(userkey, "tutorial_done", req.body);
 
   const responseData = { new_tutorial_step: 3 };
 
@@ -2901,6 +2905,46 @@ const getProjectResources = async (project_id, lang, bubbleID, userkey) => {
   return responseData;
 };
 
+// 현재 시점의 로딩 정보 가져오기
+const getCurrentLoadingData = async (project_id, episode_id, lang) => {
+  const result = {};
+
+  const loading = await DB(`
+  SELECT a.loading_id
+     , a.loading_name
+     , a.image_id 
+     , fn_get_design_info(a.image_id, 'url') image_url
+     , fn_get_design_info(a.image_id, 'key') image_key
+  FROM list_loading a
+     , list_loading_appear b
+WHERE a.project_id = ${project_id}
+  AND b.loading_id = a.loading_id
+  AND b.episode_id = ${episode_id}
+  AND b.is_use = 1
+ORDER BY rand() LIMIT 1;
+  `);
+
+  result.loading = loading.row;
+  result.loadingDetail = [];
+
+  if (loading.row.length > 0) {
+    const loadingID = loading.row[0].loading_id;
+    const loadingDetail = await DB(`
+      SELECT a.detail_no
+          , a.lang 
+          , a.loading_text 
+        FROM list_loading_detail a
+      WHERE a.loading_id = ${loadingID}
+      AND a.lang = '${lang}'
+      ORDER BY rand();
+    `);
+
+    result.loadingDetail = loadingDetail.row;
+  }
+
+  return result;
+};
+
 ///////////////////////////////////////////////////////////////////////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////////////////////
@@ -2921,7 +2965,7 @@ export const getUserSelectedStory = async (req, res) => {
     },
   } = req;
 
-  //로그용으로 쌓기 위해 추가 
+  //로그용으로 쌓기 위해 추가
   logAction(userkey, "project_enter", req.body);
 
   // * 유저 정보
@@ -2958,6 +3002,16 @@ export const getUserSelectedStory = async (req, res) => {
   storyInfo.galleryImages = await getUserGalleryHistory(userInfo); // 갤러리 공개 이미지
 
   storyInfo.projectCurrent = await getUserProjectCurrent(userInfo); // 프로젝트 현재 플레이 지점 !
+
+  // * 로딩 정보 추가
+  const currentLoadingData = await getCurrentLoadingData(
+    userInfo.project_id,
+    storyInfo.projectCurrent[0].episode_id,
+    userInfo.lang
+  );
+  storyInfo.loading = currentLoadingData.loading;
+  storyInfo.loadingDetail = currentLoadingData.loadingDetail;
+
   storyInfo.userProperty = await getUserProjectProperty(userInfo); // 유저 소유
 
   const projectResources = await getProjectResources(
