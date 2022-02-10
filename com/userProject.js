@@ -74,7 +74,8 @@ export const getUserProjectCurrent = async (userInfo) => {
     , a.is_final
     FROM user_project_current a
     WHERE a.userkey = ?
-    AND a.project_id = ?;
+    AND a.project_id = ?
+    ORDER BY a.is_special;
   `,
     [userInfo.userkey, userInfo.project_id]
   );
@@ -497,7 +498,8 @@ export const checkUserIdValidation = async (req, res) => {
     return;
   }
 
-  const profileResult = await DB(`
+  const profileResult = await DB(
+    `
   SELECT currency_type
   , fn_get_design_info(icon_image_id, 'url') icon_image_url
   , fn_get_design_info(icon_image_id, 'key') icon_image_key
@@ -505,8 +507,9 @@ export const checkUserIdValidation = async (req, res) => {
   WHERE a.currency = b.currency 
   AND userkey =?
   AND currency_type IN ( 'portrait', 'frame' );
-  `, [userkey]);
-
+  `,
+    [userkey]
+  );
 
   // uid, userkey를 전달.
   const responseData = {};
@@ -514,7 +517,7 @@ export const checkUserIdValidation = async (req, res) => {
   responseData.uid = validationResult.row[0].uid;
   responseData.nickname = validationResult.row[0].nickname;
   responseData.coin = await getCurrencyQuantity(responseData.userkey, "coin");
-  responseData.profile = profileResult.row; 
+  responseData.profile = profileResult.row;
 
   res.status(200).json(responseData);
 };
