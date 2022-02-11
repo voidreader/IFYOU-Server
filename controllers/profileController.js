@@ -109,3 +109,72 @@ export const userProfileSave = async (req, res) => {
   logAction(userkey, "profile_save", { userkey });
   getProfileCurrencyCurrent(req, res);
 };
+
+//!프로필 꾸미기 저장 뉴버전 
+export const userProfileSaveVer2 = async (req, res) =>{
+
+  const {
+    body: { userkey, currencyList = "",  }
+  } = req;
+
+  let result = ``;
+  let currentQuery = ``; 
+  let updateQuery = ``; 
+
+  //재화 리스트 
+  if(currencyList){
+    currentQuery = `INSERT INTO user_profile_currency(userkey, currency, sorting_order, pos_x, pos_y, width, height, angle)
+    VALUES(?, ?, ?, ?, ?, ?, ?, ?);`;
+
+    // eslint-disable-next-line no-restricted-syntax
+    for(const item of currencyList){
+      updateQuery += mysql.format(currentQuery, [
+        userkey,
+        item.currency,
+        item.sorting_order,
+        item.pos_x,
+        item.pos_y,
+        item.width,
+        item.height,
+        item.angle,
+      ]);
+    }
+  }
+
+  //텍스트 
+  /*if(textList){
+    currentQuery = `INSERT INTO user_profile_text(userkey, input_text, font_size, color_rgb, sorting_order, pos_x, pos_y, angle)
+    VALUES(?, ?, ?, ?, ?, ?, ?, ?);`;
+
+    // eslint-disable-next-line no-restricted-syntax
+    for (const item of textList) {
+      updateQuery += mysql.format(currentQuery, [
+        userkey,
+        item.input_text,
+        item.font_size,
+        item.color_rgb,
+        item.sorting_order,
+        item.pos_x,
+        item.pos_y,
+        item.angle,
+      ]);
+    }
+  }*/
+
+
+  result = await transactionDB(`
+  DELETE FROM user_profile_currency WHERE userkey = ?; 
+  ${updateQuery} 
+  `, [userkey]);
+
+  if(!result.state){
+    logger.error(`userProfileSaveVer2 error ${result.error}`);
+    respondDB(res, 80026, result.error);
+    return;      
+  }
+ 
+  
+  logAction(userkey, "profile_save_ver2", { userkey });
+  getProfileCurrencyCurrent(req, res);
+
+};
