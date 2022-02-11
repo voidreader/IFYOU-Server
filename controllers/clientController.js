@@ -91,7 +91,7 @@ import { useCoupon } from "./couponController";
 import { getUserBankInfo, getUserBankInfoWithResponse } from "./bankController";
 
 import { getProjectEpisodeProgressCount } from "./statController";
-import { userProfileSave } from "./profileController";
+import { userProfileSave, userProfileSaveVer2 } from "./profileController";
 import {
   userCoinPurchase,
   getCoinProductMainList,
@@ -1528,6 +1528,9 @@ export const clientHome = (req, res) => {
   else if (func === "updateTutorialHowToPlay")
     updateTutorialHowToPlay(req, res);
   //출석 보상
+  else if (func === "userProfileSaveVer2")
+    userProfileSaveVer2(req, res);
+  //프로필 저장Ver2
   else {
     //  res.status(400).send(`Wrong Func : ${func}`);
     logger.error(`clientHome Error`);
