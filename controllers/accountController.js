@@ -457,18 +457,18 @@ export const purchaseFreepass = async (req, res) => {
     respondDB(res, 80059, finalResult.error);
   }
 
-  //로그용으로 쌓기 위해 추가
-  let chapter_number = 0;
+  //로그용으로 쌓기 위해 추가 (chapter_number > episode_id로 변경)
+  let episode_id = 0;
   const logResult = await DB(
     `
-  SELECT ifnull(chapter_number, 0) chapter_number
+  SELECT episode_id
   FROM list_episode le
   WHERE episode_id = ( SELECT episode_id FROM user_project_current WHERE userkey = ? AND project_id = ? AND is_special = 0 );`,
     [userkey, project_id]
   );
   if (logResult.state && logResult.row.length > 0)
-    chapter_number = logResult.row[0].chapter_number;
-  req.body.chapter_number = chapter_number;
+    episode_id = logResult.row[0].episode_id;
+  req.body.episode_id = episode_id;
 
   // * 성공했으면 bank와 userProperty(프로젝트) 갱신해서 전달해주기
   const responseData = {};
