@@ -673,7 +673,7 @@ export const coinProductDetail = async (req, res) => {
     body: { userkey, lang = "KO", coin_product_id },
   } = req;
 
-  let result = await DB(
+  const result = await DB(
     `
     SELECT coin_product_id 
     , fn_get_coin_product_name(coin_product_id, ?) name  
@@ -700,42 +700,7 @@ export const coinProductDetail = async (req, res) => {
     [lang, userkey, lang, coin_product_id]
   );
   const list = await getCoinProductList(userkey, lang, result.row);
-  
-  // eslint-disable-next-line no-restricted-syntax
-  for(const item of list){
-    if(item.currency_type === 'wallpaper'){
 
-      // eslint-disable-next-line no-await-in-loop
-      result = await DB(`
-      SELECT 
-      fn_get_bg_info(resource_image_id, 'url') resource_image_url 
-      , fn_get_bg_info(resource_image_id, 'key') resource_image_key 
-      FROM com_currency 
-      WHERE currency = ?;
-      `, [item.currency]);
-     
-      item.resource_image_url = result.row[0].resource_image_url; 
-      item.resource_image_key = result.row[0].resource_image_key; 
-
-    }else if (item.currency_type === 'standing'){
-      
-      // eslint-disable-next-line no-await-in-loop
-      result = await DB(`
-      SELECT 
-      fn_get_design_info(resource_image_id, 'url') resource_image_url 
-      , fn_get_design_info(resource_image_id, 'key') resource_image_key 
-      , fn_get_bg_info(221, 'url') bg_image_url 
-      , fn_get_bg_info(221, 'key') bg_image_key
-      FROM com_currency 
-      WHERE currency = ?;
-      `, [item.currency]);
-
-      item.resource_image_url = result.row[0].resource_image_url;
-      item.resource_image_key = result.row[0].resource_image_key; 
-      item.bg_image_url = result.row[0].bg_image_url;
-      item.bg_image_key = result.row[0].bg_image_key; 
-    }
-  }
   res.status(200).json(list);
 };
 
