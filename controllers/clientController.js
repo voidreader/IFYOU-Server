@@ -719,6 +719,7 @@ const getIfYouProjectList = async (req, res) => {
   , a.color_rgb
   , fn_get_episode_progress_value(${userkey}, a.project_id) project_progress
   , fn_check_exists_project_play_record(${userkey}, a.project_id) is_playing
+  , b.original
   FROM list_project_master a
   LEFT OUTER JOIN list_project_detail b ON b.project_id = a.project_id AND b.lang ='${lang}'
   WHERE a.is_public > 0
@@ -1528,8 +1529,7 @@ export const clientHome = (req, res) => {
   else if (func === "updateTutorialHowToPlay")
     updateTutorialHowToPlay(req, res);
   //출석 보상
-  else if (func === "userProfileSaveVer2")
-    userProfileSaveVer2(req, res);
+  else if (func === "userProfileSaveVer2") userProfileSaveVer2(req, res);
   //프로필 저장Ver2
   else {
     //  res.status(400).send(`Wrong Func : ${func}`);
