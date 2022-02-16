@@ -180,17 +180,21 @@ export const getStatTutorialList = async (search_date) =>{
 //! 작품별 
 export const getStatProjectList = async (search_date) =>{
 
-  let result; 
+  let result;
+  const start_date = `${search_date} 00:00:00`;
+  const end_date = `${search_date} 23:59:59`; 
   
   let currentQuery = ``;
   let insertQuery = ``; 
 
   result = await DB(`  
   SELECT project_id 
-  , fn_get_project_cnt(project_id, '${search_date} 00:00:00', 'project_enter') project_enter
-  , fn_get_project_cnt(project_id, '${search_date} 00:00:00', 'project_like') project_like
-  , fn_get_project_cnt(project_id, '${search_date} 00:00:00', 'ad_view') ad_view
-  FROM list_project_master WHERE project_id > 0 AND is_deploy = 1;`);
+  , fn_get_project_cnt(project_id, ?, ?, 'project_enter') project_enter
+  , fn_get_project_cnt(project_id, ?, ?, 'project_like') project_like
+  , fn_get_project_cnt(project_id, ?, ?, 'ad_view') ad_view
+  FROM list_project_master WHERE project_id > 0 AND is_deploy = 1;`, [
+    start_date, end_date, start_date, end_date, start_date, end_date
+  ]);
   if(result.state && result.row.length > 0) {
     // eslint-disable-next-line no-restricted-syntax
     for(const item of result.row){
@@ -217,24 +221,26 @@ export const getStatProjectList = async (search_date) =>{
 export const getStatEpisodePlayList = async (search_date) =>{
 
   let result; 
+  const start_date = `${search_date} 00:00:00`;
+  const end_date = `${search_date} 23:59:59`;
 
   let insertQuery = ``; 
   const currentQuery = `
-  INSERT INTO stat_episode(project_id, episode_id, free_count, star_count, premium_count, clear_count, reset_count, clear_total, premium_change_point_count, search_date) 
-  VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?);`;
+  INSERT INTO stat_episode_play(project_id, episode_id, free_count, star_count, premium_count, search_date) 
+  VALUES(?, ?, ?, ?, ?, ?);`;
 
   result = await DB(`
   SELECT
   project_id
   , episode_id 
-  , fn_get_episode_cnt(episode_id, '${search_date} 00:00:00', 'free_count') free_count
-  , fn_get_episode_cnt(episode_id, '${search_date} 00:00:00', 'star_count') star_count
-  , fn_get_episode_cnt(episode_id, '${search_date} 00:00:00', 'premium_count') premium_count
-  , fn_get_episode_cnt(episode_id, '${search_date} 00:00:00', 'episode_clear') clear_count
-  , fn_get_episode_cnt(episode_id, '${search_date} 00:00:00', 'reset_progress') reset_count
-  , fn_get_episode_cnt(episode_id, '${search_date} 00:00:00', 'freepass') premium_change_point_count
+  , fn_get_episode_cnt(episode_id, ?, ?, 'free_count') free_count
+  , fn_get_episode_cnt(episode_id, ?, ?, 'star_count') star_count
+  , fn_get_episode_cnt(episode_id, ?, ?, 'premium_count') premium_count
   FROM user_episode_purchase
-  WHERE data(purchase_date) = ?;`, [search_date]); 
+  WHERE purchase_date BETWEEN ? AND ?
+  GROUP BY project_id, episode_id 
+  ORDER BY project_id, episode_id
+  ;`, [start_date, end_date, start_date, end_date, start_date, end_date, start_date, end_date]); 
   if(result.state && result.row.length > 0){
     // eslint-disable-next-line no-restricted-syntax
     for(const item of result.row){
@@ -244,10 +250,7 @@ export const getStatEpisodePlayList = async (search_date) =>{
         , item.free_count
         , item.star_count
         , item.premium_count
-        , item.clear_count
-        , item.reset_count
-        , item.clear_total
-        , item.premium_change_point_count
+        , search_date
       ]);
     }
   }
@@ -263,35 +266,52 @@ export const getStatEpisodePlayList = async (search_date) =>{
 
 };
 
-//! 에피소드별 클리어 
-export const getStatEpisodeClearList = async (search_date) =>{
+//! 에피소드별 로그 타입
+export const getStatEpisodeActionList = async (search_date) =>{
 
   let result; 
-  let currentQuery = ``;
+  const start_date = `${search_date} 00:00:00`;
+  const end_date = `${search_date} 23:59:59`;
+  const base_date = '2022-02-02 00:00:00';
+
+  const currentQuery = `
+  INSERT INTO stat_episode_action(project_id, episode_id, clear_count, reset_count, clear_total, premium_change_point_count, search_date) 
+  VALUES(?, ?, ?, ?, ?, ?, ?);`;;
   let insertQuery = ``; 
 
   result = await DB(`
-  SELECT JSON_EXTRACT(log_data, '$.project_id') project_id
-  , JSON_EXTRACT(log_data, '$.episode_id') episode_id
-  , fn_get_episode_cnt(episode_id, '${search_date} 00:00:00', 'episode_clear') clear_count
-  , fn_get_episode_cnt(episode_id, '${search_date} 00:00:00', 'episode_clear') reset_count
-  , fn_get_episode_cnt(episode_id, '${search_date} 00:00:00', 'episode_clear') premium_change_point_count
-  FROM gamelog.log_action 
+  SELECT CAST(JSON_EXTRACT(log_data, '$.project_id') AS UNSIGNED) project_id
+  , CAST(JSON_EXTRACT(log_data, '$.episodeID') AS UNSIGNED) episode_id
+  , fn_get_episode_cnt(CAST(JSON_EXTRACT(log_data, '$.episodeID') AS UNSIGNED), ?, ?, 'episode_clear') clear_count
+  , fn_get_episode_cnt(CAST(JSON_EXTRACT(log_data, '$.episodeID') AS UNSIGNED), ?, ?, 'reset_progress') reset_count
+  , fn_get_episode_cnt(CAST(JSON_EXTRACT(log_data, '$.episodeID') AS UNSIGNED), ?, ?, 'episode_clear') clear_total
+  , fn_get_episode_cnt(CAST(JSON_EXTRACT(log_data, '$.episodeID') AS UNSIGNED), ?, ?, 'freepass') premium_change_point_count
+  FROM gamelog.log_action
   WHERE action_type IN ('episode_clear', 'reset_progress', 'freepass')
-  AND date(action_date) = ?;`, [search_date]);
-  if(result.state && result.row.length > 0){
-    
+  AND action_date BETWEEN ? AND ?
+  GROUP BY project_id, episode_id
+  ORDER BY project_id, episode_id;`, [
+    start_date, end_date
+    , start_date, end_date 
+    , base_date , end_date 
+    , start_date, end_date
+    , start_date, end_date 
+  ]);
+  if(result.state && result.row.length > 0){    
     // eslint-disable-next-line no-restricted-syntax
     for(const item of result.row){
-      // eslint-disable-next-line no-await-in-loop
-      const episodeResult = await DB(`SELECT * FROM stat_episode WHERE episode_id = ?;`, [item.episode_id]);
-      if(result.state && result.row.length === 0){
-        currentQuery = `INSERT INTO stat_episode(project_id, episode_id, free_count, star_count, premium_count, clear_count, reset_count, clear_total, premium_change_point_count, search_date) 
-        VALUES(?, ?, 0, 0, 0, ?, ?, ?, ?, ?);`;
-      }
+      insertQuery += mysql.format(currentQuery, [item.project_id, item.episode_id, item.clear_count, item.reset_count, item.clear_total, item.premium_change_point_count, search_date]);
     }
-    
   }
+
+  console.log(insertQuery); 
+
+  /*if(insertQuery){
+    result = await transactionDB(insertQuery); 
+    if(!result.state){
+      logger.error(`getStatEpisodeActionList error`);
+    }
+  }*/
 };
 
 //! 재화 사용 
@@ -313,8 +333,7 @@ export const getStatPropertyList = async (search_date) =>{
   FROM gamelog.log_property
   WHERE action_date BETWEEN '${search_date} 00:00:00' AND '${search_date} 23:59:59'
   GROUP BY userkey
-  ORDER BY userkey;
-  `);
+  ORDER BY userkey;`);
   if(result.state && result.row.length > 0){
     currentQuery = `
     INSERT INTO stat_property(uid, project_id, currency, quantity, property_type, property_path, paid, search_date) 
@@ -348,8 +367,7 @@ export const getStatInappList = async (search_date) => {
   fn_get_userkey_info(userkey) uid 
   , product_id 
   FROM user_purchase a
-  WHERE purchase_date BETWEEN '${search_date} 00:00:00' AND '${search_date} 23:59:59';
-  `, [search_date]);
+  WHERE purchase_date BETWEEN '${search_date} 00:00:00' AND '${search_date} 23:59:59';`);
   if(result.state && result.row.length > 0){
     currentQuery = `INSERT INTO stat_inapp(uid, product_id, search_date) VALUES(?, ?, ?);`;
     
@@ -379,8 +397,7 @@ export const getStatCoinList = async(search_date) => {
   fn_get_userkey_info(userkey) uid 
   , coin_product_id
   FROM user_coin_purchase 
-  WHERE coin_purchase_date BETWEEN '${search_date} 00:00:00' AND '${search_date} 23:59:59';
-  `);
+  WHERE coin_purchase_date BETWEEN '${search_date} 00:00:00' AND '${search_date} 23:59:59';`);
   if(result.state && result.row.length > 0){
     currentQuery = `INSERT INTO stat_coin(uid, coin_product_id, search_date) VALUES(?, ?, ?);`;
     
@@ -410,7 +427,8 @@ export const setStatList = async (req, res) => {
   if(mode === "getStatIfyouList")  await getStatIfyouList(search_date);
   else if (mode === "getStatTutorialList") await getStatTutorialList(search_date);
   else if (mode === "getStatProjectList") await getStatProjectList(search_date);
-  else if (mode === "getStatEpisodeList") await getStatEpisodeList(search_date);
+  else if (mode === "getStatEpisodePlayList") await getStatEpisodePlayList(search_date);
+  else if (mode === "getStatEpisodeActionList") await getStatEpisodeActionList(search_date);
   else if (mode === "getStatPropertyList") await getStatPropertyList(search_date);
   else if (mode === "getStatInappList") await getStatInappList(search_date);
   else if (mode === "getStatCoinList") await getStatCoinList(search_date);
