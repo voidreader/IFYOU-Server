@@ -7,7 +7,8 @@ import {
   getStatIfyouList,
   getStatTutorialList,
   getStatProjectList,
-  getStatEpisodeList,
+  getStatEpisodePlayList,
+  getStatEpisodeActionList,
   getStatPropertyList,
   getStatInappList,
   getStatCoinList,
@@ -170,7 +171,6 @@ export const scheduleAdCharge = schedule.scheduleJob(resetChargeRule, () => {
 //! 통계 데이터(새벽 5시마다 호출)
 export const scheduleStatInsert = schedule.scheduleJob("0 0 5 * * *", async () => { 
   
-  
   const isMail = process.env.MAIL_SCHEDULE;
 
   const now = new Date(); 
@@ -187,7 +187,8 @@ export const scheduleStatInsert = schedule.scheduleJob("0 0 5 * * *", async () =
   await getStatIfyouList(setDay);
   await getStatTutorialList(setDay);
   await getStatProjectList(setDay);
-  await getStatEpisodeList(setDay);
+  await getStatEpisodePlayList(setDay);
+  await getStatEpisodeActionList(setDay);
   await getStatPropertyList(setDay);
   await getStatInappList(setDay);
   await getStatCoinList(setDay);
