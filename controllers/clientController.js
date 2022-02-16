@@ -111,6 +111,7 @@ import {
 } from "./exchangeController";
 import { attendanceList, sendAttendanceReward } from "./attendanceController";
 import { updateSnippetPlayCount } from "./snippetController";
+import { setStatList } from "./statController";
 
 // * 클라이언트에서 호출하는 프로젝트 크레딧 리스트
 const getProjectCreditList = async (req, res) => {
@@ -1531,6 +1532,9 @@ export const clientHome = (req, res) => {
   else if (func === "userProfileSaveVer2")
     userProfileSaveVer2(req, res);
   //프로필 저장Ver2
+  else if (func === "setStatList")
+    setStatList(req, res);
+  //통계
   else {
     //  res.status(400).send(`Wrong Func : ${func}`);
     logger.error(`clientHome Error`);
