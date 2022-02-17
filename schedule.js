@@ -178,8 +178,8 @@ export const scheduleStatInsert = schedule.scheduleJob("0 0 5 * * *", async () =
   const year = yesterday.getFullYear(); 
   const month = String(yesterday.getMonth()+1).padStart(2, "0"); 
   const day = String(yesterday.getDate()).padStart(2, "0"); 
-  const setDay = `${year}-${month}-${day}`; 
-
+  const setDay = `${year}-${month}-${day}`;  //어제 날짜 셋팅
+ 
   logger.info(`scheduleStatInsert [${isMail}]`);
  
   if(isMail !== 1) return;
