@@ -168,8 +168,8 @@ export const scheduleAdCharge = schedule.scheduleJob(resetChargeRule, () => {
 });
 
 
-//! 통계 데이터(새벽 5시마다 호출)
-export const scheduleStatInsert = schedule.scheduleJob("0 0 5 * * *", async () => { 
+//! 통계 데이터(새벽 0시마다 호출)
+export const scheduleStatInsert = schedule.scheduleJob("0 0 0 * * *", async () => { 
   
   const isMail = process.env.MAIL_SCHEDULE;
 
