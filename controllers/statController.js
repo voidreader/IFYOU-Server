@@ -166,6 +166,7 @@ export const getStatTutorialList = async (search_date) =>{
   AND receive_date BETWEEN '${search_date} 00:00:00' AND '${search_date} 23:59:59';`);
   if(result.state) tutorial_reward = result.row.length;
   
+  
   result = await DB(`
   INSERT INTO stat_tutorial(cancel_count, excute_count, done_count, reward_count, search_date) 
   VALUES(?, ?, ?, ?, ?);
@@ -181,8 +182,8 @@ export const getStatTutorialList = async (search_date) =>{
 export const getStatProjectList = async (search_date) =>{
 
   let result;
-  const start_date = `${search_date} 00:00:00`;
-  const end_date = `${search_date} 23:59:59`; 
+  const start_date = `${search_date} 00:00:00`; //시작일
+  const end_date = `${search_date} 23:59:59`;  //끝일
   
   let currentQuery = ``;
   let insertQuery = ``; 
@@ -221,8 +222,8 @@ export const getStatProjectList = async (search_date) =>{
 export const getStatEpisodePlayList = async (search_date) =>{
 
   let result; 
-  const start_date = `${search_date} 00:00:00`;
-  const end_date = `${search_date} 23:59:59`;
+  const start_date = `${search_date} 00:00:00`; //시작일
+  const end_date = `${search_date} 23:59:59`;   //끝일
 
   let insertQuery = ``; 
   const currentQuery = `
@@ -255,28 +256,26 @@ export const getStatEpisodePlayList = async (search_date) =>{
     }
   }
 
-  console.log(insertQuery);
-
-  /*if(insertQuery){
+  if(insertQuery){
     result = await transactionDB(insertQuery); 
     if(!result.state){
       logger.error(`getStatEpisodeList error`);
     }
-  }*/
+  }
 
 };
 
-//! 에피소드별 로그 타입
+//! 에피소드별 활동 타입
 export const getStatEpisodeActionList = async (search_date) =>{
 
   let result; 
-  const start_date = `${search_date} 00:00:00`;
-  const end_date = `${search_date} 23:59:59`;
-  const base_date = '2022-02-02 00:00:00';
+  const start_date = `${search_date} 00:00:00`; //시작일
+  const end_date = `${search_date} 23:59:59`;   //끝일
+  const base_date = '2022-02-02 00:00:00';      //어플 개시일
 
   const currentQuery = `
   INSERT INTO stat_episode_action(project_id, episode_id, clear_count, reset_count, clear_total, premium_change_point_count, search_date) 
-  VALUES(?, ?, ?, ?, ?, ?, ?);`;;
+  VALUES(?, ?, ?, ?, ?, ?, ?);`;
   let insertQuery = ``; 
 
   result = await DB(`
@@ -285,7 +284,7 @@ export const getStatEpisodeActionList = async (search_date) =>{
   , fn_get_episode_cnt(CAST(JSON_EXTRACT(log_data, '$.episodeID') AS UNSIGNED), ?, ?, 'episode_clear') clear_count
   , fn_get_episode_cnt(CAST(JSON_EXTRACT(log_data, '$.episodeID') AS UNSIGNED), ?, ?, 'reset_progress') reset_count
   , fn_get_episode_cnt(CAST(JSON_EXTRACT(log_data, '$.episodeID') AS UNSIGNED), ?, ?, 'episode_clear') clear_total
-  , fn_get_episode_cnt(CAST(JSON_EXTRACT(log_data, '$.episodeID') AS UNSIGNED), ?, ?, 'freepass') premium_change_point_count
+  , fn_get_episode_cnt(CAST(JSON_EXTRACT(log_data, '$.episode_id') AS UNSIGNED), ?, ?, 'freepass') premium_change_point_count
   FROM gamelog.log_action
   WHERE action_type IN ('episode_clear', 'reset_progress', 'freepass')
   AND action_date BETWEEN ? AND ?
@@ -304,14 +303,12 @@ export const getStatEpisodeActionList = async (search_date) =>{
     }
   }
 
-  console.log(insertQuery); 
-
-  /*if(insertQuery){
+  if(insertQuery){
     result = await transactionDB(insertQuery); 
     if(!result.state){
       logger.error(`getStatEpisodeActionList error`);
     }
-  }*/
+  }
 };
 
 //! 재화 사용 
@@ -332,7 +329,6 @@ export const getStatPropertyList = async (search_date) =>{
   , paid
   FROM gamelog.log_property
   WHERE action_date BETWEEN '${search_date} 00:00:00' AND '${search_date} 23:59:59'
-  GROUP BY userkey
   ORDER BY userkey;`);
   if(result.state && result.row.length > 0){
     currentQuery = `
@@ -343,7 +339,7 @@ export const getStatPropertyList = async (search_date) =>{
     for(const item of result.row){
       insertQuery += mysql.format(currentQuery, [item.uid, item.project_id, item.currency, item.quantity, item.log_type, item.property_path, item.paid, search_date]);
     }
-    
+
     if(insertQuery){
       result = await transactionDB(insertQuery);
       if(!result.state){
