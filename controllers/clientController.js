@@ -46,7 +46,6 @@ import {
   requestFreeCharge,
   requestExchangeOneTimeTicketWithCoin,
   getProfileCurrencyOwnList,
-  getProfileCurrencyCurrent,
   updateUserMinicutHistoryVer2,
   insertUserProperty,
   requestTutorialReward,
@@ -92,9 +91,11 @@ import { getUserBankInfo, getUserBankInfoWithResponse } from "./bankController";
 
 import { getProjectEpisodeProgressCount, setStatList } from "./statController";
 import {
+  getUserStoryProfileCurrencyList,
   saveUserStoryProfile,
   userProfileSave,
   userProfileSaveVer2,
+  getProfileCurrencyCurrent,
 } from "./profileController";
 import {
   userCoinPurchase,
@@ -1536,6 +1537,8 @@ export const clientHome = (req, res) => {
   else if (func === "userProfileSaveVer2") userProfileSaveVer2(req, res);
   // 통합 프로필 저장Ver2
   else if (func === "saveUserStoryProfile") saveUserStoryProfile(req, res);
+  else if (func === "getUserStoryProfileCurrencyList")
+    getUserStoryProfileCurrencyList(req, res);
   // * 작품별 프로필 저장
   else if (func === "setStatList") setStatList(req, res);
   //통계
