@@ -80,18 +80,19 @@ import {
   requestUpdateProjectCurrent,
   getProjectResetInfo,
 } from "../com/userProject";
-import { getConnectedGalleryImages } from "./episodeController";
 import {
   getProjectBgmBannerInfo,
   getProjectFreepassBadge,
   getProjectFreepassBannerInfo,
   getProjectFreepassTitleInfo,
-  getProjectGalleryBannerInfo,
 } from "./designController";
 import { getUserBankInfo } from "./bankController";
 import { getProjectFreepassProduct } from "./shopController";
 import { gamebaseAPI } from "../com/gamebaseAPI";
-import { getPlaySnippet, setDefaultProjectSnippet } from "./snippetController";
+import {
+  getProfileCurrencyCurrent,
+  getUserStoryProfile,
+} from "./profileController";
 
 dotenv.config();
 
@@ -106,123 +107,6 @@ export const updateWithdrawDate = (req, res) => {
   );
 
   res.status(200).send("");
-};
-
-// * 유저가 저장한 프로필 꾸미기 저장 정보
-export const getProfileCurrencyCurrent = async (
-  req,
-  res,
-  needResponse = true
-) => {
-  logger.info(`getProfileCurrencyCurrent`);
-
-  const {
-    body: { userkey },
-  } = req;
-
-  const responseData = {};
-
-  console.log(
-    mysql.format(
-      `  SELECT 
-                a.currency
-                , CASE WHEN currency_type = 'wallpaper' THEN
-                  fn_get_bg_info(resource_image_id, 'url')
-                ELSE 
-                  fn_get_design_info(resource_image_id, 'url')
-                END currency_url
-                , CASE WHEN currency_type = 'wallpaper' THEN
-                  fn_get_bg_info(resource_image_id, 'key')
-                ELSE 
-                  fn_get_design_info(resource_image_id, 'key')
-                END currency_key
-                , sorting_order
-                , pos_x
-                , pos_y 
-                , width
-                , height
-                , angle 
-                , currency_type
-                FROM user_profile_currency a, com_currency b 
-                WHERE userkey = ?
-                AND a.currency = b.currency
-                ORDER BY sorting_order;`,
-      [userkey]
-    )
-  );
-  let result = await DB(
-    `
-  SELECT 
-  a.currency
-  , CASE WHEN currency_type = 'wallpaper' THEN
-    fn_get_bg_info(resource_image_id, 'url')
-  ELSE 
-    fn_get_design_info(resource_image_id, 'url')
-  END currency_url
-  , CASE WHEN currency_type = 'wallpaper' THEN
-    fn_get_bg_info(resource_image_id, 'key')
-  ELSE 
-    fn_get_design_info(resource_image_id, 'key')
-  END currency_key
-  , sorting_order
-  , pos_x
-  , pos_y 
-  , width
-  , height
-  , angle 
-  , currency_type
-  FROM user_profile_currency a, com_currency b 
-  WHERE userkey = ?
-  AND a.currency = b.currency
-  ORDER BY sorting_order; 
-  ; 
-  `,
-    [userkey]
-  );
-  responseData.currency = result.row;
-  console.log(
-    mysql.format(
-      `    SELECT 
-  text_id 
-  , input_text
-  , font_size
-  , color_rgb
-  , sorting_order
-  , pos_x
-  , pos_y 
-  , angle 
-  FROM user_profile_text
-  WHERE userkey = ?
-  ORDER BY sorting_order; `,
-      [userkey]
-    )
-  );
-  result = await DB(
-    `
-  SELECT 
-  text_id 
-  , input_text
-  , font_size
-  , color_rgb
-  , sorting_order
-  , pos_x
-  , pos_y 
-  , angle 
-  FROM user_profile_text
-  WHERE userkey = ?
-  ORDER BY sorting_order; 
-  ;
-  `,
-    [userkey]
-  );
-  responseData.text = result.row;
-
-  // 다른곳에서 쓸때는 그냥 response 없이 응답만.
-  if (!needResponse) {
-    return responseData;
-  }
-
-  res.status(200).json(responseData);
 };
 
 ////////// ! 재화 소모와 획득에 대한 처리 부분
@@ -2988,7 +2872,7 @@ export const getUserSelectedStory = async (req, res) => {
   // logger.info(`>>> getUserSelectedStory [${JSON.stringify(userInfo)}]`);
 
   // default 스니핏 처리
-  await setDefaultProjectSnippet(userInfo);
+  // await setDefaultProjectSnippet(userInfo);
 
   const storyInfo = {}; // * 결과값
 
@@ -2998,9 +2882,12 @@ export const getUserSelectedStory = async (req, res) => {
   //  userInfo.project_id
   //); // 작품 리셋 카운트 및 소모 가격
   // storyInfo.userSnippet = await getPlaySnippet(userInfo); // 이번 진입에 플레이할 스니핏
-  storyInfo.userSnippet = {};
-  storyInfo.galleryImages = await getUserGalleryHistory(userInfo); // 갤러리 공개 이미지
 
+  // * 스토리 프로필 15 버전부터 추가 (2022.02.21)
+  storyInfo.storyProfile = await getUserStoryProfile(req, res, false); // 작품별 프로필
+  storyInfo.userSnippet = {}; // * 사용하지 않음
+
+  storyInfo.galleryImages = await getUserGalleryHistory(userInfo); // 갤러리 공개 이미지
   storyInfo.projectCurrent = await getUserProjectCurrent(userInfo); // 프로젝트 현재 플레이 지점 !
 
   // * 로딩 정보 추가
