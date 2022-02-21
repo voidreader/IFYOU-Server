@@ -2,7 +2,36 @@ import mysql from "mysql2/promise";
 import { DB, logAction } from "../mysqldb";
 import { logger } from "../logger";
 import { respondDB } from "../respondent";
-import { getCurrencyQuantity } from "../controllers/accountController";
+
+// 재화 수량 조회
+// * 특정 그룹 재화를 위한 기능 추가 (1회권)
+const getCurrencyQuantity = async (userkey, currency, isGroup = false) => {
+  let result;
+
+  if (isGroup) {
+    result = await DB(
+      `SELECT fn_get_user_group_property(?, ?) quantity
+      FROM DUAL;`,
+      [userkey, currency]
+    );
+  } else {
+    result = await DB(
+      `SELECT fn_get_user_property(?, ?) quantity
+      FROM DUAL;`,
+      [userkey, currency]
+    );
+  }
+
+  if (result.state && result.row.length > 0) {
+    return result.row[0].quantity;
+  } else {
+    if (!result.state) {
+      logger.error(`getCurrencyQuantity Error ${result.error}`);
+    }
+
+    return 0;
+  }
+};
 
 // 작품 선택지 선택 Progress
 export const getUserProjectSelectionProgress = async (userInfo) => {

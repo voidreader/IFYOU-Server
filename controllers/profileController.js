@@ -4,12 +4,69 @@ import mysql from "mysql2/promise";
 import { DB, logAction, transactionDB } from "../mysqldb";
 import { logger } from "../logger";
 import { respondDB } from "../respondent";
-import { getProfileCurrencyCurrent } from "./accountController";
 import {
   UQ_ACCQUIRE_CURRENCY,
   UQ_GET_USER_STORY_PROFILE,
   UQ_SAVE_STORY_PROFILE,
 } from "../USERQStore";
+
+// * 유저가 보유한 재화 (작품 꾸미기 가능 재화 한정) 리스트 (2022.02.21)
+export const getUserStoryProfileCurrencyList = async (req, res) => {
+  logger.info(`getUserStoryProfileCurrencyList`);
+
+  const {
+    body: { userkey, project_id },
+  } = req;
+
+  const responseData = {};
+  // 재화별로 리스트 가져오기
+  const result = await DB(
+    `
+  SELECT a.currency
+       , fn_get_design_info(icon_image_id, 'url') icon_url
+       , fn_get_design_info(icon_image_id, 'key') icon_key
+       , CASE WHEN currency_type = 'wallpaper' THEN fn_get_bg_info(resource_image_id, 'url') 
+              ELSE fn_get_design_info(resource_image_id, 'url') 
+              END currency_url
+       , CASE WHEN currency_type = 'wallpaper' THEN fn_get_bg_info(resource_image_id, 'key') 
+              ELSE fn_get_design_info(resource_image_id, 'key') 
+              END currency_key
+       , currency_type
+       , fn_get_user_property(${userkey}, a.currency) total_cnt
+       , (SELECT ifnull(count(*), 0) FROM user_story_profile WHERE userkey = ${userkey} AND project_id = ${project_id} AND currency = a.currency) current_cnt
+   FROM user_property a, com_currency b 
+  WHERE a.currency = b.currency
+    AND b.connected_project = ${project_id} 
+    AND userkey = ${userkey}
+    AND NOW() < expire_date 
+  GROUP BY a.currency
+  ORDER BY a.currency;
+  `,
+    [userkey, userkey, userkey]
+  );
+
+  // eslint-disable-next-line no-restricted-syntax
+  for (const item of result.row) {
+    if (
+      !Object.prototype.hasOwnProperty.call(responseData, item.currency_type)
+    ) {
+      responseData[item.currency_type] = [];
+    }
+
+    responseData[item.currency_type].push({
+      //선택지
+      currency: item.currency,
+      icon_url: item.icon_url,
+      icon_key: item.icon_key,
+      currency_url: item.currency_url,
+      currency_key: item.currency_key,
+      total_cnt: item.total_cnt,
+      current_cnt: item.current_cnt,
+    });
+  }
+
+  res.status(200).json(responseData);
+}; // ? getUserStoryProfileCurrencyList
 
 // * 유저 작품별 꾸미기 조회
 export const getUserStoryProfile = async (req, res, needResponse = true) => {
@@ -97,6 +154,123 @@ export const getUserStoryProfile = async (req, res, needResponse = true) => {
 
   // 값만 리턴하는 경우.
   return storyProfile;
+};
+
+// * 유저가 저장한 프로필 꾸미기 저장 정보
+export const getProfileCurrencyCurrent = async (
+  req,
+  res,
+  needResponse = true
+) => {
+  logger.info(`getProfileCurrencyCurrent`);
+
+  const {
+    body: { userkey },
+  } = req;
+
+  const responseData = {};
+
+  console.log(
+    mysql.format(
+      `  SELECT 
+                a.currency
+                , CASE WHEN currency_type = 'wallpaper' THEN
+                  fn_get_bg_info(resource_image_id, 'url')
+                ELSE 
+                  fn_get_design_info(resource_image_id, 'url')
+                END currency_url
+                , CASE WHEN currency_type = 'wallpaper' THEN
+                  fn_get_bg_info(resource_image_id, 'key')
+                ELSE 
+                  fn_get_design_info(resource_image_id, 'key')
+                END currency_key
+                , sorting_order
+                , pos_x
+                , pos_y 
+                , width
+                , height
+                , angle 
+                , currency_type
+                FROM user_profile_currency a, com_currency b 
+                WHERE userkey = ?
+                AND a.currency = b.currency
+                ORDER BY sorting_order;`,
+      [userkey]
+    )
+  );
+  let result = await DB(
+    `
+  SELECT 
+  a.currency
+  , CASE WHEN currency_type = 'wallpaper' THEN
+    fn_get_bg_info(resource_image_id, 'url')
+  ELSE 
+    fn_get_design_info(resource_image_id, 'url')
+  END currency_url
+  , CASE WHEN currency_type = 'wallpaper' THEN
+    fn_get_bg_info(resource_image_id, 'key')
+  ELSE 
+    fn_get_design_info(resource_image_id, 'key')
+  END currency_key
+  , sorting_order
+  , pos_x
+  , pos_y 
+  , width
+  , height
+  , angle 
+  , currency_type
+  FROM user_profile_currency a, com_currency b 
+  WHERE userkey = ?
+  AND a.currency = b.currency
+  ORDER BY sorting_order; 
+  ; 
+  `,
+    [userkey]
+  );
+  responseData.currency = result.row;
+  console.log(
+    mysql.format(
+      `    SELECT 
+  text_id 
+  , input_text
+  , font_size
+  , color_rgb
+  , sorting_order
+  , pos_x
+  , pos_y 
+  , angle 
+  FROM user_profile_text
+  WHERE userkey = ?
+  ORDER BY sorting_order; `,
+      [userkey]
+    )
+  );
+  result = await DB(
+    `
+  SELECT 
+  text_id 
+  , input_text
+  , font_size
+  , color_rgb
+  , sorting_order
+  , pos_x
+  , pos_y 
+  , angle 
+  FROM user_profile_text
+  WHERE userkey = ?
+  ORDER BY sorting_order; 
+  ;
+  `,
+    [userkey]
+  );
+  responseData.text = result.row;
+
+  // 다른곳에서 쓸때는 그냥 response 없이 응답만.
+  if (!needResponse) {
+    return responseData;
+  }
+
+  res.status(200).json(responseData);
 };
 
 //! 프로필 꾸미기 저장
