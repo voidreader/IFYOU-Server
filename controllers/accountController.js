@@ -92,6 +92,7 @@ import { getUserBankInfo } from "./bankController";
 import { getProjectFreepassProduct } from "./shopController";
 import { gamebaseAPI } from "../com/gamebaseAPI";
 import { getPlaySnippet, setDefaultProjectSnippet } from "./snippetController";
+import { getUserStoryProfile } from "./profileController";
 
 dotenv.config();
 
@@ -2988,7 +2989,7 @@ export const getUserSelectedStory = async (req, res) => {
   // logger.info(`>>> getUserSelectedStory [${JSON.stringify(userInfo)}]`);
 
   // default 스니핏 처리
-  await setDefaultProjectSnippet(userInfo);
+  // await setDefaultProjectSnippet(userInfo);
 
   const storyInfo = {}; // * 결과값
 
@@ -2998,9 +2999,12 @@ export const getUserSelectedStory = async (req, res) => {
   //  userInfo.project_id
   //); // 작품 리셋 카운트 및 소모 가격
   // storyInfo.userSnippet = await getPlaySnippet(userInfo); // 이번 진입에 플레이할 스니핏
-  storyInfo.userSnippet = {};
-  storyInfo.galleryImages = await getUserGalleryHistory(userInfo); // 갤러리 공개 이미지
 
+  // * 스토리 프로필 15 버전부터 추가 (2022.02.21)
+  storyInfo.storyProfile = await getUserStoryProfile(req, res, false); // 작품별 프로필
+  storyInfo.userSnippet = {}; // * 사용하지 않음
+
+  storyInfo.galleryImages = await getUserGalleryHistory(userInfo); // 갤러리 공개 이미지
   storyInfo.projectCurrent = await getUserProjectCurrent(userInfo); // 프로젝트 현재 플레이 지점 !
 
   // * 로딩 정보 추가

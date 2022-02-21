@@ -90,8 +90,12 @@ import { getUserPropertyHistory, reportRequestError } from "./logController";
 import { useCoupon } from "./couponController";
 import { getUserBankInfo, getUserBankInfoWithResponse } from "./bankController";
 
-import { getProjectEpisodeProgressCount } from "./statController";
-import { userProfileSave, userProfileSaveVer2 } from "./profileController";
+import { getProjectEpisodeProgressCount, setStatList } from "./statController";
+import {
+  saveUserStoryProfile,
+  userProfileSave,
+  userProfileSaveVer2,
+} from "./profileController";
 import {
   userCoinPurchase,
   getCoinProductMainList,
@@ -111,7 +115,6 @@ import {
 } from "./exchangeController";
 import { attendanceList, sendAttendanceReward } from "./attendanceController";
 import { updateSnippetPlayCount } from "./snippetController";
-import { setStatList } from "./statController";
 
 // * 클라이언트에서 호출하는 프로젝트 크레딧 리스트
 const getProjectCreditList = async (req, res) => {
@@ -1531,9 +1534,10 @@ export const clientHome = (req, res) => {
     updateTutorialHowToPlay(req, res);
   //출석 보상
   else if (func === "userProfileSaveVer2") userProfileSaveVer2(req, res);
-  //프로필 저장Ver2
-  else if (func === "setStatList")
-    setStatList(req, res);
+  // 통합 프로필 저장Ver2
+  else if (func === "saveUserStoryProfile") saveUserStoryProfile(req, res);
+  // * 작품별 프로필 저장
+  else if (func === "setStatList") setStatList(req, res);
   //통계
   else {
     //  res.status(400).send(`Wrong Func : ${func}`);

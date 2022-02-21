@@ -667,3 +667,31 @@ VALUES( ?, ?, ?, ?, ?, ?, ?, ? );
 
 export const UQ_SEND_MAIL_NEWBIE = `INSERT INTO user_mail( userkey, mail_type, currency, quantity, expire_date, connected_project ) 
 VALUES(?, 'newbie', ?, 1, DATE_ADD(NOW(), INTERVAL 1 YEAR), -1);`;
+
+// 작품별 꾸미기 저장 쿼리
+export const UQ_SAVE_STORY_PROFILE = `
+INSERT INTO user_story_profile ( userkey, project_id, currency, sorting_order, pos_x, pos_y, width, height, angle ) 
+VALUES( ?, ?, ?, ?, ?, ?, ?, ?, ? );
+`;
+
+// 작품별 꾸미기 조회 쿼리
+export const UQ_GET_USER_STORY_PROFILE = `
+SELECT a.currency
+, CASE WHEN currency_type = 'wallpaper' THEN fn_get_bg_info(resource_image_id, 'url')
+       ELSE fn_get_design_info(resource_image_id, 'url') END currency_url
+, CASE WHEN currency_type = 'wallpaper' THEN fn_get_bg_info(resource_image_id, 'key')
+       ELSE fn_get_design_info(resource_image_id, 'key') END currency_key
+, sorting_order
+, pos_x
+, pos_y 
+, width
+, height
+, angle 
+, currency_type
+FROM user_story_profile a
+, com_currency b 
+WHERE a.userkey = ?
+  AND a.project_id = ?
+  AND a.currency = b.currency
+ORDER BY sorting_order;  
+`;
