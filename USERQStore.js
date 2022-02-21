@@ -688,6 +688,8 @@ SELECT a.currency
 , height
 , angle 
 , currency_type
+, b.model_id
+, fn_get_currency_model_name(b.currency_type, a.project_id, b.model_id) model_name
 FROM user_story_profile a
 , com_currency b 
 WHERE a.userkey = ?

@@ -32,6 +32,8 @@ export const getUserStoryProfileCurrencyList = async (req, res) => {
               ELSE fn_get_design_info(resource_image_id, 'key') 
               END currency_key
        , currency_type
+       , b.model_id
+       , fn_get_currency_model_name(b.currency_type, ${project_id}, b.model_id) model_name
        , fn_get_user_property(${userkey}, a.currency) total_cnt
        , (SELECT ifnull(count(*), 0) FROM user_story_profile WHERE userkey = ${userkey} AND project_id = ${project_id} AND currency = a.currency) current_cnt
    FROM user_property a, com_currency b 
@@ -53,8 +55,10 @@ export const getUserStoryProfileCurrencyList = async (req, res) => {
     }
 
     responseData[item.currency_type].push({
-      //선택지
       currency: item.currency,
+      currency_type: item.currency_type,
+      model_id: item.model_id,
+      model_name: item.model_name,
       icon_url: item.icon_url,
       icon_key: item.icon_key,
       currency_url: item.currency_url,
