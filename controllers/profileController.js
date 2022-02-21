@@ -41,8 +41,7 @@ export const getUserStoryProfileCurrencyList = async (req, res) => {
     AND NOW() < expire_date 
   GROUP BY a.currency
   ORDER BY a.currency;
-  `,
-    [userkey, userkey, userkey]
+  `
   );
 
   // eslint-disable-next-line no-restricted-syntax
