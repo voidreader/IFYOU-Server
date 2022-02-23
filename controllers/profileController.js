@@ -34,6 +34,7 @@ export const getUserStoryProfileCurrencyList = async (req, res) => {
        , currency_type
        , b.model_id
        , fn_get_currency_model_name(b.currency_type, ${project_id}, b.model_id) model_name
+       , fn_get_currency_origin_name(b.currency_type, ${project_id}, b.resource_image_id) origin_name
        , fn_get_user_property(${userkey}, a.currency) total_cnt
        , (SELECT ifnull(count(*), 0) FROM user_story_profile WHERE userkey = ${userkey} AND project_id = ${project_id} AND currency = a.currency) current_cnt
    FROM user_property a, com_currency b 
@@ -59,6 +60,7 @@ export const getUserStoryProfileCurrencyList = async (req, res) => {
       currency_type: item.currency_type,
       model_id: item.model_id,
       model_name: item.model_name,
+      origin_name: item.origin_name,
       icon_url: item.icon_url,
       icon_key: item.icon_key,
       currency_url: item.currency_url,
