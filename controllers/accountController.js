@@ -2936,7 +2936,8 @@ export const getUserSelectedStory = async (req, res) => {
   //* 에피소드 정보
   storyInfo.episodeProgress = projectResources.episodeProgress; // ! 유저 에피소드 진행도
   storyInfo.episodeHistory = projectResources.episodeHistory; // 유저 에피소드 히스토리
-  storyInfo.dressProgress = projectResources.dressProgress; // 유저 의상 정보
+  // storyInfo.dressProgress = projectResources.dressProgress; // 유저 의상 정보
+  storyInfo.dressProgress = []; // 유저 의상 정보 (2022.02 사용하지 않게 변경됨)
   storyInfo.episodePurchase = projectResources.episodePurchase; // 에피소드 구매 정보
   storyInfo.userFreepassTimedeal = await checkFreepassTimedealAppear(
     userInfo.userkey,
