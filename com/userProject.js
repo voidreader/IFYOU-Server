@@ -91,6 +91,7 @@ export const updateSelectionProgress = async (req, res) => {
 // * 유저 프로젝트의 현재 위치 정보 조회
 export const getUserProjectCurrent = async (userInfo) => {
   console.log(`getUserProjectCurrent `, userInfo);
+  let currentInfo = [];
 
   const result = await DB(
     `
@@ -101,6 +102,7 @@ export const getUserProjectCurrent = async (userInfo) => {
     , ifnull(a.script_no, '') script_no
     , fn_check_episode_is_ending(a.episode_id) is_ending
     , a.is_final
+    , date_format(ifnull(a.next_open_time, date_add(now(), INTERVAL -1 hour)), '%Y-%m-%d %T') next_open_time -- utc 변환 
     FROM user_project_current a
     WHERE a.userkey = ?
     AND a.project_id = ?
@@ -120,11 +122,18 @@ export const getUserProjectCurrent = async (userInfo) => {
     console.log(`project current is null `, initResult.row[0]);
 
     if (initResult.row[0] === undefined || initResult.row[0] === null)
-      return [];
-    else return initResult.row[0];
+      currentInfo = [];
+    else currentInfo = initResult.row[0];
   } else {
-    return result.row;
+    currentInfo = result.row;
   }
+
+  currentInfo.forEach((item) => {
+    const openDate = new Date(item.next_open_time);
+    item.next_open_tick = openDate.getTime();
+  });
+
+  return currentInfo;
 };
 
 // * 유저의 프로젝트내 현재 위치 업데이트
@@ -153,9 +162,17 @@ export const requestUpdateProjectCurrent = async ({
   }
 
   // console.log(result.row[0][0]);
+  let projectCurrent;
 
-  if (result.row[0].length > 0) return result.row[0];
-  else return [];
+  if (result.row[0].length > 0) projectCurrent = result.row[0];
+  else projectCurrent = [];
+
+  projectCurrent.forEach((item) => {
+    const openDate = new Date(item.next_open_time);
+    item.next_open_tick = openDate.getTime();
+  });
+
+  return projectCurrent;
 };
 
 // * 유저의 프로젝트내 현재 위치 업데이트

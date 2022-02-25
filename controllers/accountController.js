@@ -840,6 +840,7 @@ const requestMainEpisodeList = async (userInfo) => {
   , fn_get_count_scene_in_history(${userInfo.userkey}, a.episode_id, '${userInfo.lang}', 'played') played_scene_count
   , CASE WHEN a.episode_type = 'ending' THEN fn_check_user_ending(${userInfo.userkey}, a.episode_id) 
          ELSE 0 END ending_open
+  , a.next_open_min
 FROM list_episode a
 WHERE a.project_id = ${userInfo.project_id}
 AND a.episode_type IN ('chapter', 'ending')

@@ -493,6 +493,7 @@ SELECT a.episode_id
 , fn_get_count_scene_in_history(?, a.episode_id, ?, 'total') total_scene_count
 , fn_get_count_scene_in_history(?, a.episode_id, ?, 'played') played_scene_count     
 , fn_check_special_episode_open(?, a.episode_id) is_open
+, a.next_open_min
 FROM list_episode a
 WHERE a.project_id = ?
 AND a.episode_type = 'side'
