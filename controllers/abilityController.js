@@ -162,7 +162,7 @@ export const resetAbility = async (userInfo) => {
     let deleteQuery = ``;
 
     //에피소드 조회
-    let result = await DB(`SELECT episode_id FROM list_episode WHERE project_id = ? AND episode_type = 'chapter' ORDER BY sortkey, episode_id;`, [project_id]);
+    const result = await DB(`SELECT episode_id FROM list_episode WHERE project_id = ? AND episode_type = 'chapter' ORDER BY sortkey, episode_id;`, [project_id]);
     if(result.state && result.row.length > 0){
 
         const currentQuery = `DELETE FROM user_story_ability WHERE userkey = ? AND project_id = ? AND episode_id = ?;`; 
@@ -177,14 +177,7 @@ export const resetAbility = async (userInfo) => {
         }
     }
    
-    if(deleteQuery){
-        result = await transactionDB(deleteQuery); 
-        if(!result.state){
-            return result.error;
-        }
-    }
-    
-    return "OK";
+    return deleteQuery;
 
 };
 
@@ -199,12 +192,16 @@ export const firstResetAbility = async (req, res) => {
         } 
     } = req;
 
-    let result = await resetAbility ({userkey, project_id, episode_id});
+    const resetQuery = await resetAbility ({userkey, project_id, episode_id});
+    let result; 
 
-    if(result !== "OK"){
-        logger.error(`firstResetAbility Error ${result}`);
-        respondDB(res, 80026, result);
-        return;
+    if(resetQuery){
+        result = await transactionDB(resetQuery); 
+        if(!result.state){
+            logger.error(`firstResetAbility Error ${result.error}`);
+            respondDB(res, 80026, result.error);
+            return;
+        }
     }
 
     //현재 능력치 정보 

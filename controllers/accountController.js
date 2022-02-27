@@ -2240,11 +2240,15 @@ export const resetUserEpisodeProgress = async (req, res) => {
     );
   }
 
+  //능력치 리셋 쿼리 가져오기
+  const resetAbilityQuery = await resetAbility({userkey, project_id, episode_id : episodeID });
+
   const resetResult = await transactionDB(
     `
     ${useQuery}
     CALL sp_update_user_reset(?, ?, ?);
     CALL sp_reset_user_episode_progress(?, ?, ?);
+    ${resetAbilityQuery}
     `,
     [
       userkey,
@@ -2260,14 +2264,6 @@ export const resetUserEpisodeProgress = async (req, res) => {
     logger.error(`resetUserEpisodeProgress Error 1 ${resetResult.error}`);
     respondDB(res, 80026, resetResult.error);
     return;
-  }
-
-  //능력치 리셋 추가 
-  const resetAbilityResult = await resetAbility({userkey, project_id, episode_id : episodeID });
-  if(resetAbilityResult !== "OK"){
-    logger.error(`resetUserEpisodeProgress Error 2 ${resetAbilityResult}`);
-    respondDB(res, 80026, resetAbilityResult);
-    return;    
   }
 
   // ! 재조회 refresh nextEpisode, currentEpisode, episodeProgress, episodeSceneProgress...
