@@ -451,6 +451,16 @@ export const purchaseFreepass = async (req, res) => {
     ]);
   }
 
+  buyQuery += mysql.format(`
+  UPDATE user_episode_purchase 
+   SET purchase_type = 'Permanent'
+     , permanent = 1
+ WHERE userkey = ${userkey}
+   AND project_id = ${project_id};
+  `);
+
+  // * 작품 프리미엄을 플레이를 구매하면 현재까지 구매한 작품 구매 내역을 Permanent로 업데이트
+
   // 최종 재화 소모 및, 프리패스 구매 처리
   const finalResult = await transactionDB(`${useQuery}${buyQuery}`);
   if (!finalResult.state) {
