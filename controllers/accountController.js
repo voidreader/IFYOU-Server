@@ -93,7 +93,7 @@ import {
   getProfileCurrencyCurrent,
   getUserStoryProfile,
 } from "./profileController";
-import { getUserProjectAbilityCurrent, resetAbility } from "./abilityController";
+import { getUserProjectAbilityCurrent, createQueryResetAbility } from "./abilityController";
 
 dotenv.config();
 
@@ -2241,14 +2241,14 @@ export const resetUserEpisodeProgress = async (req, res) => {
   }
 
   //능력치 리셋 쿼리 가져오기
-  const resetAbilityQuery = await resetAbility({userkey, project_id, episode_id : episodeID });
+  const abilityResetQuery = await createQueryResetAbility({userkey, project_id, episode_id : episodeID });
 
   const resetResult = await transactionDB(
     `
     ${useQuery}
     CALL sp_update_user_reset(?, ?, ?);
     CALL sp_reset_user_episode_progress(?, ?, ?);
-    ${resetAbilityQuery}
+    ${abilityResetQuery}
     `,
     [
       userkey,
