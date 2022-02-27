@@ -93,7 +93,7 @@ import {
   getProfileCurrencyCurrent,
   getUserStoryProfile,
 } from "./profileController";
-import { resetAbility } from "./abilityController";
+import { getUserProjectAbilityCurrent, resetAbility } from "./abilityController";
 
 dotenv.config();
 
@@ -2205,7 +2205,7 @@ export const resetUserEpisodeProgress = async (req, res) => {
   // * 2021.12.12 : 선택지 로그 추가로 sp_reset_user_episode_progress 프로시저로 일부 수정 - JE
   // * 2022.01.05 : 리셋 제한 추가(프리패스 : 상관없음, 그 외 : 횟수에 따라 코인값 조정)
   const {
-    body: { userkey, project_id, episodeID, isFree = false, scene_id },
+    body: { userkey, project_id, episodeID, isFree = false, scene_id, kind = "reset", },
   } = req;
 
   const userCoin = await getCurrencyQuantity(userkey, "coin"); // 유저 보유 코인수
@@ -2262,10 +2262,11 @@ export const resetUserEpisodeProgress = async (req, res) => {
     return;
   }
 
-  const resetAbilityResult = await resetAbility({ userkey, project_id, episodeID});
-  if(!resetAbilityResult.state){
-    logger.error(`resetUserEpisodeProgress Error 2 ${resetResult.error}`);
-    respondDB(res, 80026, resetAbilityResult.error);
+  //능력치 리셋 추가 
+  const resetAbilityResult = await resetAbility({userkey, project_id, episode_id : episodeID });
+  if(resetAbilityResult !== "OK"){
+    logger.error(`resetUserEpisodeProgress Error 2 ${resetAbilityResult}`);
+    respondDB(res, 80026, resetAbilityResult);
     return;    
   }
 
@@ -2990,6 +2991,8 @@ export const getUserSelectedStory = async (req, res) => {
     // 말풍선 세트를 Variation, Template 별로 정리합니다.
     storyInfo.bubbleSet = arrangeBubbleSet(allBubbleSet);
   } // ? 말풍선 상세정보 끝
+
+  storyInfo.ability = await getUserProjectAbilityCurrent(userInfo); //유저의 현재 능력치 정보 
 
   // response
   res.status(200).json(storyInfo);

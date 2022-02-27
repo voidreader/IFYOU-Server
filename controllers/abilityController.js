@@ -3,20 +3,18 @@ import { DB, logAction, transactionDB } from "../mysqldb";
 import { logger } from "../logger";
 import { respondDB } from "../respondent";
 
-
 //! 현재 능력치 정보 
-export const getUserProjectAbilityCurrent = async (req, res) => {
+export const getUserProjectAbilityCurrent = async (userInfo) => {
 
     const {
-        body:{
-            project_id = -1, 
-            userkey,
-        } 
-    } = req;
+        project_id = -1, 
+        userkey,
+    } = userInfo;
 
 
     let currencyList = ``; 
-    const responseData = {}; 
+    const responseData = {};
+    const abilityArr = [];
 
     // 능력치가 있는 재화 리스트 
     let result = await DB(`
@@ -35,18 +33,29 @@ export const getUserProjectAbilityCurrent = async (req, res) => {
         currencyList = currencyList.slice(0, -1);
     }
 
-    //에피소드 중에 얻은 능력치
+    //에피소드에서 얻은 능력치
     result = await DB(`
     SELECT b.speaker
     , b.ability_name 
     , fn_get_design_info(icon_design_id, 'url') icon_design_url 
     , fn_get_design_info(icon_design_id, 'key') icon_design_key 
     , ifnull(sum(add_value), 0) current_value
-    FROM user_story_ability a, com_ability b  
+    FROM user_story_ability a, com_ability b
     WHERE a.ability_id = b.ability_id
     AND userkey = ? 
     AND a.project_id = ?
-    UNION
+    GROUP BY speaker, ability_name  
+    ORDER BY speaker, ability_name;
+    `, [userkey, project_id]);
+    if(result.state){
+        // eslint-disable-next-line no-restricted-syntax
+        for(const item of result.row){    
+            abilityArr.push(item); //배열에 추가
+        }
+    }
+
+    //재화에서 얻은 능력치 
+    result = await DB(`
     SELECT b.speaker 
     , b.ability_name 
     , fn_get_design_info(icon_design_id, 'url') icon_design_url 
@@ -57,30 +66,41 @@ export const getUserProjectAbilityCurrent = async (req, res) => {
     AND b.project_id = ?
     AND a.currency IN ( ${currencyList} ) 
     GROUP BY speaker, ability_name  
-    ORDER BY speaker, ability_name; 
-    `, [userkey, project_id, project_id]);
+    ORDER BY speaker, ability_name;`, [project_id]); 
     if(result.state){
-
         // eslint-disable-next-line no-restricted-syntax
-        for(const item of result.row){
-            
-            if (!Object.prototype.hasOwnProperty.call(responseData, item.speaker)) {
-                responseData[item.speaker] = [];    
+        for(const item of result.row){           
+            let abilityAddCheck = true; //배열에 추가할지 체크 
+
+            //반복문으로 돌려 캐릭터의 능력치가 이미 있으면 합산 처리  
+            for(let i = 0; i < abilityArr.length; i++){
+                if(abilityArr[i].speaker === item.speaker && abilityArr[i].ability_name === item.ability_name){ 
+                    abilityArr[i].current_value = parseInt(abilityArr[i].current_value) + parseInt(item.current_value); 
+                    abilityAddCheck = false;
+                    break; 
+                } 
             }
 
-            responseData[item.speaker].push({
-                ability_name: item.ability_name, 
-                icon_design_url: item.icon_design_url, 
-                icon_design_key: item.icon_design_key, 
-                current_value: item.current_value
-            });
-            
+            if(abilityAddCheck) abilityArr.push(item);  //아무것도 없으면 새 캐릭터/능력치 추가 
         }
     }
 
+    //마지막에 캐릭터별 능력치로 정리 
+    // eslint-disable-next-line no-restricted-syntax
+    for(const item of abilityArr){
+        if (!Object.prototype.hasOwnProperty.call(responseData, item.speaker)) {
+            responseData[item.speaker] = [];    
+        }
 
-    res.status(200).json(responseData);
-    //return responseData;
+        responseData[item.speaker].push({
+            ability_name: item.ability_name, 
+            icon_design_url: item.icon_design_url, 
+            icon_design_key: item.icon_design_key, 
+            current_value: parseInt(item.current_value)
+        });        
+    }
+
+    return responseData;
 };
 
 //! 능력치 수치 추가 
@@ -131,40 +151,63 @@ export const addUserAbility = async (req, res) => {
 
 //! 능력치 수치 리셋 
 export const resetAbility = async (userInfo) => {
-
+    
     const {
         userkey, 
         project_id, 
-        episode_id, 
+        episode_id,
     } = userInfo;
 
     let isMatch = false; 
-    
     let deleteQuery = ``;
 
-    let result = await DB(`SELECT episode_id FROM list_episode_id WHERE project_id = ? AND episode_type = 'chapter' ORDER BY le.sortkey, le.episode_id;`, [project_id]);
-    if(result.state){
+    //에피소드 조회
+    let result = await DB(`SELECT episode_id FROM list_episode WHERE project_id = ? AND episode_type = 'chapter' ORDER BY sortkey, episode_id;`, [project_id]);
+    if(result.state && result.row.length > 0){
 
-        const currentQuery = `DELETE FROM user_story_ability WHERE userkery = ? AND project_id = ? AND episode_id = ?;`; 
+        const currentQuery = `DELETE FROM user_story_ability WHERE userkey = ? AND project_id = ? AND episode_id = ?;`; 
         // eslint-disable-next-line no-restricted-syntax
         for(const item of result.row){
             
-            if(episode_id === item.episode_id) isMatch = true;
+            if(parseInt(episode_id) === item.episode_id) isMatch = true;  //해당 에피소드부터 리셋 처리
 
             if(isMatch){
                 deleteQuery += mysql.format(currentQuery, [userkey, project_id, item.episode_id]);
             }
         }
     }
-
+   
     if(deleteQuery){
-        result = await transactionDB(deleteQuery);
-
+        result = await transactionDB(deleteQuery); 
         if(!result.state){
-            logger.error(`resetAbility Error ${result.error}`);
-            return false;
+            return result.error;
         }
     }
+    
+    return "OK";
 
-    return true; 
+};
+
+//! 처음부터 능력치 리셋 
+export const firstResetAbility = async (req, res) => {
+
+    const {
+        body:{
+            userkey, 
+            project_id, 
+            episode_id,
+        } 
+    } = req;
+
+    let result = await resetAbility ({userkey, project_id, episode_id});
+
+    if(result !== "OK"){
+        logger.error(`firstResetAbility Error ${result}`);
+        respondDB(res, 80026, result);
+        return;
+    }
+
+    //현재 능력치 정보 
+    result = await getUserProjectAbilityCurrent({project_id, userkey});   
+    res.status(200).json(result);
 }; 
