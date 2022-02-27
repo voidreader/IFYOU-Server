@@ -149,8 +149,8 @@ export const addUserAbility = async (req, res) => {
     res.status(200).json(result);
 };
 
-//! 능력치 수치 리셋 
-export const resetAbility = async (userInfo) => {
+//! 능력치 수치 리셋 쿼리
+export const createQueryResetAbility = async (userInfo) => {
     
     const {
         userkey, 
@@ -192,7 +192,7 @@ export const firstResetAbility = async (req, res) => {
         } 
     } = req;
 
-    const resetQuery = await resetAbility ({userkey, project_id, episode_id});
+    const resetQuery = await createQueryResetAbility ({userkey, project_id, episode_id});
     let result; 
 
     if(resetQuery){
