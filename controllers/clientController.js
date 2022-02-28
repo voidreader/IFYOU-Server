@@ -116,6 +116,7 @@ import {
 } from "./exchangeController";
 import { attendanceList, sendAttendanceReward } from "./attendanceController";
 import { updateSnippetPlayCount } from "./snippetController";
+import { firstResetAbility, addUserAbility} from "./abilityController";
 
 // * 클라이언트에서 호출하는 프로젝트 크레딧 리스트
 const getProjectCreditList = async (req, res) => {
@@ -1542,6 +1543,10 @@ export const clientHome = (req, res) => {
   // * 작품별 프로필 저장
   else if (func === "setStatList") setStatList(req, res);
   //통계
+  else if (func === "firstResetAbility") firstResetAbility(req, res); 
+  //처음부터 능력치 리셋
+  else if (func === "addUserAbility" ) addUserAbility(req, res); 
+  //능력치 추가
   else {
     //  res.status(400).send(`Wrong Func : ${func}`);
     logger.error(`clientHome Error`);
