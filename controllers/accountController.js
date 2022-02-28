@@ -93,7 +93,10 @@ import {
   getProfileCurrencyCurrent,
   getUserStoryProfile,
 } from "./profileController";
-import { getUserProjectAbilityCurrent, createQueryResetAbility } from "./abilityController";
+import {
+  getUserProjectAbilityCurrent,
+  createQueryResetAbility,
+} from "./abilityController";
 
 dotenv.config();
 
@@ -2206,7 +2209,14 @@ export const resetUserEpisodeProgress = async (req, res) => {
   // * 2021.12.12 : 선택지 로그 추가로 sp_reset_user_episode_progress 프로시저로 일부 수정 - JE
   // * 2022.01.05 : 리셋 제한 추가(프리패스 : 상관없음, 그 외 : 횟수에 따라 코인값 조정)
   const {
-    body: { userkey, project_id, episodeID, isFree = false, scene_id, kind = "reset", },
+    body: {
+      userkey,
+      project_id,
+      episodeID,
+      isFree = false,
+      scene_id,
+      kind = "reset",
+    },
   } = req;
 
   const userCoin = await getCurrencyQuantity(userkey, "coin"); // 유저 보유 코인수
@@ -2242,7 +2252,11 @@ export const resetUserEpisodeProgress = async (req, res) => {
   }
 
   //능력치 리셋 쿼리 가져오기
-  const abilityResetQuery = await createQueryResetAbility({userkey, project_id, episode_id : episodeID });
+  const abilityResetQuery = await createQueryResetAbility({
+    userkey,
+    project_id,
+    episode_id: episodeID,
+  });
 
   const resetResult = await transactionDB(
     `
@@ -2289,6 +2303,99 @@ export const resetUserEpisodeProgress = async (req, res) => {
 
   logAction(userkey, "reset_progress", req.body);
 }; // * End of resetUserEpisodeProgress
+
+// ! 유저 작품 초기화 TYPE2 - 15버전 부터 사용
+export const resetUserEpisodeProgressType2 = async (req, res) => {
+  logger.info(`resetUserEpisodeProgressType2 [${JSON.stringify(req.body)}]`);
+
+  // * 2022.02.28 : Flow에서 처리하는 것으로 수정됨. 고정 가격으로 변경되었음.
+  // * 2021.12.12 : 선택지 로그 추가로 sp_reset_user_episode_progress 프로시저로 일부 수정 - JE
+  // * 2022.01.05 : 리셋 제한 추가(프리패스 : 상관없음, 그 외 : 횟수에 따라 코인값 조정)
+  const {
+    body: {
+      userkey,
+      project_id,
+      episodeID,
+      price = 150,
+      isFree = false,
+      scene_id,
+      kind = "reset",
+    },
+  } = req;
+
+  const userCoin = await getCurrencyQuantity(userkey, "coin"); // 유저 보유 코인수
+  let resetPrice = price; // 리셋 가격 (고정가격으로 변경)
+
+  // * 프리미엄 패스 재화코드는 Free+프로젝트ID (Free73)
+  const userFreePass = await getCurrencyQuantity(
+    userkey,
+    `Free${project_id.toString()}`
+  ); // 프리패스 보유체크
+
+  let useQuery = ``;
+
+  // * 프리미엄패스 유저의 경우 resetPrice는 0원.
+  if (userFreePass > 0) {
+    resetPrice = 0;
+  }
+
+  // * 코인 부족한 경우 종료
+  if (userCoin < resetPrice) {
+    //코인부족
+    logger.error(`resetUserEpisodeProgressType2 Not enough coin!!`);
+    respondDB(res, 80013);
+    return;
+  }
+
+  // 재화 차감 쿼리
+  if (resetPrice > 0) {
+    useQuery = mysql.format(
+      `CALL sp_use_user_property(?, 'coin', ?, 'reset_purchase', ?);`,
+      [userkey, resetPrice, project_id]
+    );
+  }
+
+  //능력치 리셋 쿼리 가져오기
+  const abilityResetQuery = await createQueryResetAbility({
+    userkey,
+    project_id,
+    episode_id: episodeID,
+  });
+
+  // 리셋 처리 시작 !!
+  const resetResult = await transactionDB(
+    `
+    ${useQuery}
+    CALL sp_reset_user_episode_progress(?, ?, ?);
+    ${abilityResetQuery}
+    `,
+    [userkey, project_id, episodeID]
+  );
+
+  if (!resetResult.state) {
+    logger.error(`resetUserEpisodeProgressType2 Error 1 ${resetResult.error}`);
+    respondDB(res, 80026, resetResult.error);
+    return;
+  }
+
+  // ! 재조회 refresh nextEpisode, currentEpisode, episodeProgress, episodeSceneProgress...
+  const responseData = {};
+
+  responseData.episodeProgress = await getUserEpisodeProgress(req.body); // * 유저 에피소드 진행도
+  responseData.sceneProgress = await getUserEpisodeSceneProgress(req.body); // * 유저 사건ID 진행도
+
+  // * 2021.08.27
+  responseData.projectCurrent = await getUserProjectCurrent(req.body); // 프로젝트 현재 플레이 지점 !
+  responseData.selectionProgress = await getUserProjectSelectionProgress(
+    req.body
+  ); // 프로젝트 선택지 Progress
+
+  responseData.bank = await getUserBankInfo(req.body);
+
+  res.status(200).json(responseData);
+
+  logAction(userkey, "reset_progress", req.body);
+}; // * End of resetUserEpisodeProgress TYPE2
 
 // * 튜토리얼 How to play
 export const updateTutorialHowToPlay = async (req, res) => {
@@ -2990,7 +3097,7 @@ export const getUserSelectedStory = async (req, res) => {
     storyInfo.bubbleSet = arrangeBubbleSet(allBubbleSet);
   } // ? 말풍선 상세정보 끝
 
-  storyInfo.ability = await getUserProjectAbilityCurrent(userInfo); //유저의 현재 능력치 정보 
+  storyInfo.ability = await getUserProjectAbilityCurrent(userInfo); //유저의 현재 능력치 정보
 
   // response
   res.status(200).json(storyInfo);
