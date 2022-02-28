@@ -11,30 +11,11 @@ export const getUserProjectAbilityCurrent = async (userInfo) => {
         userkey,
     } = userInfo;
 
-
-    let currencyList = ``; 
     const responseData = {};
     const abilityArr = [];
 
-    // 능력치가 있는 재화 리스트 
-    let result = await DB(`
-    SELECT a.currency 
-    FROM user_property a, com_currency b 
-    WHERE a.currency = b.currency
-    AND is_ability = 1 
-    AND userkey = ?
-    AND connected_project = ?;`, [userkey, project_id]);
-    if(result.state && result.row.length > 0){
-            
-        // eslint-disable-next-line no-restricted-syntax
-        for(const item of result.row){
-            currencyList+=`'${item.currency}',`;
-        }
-        currencyList = currencyList.slice(0, -1);
-    }
-
     //에피소드에서 얻은 능력치
-    result = await DB(`
+    let result = await DB(`
     SELECT b.speaker
     , b.ability_name 
     , fn_get_design_info(icon_design_id, 'url') icon_design_url 
@@ -56,17 +37,20 @@ export const getUserProjectAbilityCurrent = async (userInfo) => {
 
     //재화에서 얻은 능력치 
     result = await DB(`
-    SELECT b.speaker 
-    , b.ability_name 
-    , fn_get_design_info(icon_design_id, 'url') icon_design_url 
-    , fn_get_design_info(icon_design_id, 'key') icon_design_key 
+    SELECT d.speaker 
+    , d.ability_name 
+    , fn_get_design_info(d.icon_design_id, 'url') icon_design_url 
+    , fn_get_design_info(d.icon_design_id, 'key') icon_design_key 
     , ifnull(sum(add_value), 0) current_value
-    FROM com_currency_ability a, com_ability b  
-    WHERE a.ability_id = b.ability_id
-    AND b.project_id = ?
-    AND a.currency IN ( ${currencyList} ) 
+    FROM user_property a, com_currency b, com_currency_ability c, com_ability d   
+    WHERE a.currency = b.currency
+    AND b.currency = c.currency   
+    AND c.ability_id = d.ability_id
+    AND b.connected_project = ?
+    AND a.userkey = ? 
+    AND is_ability = 1 
     GROUP BY speaker, ability_name  
-    ORDER BY speaker, ability_name;`, [project_id]); 
+    ORDER BY speaker, ability_name;`, [project_id, userkey]); 
     if(result.state){
         // eslint-disable-next-line no-restricted-syntax
         for(const item of result.row){           
