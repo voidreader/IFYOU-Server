@@ -1,7 +1,8 @@
 import mysql from "mysql2/promise";
-import { DB, logAction } from "../mysqldb";
+import { DB, logAction, transactionDB } from "../mysqldb";
 import { logger } from "../logger";
 import { respondDB } from "../respondent";
+import { getUserBankInfo } from "../controllers/bankController";
 
 // 재화 수량 조회
 // * 특정 그룹 재화를 위한 기능 추가 (1회권)
@@ -591,3 +592,145 @@ export const updateUserNickname = async (req, res) => {
   logAction(userkey, "nickname_update", { userkey, nickname });
   res.status(200).json(result.row[0]);
 };
+
+// * 코인으로 기다리는 에피소드 열기
+export const requestWaitingEpisodeWithCoin = async (req, res) => {
+  const {
+    body: { userkey, project_id, price },
+  } = req;
+
+  // * 현재 프로젝트의 진행중인 에피소드에 대해서 코인을 지불하고 오픈 시간을 앞당긴다.
+  // * 에피소드가 열리는 시간은 user_project_current에서의  next_open_time  컬럼이다.
+
+  // project current 체크
+  const rowCheck = await DB(`
+  SELECT a.*
+    FROM user_project_current a
+  WHERE a.userkey = ${userkey}
+    AND a.is_special = 0
+    AND a.project_id = ${project_id};
+  `);
+
+  // projectCurrent가 없네..!?
+  if (rowCheck.row.length <= 0) {
+    logger.error(
+      `requestWaitingEpisode error. No project current ${JSON.stringify(
+        req.body
+      )}`
+    );
+    respondDB(res, 80026, "No project current"); // error
+    return;
+  }
+
+  const userCoin = await getCurrencyQuantity(userkey, "coin"); // 유저 보유 코인수
+
+  // 보유량 체크
+  if (price > userCoin) {
+    // 80013
+    logger.error(
+      `requestWaitingEpisode error. Not enough coins ${JSON.stringify(
+        req.body
+      )}`
+    );
+    respondDB(res, 80013, "Not enouogh coins"); // error
+    return;
+  }
+
+  // * 소모 처리하고, open 시간 바꿔준다.
+  let query = ``;
+
+  // 재화 소모처리
+  query += mysql.format(
+    `CALL sp_use_user_property(?, 'coin', ?, 'open_force', ?);`,
+    [userkey, price, project_id]
+  );
+
+  // 업데이트 쿼리
+  query += `
+  UPDATE user_project_current
+    SET next_open_time = now() 
+  WHERE userkey = ${userkey}
+    AND is_special = 0
+    AND project_id = ${project_id};`;
+
+  // 결과
+  const result = await transactionDB(query);
+  if (!result.state) {
+    respondDB(res, 80026, result.error);
+    return;
+  }
+
+  // 성공했으면
+  // project_current 갱신
+  const responseData = {};
+  responseData.projectCurrent = await getUserProjectCurrent(req.body); // 프로젝트 현재 플레이 지점 !
+  responseData.bank = await getUserBankInfo(req.body); // 뱅크
+
+  res.status(200).json(responseData);
+
+  logAction(userkey, "waitingOpenCoin", req.body);
+}; // ? requestWaitingEpisodeWithCoin END
+
+// * 광고로 기다리는 에피소드 열기
+export const requestWaitingEpisodeWithAD = async (req, res) => {
+  const {
+    body: { userkey, project_id },
+  } = req;
+
+  // * 현재 프로젝트의 진행중인 에피소드에 대해서 코인을 지불하고 오픈 시간을 앞당긴다.
+  // * 에피소드가 열리는 시간은 user_project_current에서의  next_open_time  컬럼이다.
+
+  // project current 체크
+  const rowCheck = await DB(`
+  SELECT a.*
+    FROM user_project_current a
+  WHERE a.userkey = ${userkey}
+    AND a.is_special = 0
+    AND a.project_id = ${project_id};
+  `);
+
+  // projectCurrent가 없네..!?
+  if (rowCheck.row.length <= 0) {
+    logger.error(
+      `requestWaitingEpisode error. No project current ${JSON.stringify(
+        req.body
+      )}`
+    );
+    respondDB(res, 80026, "No project current"); // error
+    return;
+  }
+
+  // * 서버에서 광고보면 줄어드는 시간을 가져온다.
+  const reduceMin = (
+    await DB(
+      `SELECT reduce_waiting_time_ad  FROM com_server cs WHERE server_no = 1;`
+    )
+  ).row[0].reduce_waiting_time_ad;
+
+  // * 광고를 보고 넘어온 상태기 때문에, 시간을 차감해준다.
+  let query = ``;
+  query += `
+  UPDATE user_project_current
+    SET next_open_time = DATE_ADD(next_open_time, INTERVAL ${reduceMin} MINUTE)
+  WHERE userkey = ${userkey}
+    AND is_special = 0
+    AND project_id = ${project_id};  
+  `;
+
+  // 결과
+  const result = await transactionDB(query);
+  if (!result.state) {
+    respondDB(res, 80026, result.error);
+    return;
+  }
+
+  // 성공했으면
+  // project_current 갱신
+  const responseData = {};
+  responseData.projectCurrent = await getUserProjectCurrent(req.body); // 프로젝트 현재 플레이 지점 !
+  responseData.bank = await getUserBankInfo(req.body); // 뱅크
+
+  res.status(200).json(responseData);
+
+  logAction(userkey, "waitingOpenAD", req.body);
+}; // ? requestWaitingEpisodeWithAD END
