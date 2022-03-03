@@ -97,6 +97,8 @@ import {
   getUserProjectAbilityCurrent,
   createQueryResetAbility,
 } from "./abilityController";
+import { getUserSelectionPurchaseInfo } from "./selectionController";
+
 
 dotenv.config();
 
@@ -3097,7 +3099,9 @@ export const getUserSelectedStory = async (req, res) => {
     storyInfo.bubbleSet = arrangeBubbleSet(allBubbleSet);
   } // ? 말풍선 상세정보 끝
 
-  storyInfo.ability = await getUserProjectAbilityCurrent(userInfo); //유저의 현재 능력치 정보
+  storyInfo.ability = await getUserProjectAbilityCurrent(userInfo); //유저의 현재 능력치 정보 
+  storyInfo.selectionPurchase = await getUserSelectionPurchaseInfo(userInfo); // 과금 선택지 정보
+
 
   // response
   res.status(200).json(storyInfo);
