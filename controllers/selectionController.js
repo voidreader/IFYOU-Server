@@ -90,16 +90,15 @@ export const purchaseSelection = async (req, res) =>{
 
     //구매내역 전달 
     result = await DB(`
-    SELECT a.episode_id
+    SELECT episode_id
     , selection_group
     , selection_no
-    , a.price 
-    FROM user_selection_purchase a, list_episode b
-    WHERE a.episode_id = b.episode_id 
-    AND userkey = ? 
-    AND a.project_id = ?
-    AND a.episode_id = ?
-    ORDER BY sortkey, episode_id;
+    , price 
+    FROM user_selection_purchase
+    WHERE userkey = ? 
+    AND project_id = ? 
+    AND episode_id = ? 
+    ORDER BY selection_group, selection_no;
     `, [userkey, project_id, episodeID]);
 
     res.status(200).json(result.row);
