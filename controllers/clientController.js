@@ -78,6 +78,8 @@ import {
   getEndingSelectionList,
   checkUserIdValidation,
   updateUserNickname,
+  requestWaitingEpisodeWithCoin,
+  requestWaitingEpisodeWithAD,
 } from "../com/userProject";
 import {
   getAllProductList,
@@ -1548,6 +1550,10 @@ export const clientHome = (req, res) => {
   else if (func === "firstResetAbility") firstResetAbility(req, res);
   //처음부터 능력치 리셋
   else if (func === "addUserAbility") addUserAbility(req, res);
+  else if (func === "requestWaitingEpisodeWithCoin")
+    requestWaitingEpisodeWithCoin(req, res);
+  else if (func === "requestWaitingEpisodeWithAD")
+    requestWaitingEpisodeWithAD(req, res);
   //능력치 추가
   else {
     //  res.status(400).send(`Wrong Func : ${func}`);
