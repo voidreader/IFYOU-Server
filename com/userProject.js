@@ -188,7 +188,7 @@ export const updateUserProjectCurrent = async (req, res) => {
 ///////////////////// 새로운 선택지 로그 시작 ///////////////////////
 
 //* 현재 선택지 로그 가져오기
-const getUserSelectionCurrent = async (userkey, project_id) => {
+export const getUserSelectionCurrent = async (userkey, project_id) => {
   const result = await DB(
     `
   SELECT episode_id 
@@ -204,43 +204,6 @@ const getUserSelectionCurrent = async (userkey, project_id) => {
   );
 
   return result.row;
-};
-
-//* 인게임 중 선택지 저장
-export const updateUserSelectionCurrent = async (req, res) => {
-  logger.info(`updateUserSelectionCurrent : ${JSON.stringify(req.body)}`);
-
-  const {
-    body: {
-      userkey,
-      project_id,
-      episodeID,
-      target_scene_id = -1,
-      selection_group = 0,
-      selection_no = 0,
-    },
-  } = req;
-
-  const result = await DB(
-    `CALL pier.sp_update_user_selection_current(?, ?, ?, ?, ?, ?);`,
-    [
-      userkey,
-      project_id,
-      episodeID,
-      target_scene_id,
-      selection_group,
-      selection_no,
-    ]
-  );
-
-  if (!result.state) {
-    logger.error(`updateUserSelectionCurrent error`);
-    logger.error(result.error);
-  }
-
-  const responseData = await getUserSelectionCurrent(userkey, project_id);
-
-  res.status(200).json(responseData);
 };
 
 //! 선택지 로그 top3 리스트
