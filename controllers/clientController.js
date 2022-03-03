@@ -77,6 +77,8 @@ import {
   getEndingSelectionList,
   checkUserIdValidation,
   updateUserNickname,
+  requestWaitingEpisodeWithCoin,
+  requestWaitingEpisodeWithAD,
 } from "../com/userProject";
 import {
   getAllProductList,
@@ -117,6 +119,7 @@ import { attendanceList, sendAttendanceReward } from "./attendanceController";
 import { updateSnippetPlayCount } from "./snippetController";
 import { firstResetAbility, addUserAbility} from "./abilityController";
 import { updateUserSelectionCurrent, purchaseSelection } from "./selectionController";
+
 
 // * 클라이언트에서 호출하는 프로젝트 크레딧 리스트
 const getProjectCreditList = async (req, res) => {
@@ -1395,6 +1398,8 @@ export const clientHome = (req, res) => {
     changeAccountByGamebase(req, res);
   else if (func === "resetUserEpisodeProgress")
     resetUserEpisodeProgress(req, res);
+  else if (func === "resetUserEpisodeProgressType2")
+    resetUserEpisodeProgress(req, res);
   else if (func === "accquireUserConsumableCurrency")
     // 재화 획득
     accquireUserConsumableCurrency(req, res);
@@ -1543,9 +1548,13 @@ export const clientHome = (req, res) => {
   // * 작품별 프로필 저장
   else if (func === "setStatList") setStatList(req, res);
   //통계
-  else if (func === "firstResetAbility") firstResetAbility(req, res); 
+  else if (func === "firstResetAbility") firstResetAbility(req, res);
   //처음부터 능력치 리셋
-  else if (func === "addUserAbility" ) addUserAbility(req, res); 
+  else if (func === "addUserAbility") addUserAbility(req, res);
+  else if (func === "requestWaitingEpisodeWithCoin")
+    requestWaitingEpisodeWithCoin(req, res);
+  else if (func === "requestWaitingEpisodeWithAD")
+    requestWaitingEpisodeWithAD(req, res);
   //능력치 추가
   else if (func === "purchaseSelection") purchaseSelection(req, res);
   //과금 선택지 구매 
