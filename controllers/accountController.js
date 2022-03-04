@@ -60,6 +60,7 @@ import {
   Q_SELECT_EPISODE_HISTORY,
   Q_SELECT_PROJECT_ALL_BG,
   Q_SELECT_PROJECT_ALL_EMOTICONS,
+  Q_SELECT_ENDING_HINT,
 } from "../USERQStore";
 
 import { logger } from "../logger";
@@ -79,7 +80,6 @@ import {
   getUserProjectSelectionProgress,
   requestUpdateProjectCurrent,
   getProjectResetInfo,
-  getEndingHintInfo,
 } from "../com/userProject";
 import {
   getProjectBgmBannerInfo,
@@ -2758,6 +2758,7 @@ const getProjectResources = async (project_id, lang, bubbleID, userkey) => {
   query += mysql.format(Q_SELECT_EPISODE_HISTORY, [userkey, project_id]); // 20. 에피소드 히스토리
   query += mysql.format(Q_SELECT_PROJECT_ALL_BG, [project_id]); // 21. 프로젝트 모든 배경
   query += mysql.format(Q_SELECT_PROJECT_ALL_EMOTICONS, [project_id]); // 22. 프로젝트 모든 이모티콘
+  query += mysql.format(Q_SELECT_ENDING_HINT, [project_id]); // 23. 엔딩 힌트 
 
   // * 모인 쿼리 실행
   const result = await DB(query);
@@ -2901,6 +2902,7 @@ const getProjectResources = async (project_id, lang, bubbleID, userkey) => {
   responseData.dressProgress = result.row[16];
   responseData.episodePurchase = result.row[17];
   responseData.sides = result.row[18];
+  responseData.endingHint = result.row[23];
 
   return responseData;
 };
@@ -3102,7 +3104,7 @@ export const getUserSelectedStory = async (req, res) => {
 
   storyInfo.ability = await getUserProjectAbilityCurrent(userInfo); //유저의 현재 능력치 정보 
   storyInfo.selectionPurchase = await getUserSelectionPurchaseInfo(userInfo); // 과금 선택지 정보
-  storyInfo.endingHint = await getEndingHintInfo(userInfo); // 엔딩 힌트 정보
+  storyInfo.endingHint = projectResources.endingHint; 
 
   // response
   res.status(200).json(storyInfo);
