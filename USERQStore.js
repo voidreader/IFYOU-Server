@@ -699,3 +699,16 @@ WHERE a.userkey = ?
   AND a.currency = b.currency
 ORDER BY sorting_order;  
 `;
+
+
+//엔딩 힌트 리스트
+export const Q_SELECT_ENDING_HINT = `
+SELECT ending_id 
+, a.unlock_scenes
+, a.currency
+, a.price
+FROM com_ending_hint a, list_episode b 
+WHERE a.ending_id = b.episode_id
+AND a.project_id = ?
+ORDER BY sortkey, episode_id;
+`;
