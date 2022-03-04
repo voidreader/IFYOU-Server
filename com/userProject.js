@@ -734,3 +734,25 @@ export const requestWaitingEpisodeWithAD = async (req, res) => {
 
   logAction(userkey, "waitingOpenAD", req.body);
 }; // ? requestWaitingEpisodeWithAD END
+
+
+//* 엔딩 힌트 리스트 
+export const getEndingHintInfo = async (userInfo) => {
+  
+  const {
+    project_id = -1,
+  } = userInfo;
+
+  const result = await DB(`
+  SELECT ending_id 
+  , a.unlock_scenes
+  , a.currency
+  , a.price
+  FROM com_ending_hint a, list_episode b 
+  WHERE a.ending_id = b.episode_id
+  AND a.project_id = ?
+  ORDER BY sortkey, episode_id;
+  `, [project_id]);
+
+  return result.row; 
+};
