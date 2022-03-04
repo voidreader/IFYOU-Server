@@ -79,6 +79,7 @@ import {
   getUserProjectSelectionProgress,
   requestUpdateProjectCurrent,
   getProjectResetInfo,
+  getEndingHintInfo,
 } from "../com/userProject";
 import {
   getProjectBgmBannerInfo,
@@ -3101,7 +3102,7 @@ export const getUserSelectedStory = async (req, res) => {
 
   storyInfo.ability = await getUserProjectAbilityCurrent(userInfo); //유저의 현재 능력치 정보 
   storyInfo.selectionPurchase = await getUserSelectionPurchaseInfo(userInfo); // 과금 선택지 정보
-
+  storyInfo.endingHint = await getEndingHintInfo(userInfo); // 엔딩 힌트 정보
 
   // response
   res.status(200).json(storyInfo);
