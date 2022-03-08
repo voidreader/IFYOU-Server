@@ -99,7 +99,6 @@ import {
 } from "./abilityController";
 import { getUserSelectionPurchaseInfo } from "./selectionController";
 
-
 dotenv.config();
 
 // 캐릭터 탈퇴일자 업데이트
@@ -1758,7 +1757,7 @@ export const accquireUserConsumableCurrency = async (req, res) => {
 
 // # 에피소드 구매 타입2 (Rent, OneTime, Permanent)
 // * 2021.08.03 추가 로직 1.0.10 버전부터 반영된다.
-export const purchaseEpisodeType2 = async (req, res) => {
+export const purchaseEpisodeType2 = async (req, res, needResponse = true) => {
   const {
     // 클라이언트에서 구매타입, 사용화폐, 화폐개수를 같이 받아온다.
     body: {
@@ -1903,10 +1902,16 @@ export const purchaseEpisodeType2 = async (req, res) => {
   responseData.bank = await getUserBankInfo(req.body); // bank.
   responseData.userProperty = await getUserProjectProperty(req.body); // 프로젝트 프로퍼티
 
-  res.status(200).json(responseData);
+  if (needResponse) {
+    res.status(200).json(responseData);
 
-  // 로그
-  logAction(userkey, "episode_purchase", req.body);
+    // 로그
+    logAction(userkey, "episode_purchase", req.body);
+  } else {
+    logAction(userkey, "episode_purchase", req.body);
+
+    return responseData;
+  }
 }; // ? 끝! purchaseEpisodeType2
 
 // ? /////////////////////////////////////////////////////////
@@ -3099,9 +3104,8 @@ export const getUserSelectedStory = async (req, res) => {
     storyInfo.bubbleSet = arrangeBubbleSet(allBubbleSet);
   } // ? 말풍선 상세정보 끝
 
-  storyInfo.ability = await getUserProjectAbilityCurrent(userInfo); //유저의 현재 능력치 정보 
+  storyInfo.ability = await getUserProjectAbilityCurrent(userInfo); //유저의 현재 능력치 정보
   storyInfo.selectionPurchase = await getUserSelectionPurchaseInfo(userInfo); // 과금 선택지 정보
-
 
   // response
   res.status(200).json(storyInfo);
