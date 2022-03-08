@@ -79,6 +79,7 @@ import {
   updateUserNickname,
   requestWaitingEpisodeWithCoin,
   requestWaitingEpisodeWithAD,
+  requestRemoveCurrentAD,
 } from "../com/userProject";
 import {
   getAllProductList,
@@ -117,9 +118,11 @@ import {
 } from "./exchangeController";
 import { attendanceList, sendAttendanceReward } from "./attendanceController";
 import { updateSnippetPlayCount } from "./snippetController";
-import { firstResetAbility, addUserAbility} from "./abilityController";
-import { updateUserSelectionCurrent, purchaseSelection } from "./selectionController";
-
+import { firstResetAbility, addUserAbility } from "./abilityController";
+import {
+  updateUserSelectionCurrent,
+  purchaseSelection,
+} from "./selectionController";
 
 // * 클라이언트에서 호출하는 프로젝트 크레딧 리스트
 const getProjectCreditList = async (req, res) => {
@@ -1557,7 +1560,8 @@ export const clientHome = (req, res) => {
     requestWaitingEpisodeWithAD(req, res);
   //능력치 추가
   else if (func === "purchaseSelection") purchaseSelection(req, res);
-  //과금 선택지 구매 
+  else if (func === "requestRemoveCurrentAD") requestRemoveCurrentAD(req, res);
+  //과금 선택지 구매
   else {
     //  res.status(400).send(`Wrong Func : ${func}`);
     logger.error(`clientHome Error`);

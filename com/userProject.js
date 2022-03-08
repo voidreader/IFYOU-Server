@@ -3,6 +3,7 @@ import { DB, logAction, transactionDB } from "../mysqldb";
 import { logger } from "../logger";
 import { respondDB } from "../respondent";
 import { getUserBankInfo } from "../controllers/bankController";
+import { purchaseEpisodeType2 } from "../controllers/accountController";
 
 // 재화 수량 조회
 // * 특정 그룹 재화를 위한 기능 추가 (1회권)
@@ -622,6 +623,7 @@ export const requestWaitingEpisodeWithCoin = async (req, res) => {
     return;
   }
 
+  const episodeID = rowCheck.row[0].episode_id; // 에피소드 ID
   const userCoin = await getCurrencyQuantity(userkey, "coin"); // 유저 보유 코인수
 
   // 보유량 체크
@@ -660,11 +662,17 @@ export const requestWaitingEpisodeWithCoin = async (req, res) => {
     return;
   }
 
-  // 성공했으면
-  // project_current 갱신
-  const responseData = {};
+  // * 에피소드 구매 처리
+  req.body.episodeID = episodeID;
+  req.body.purchaseType = "Permanent";
+  req.body.currency = "coin";
+  req.body.currencyQuantity = price;
+
+  // 코인으로 기다리면 무료를 해제했을때는 Permanent로 처리한다.
+  const responseData = await purchaseEpisodeType2(req, res, false);
+
   responseData.projectCurrent = await getUserProjectCurrent(req.body); // 프로젝트 현재 플레이 지점 !
-  responseData.bank = await getUserBankInfo(req.body); // 뱅크
+  // responseData.bank = await getUserBankInfo(req.body); // 뱅크
 
   res.status(200).json(responseData);
 
@@ -734,3 +742,40 @@ export const requestWaitingEpisodeWithAD = async (req, res) => {
 
   logAction(userkey, "waitingOpenAD", req.body);
 }; // ? requestWaitingEpisodeWithAD END
+
+// * 광고보고 현재 뜰 광고 제거하기
+export const requestRemoveCurrentAD = async (req, res) => {
+  const {
+    body: { userkey, project_id, price = 20 },
+  } = req;
+
+  const userCoin = await getCurrencyQuantity(userkey, "coin"); // 유저 보유 코인수
+  // 보유량 체크
+  if (price > userCoin) {
+    // 80013
+    logger.error(
+      `requestRemoveCurrentAD error. Not enough coins ${JSON.stringify(
+        req.body
+      )}`
+    );
+    respondDB(res, 80013, "Not enouogh coins"); // error
+    return;
+  }
+
+  // * 소모 처리하고
+  const result = await DB(
+    `CALL sp_use_user_property(?, 'coin', ?, 'remove_current_ad', ?);`,
+    [userkey, price, project_id]
+  );
+
+  if (!result.state) {
+    respondDB(res, 80026, result.error);
+    return;
+  }
+
+  const responseData = {};
+  responseData.bank = await getUserBankInfo(req.body); // 뱅크
+  res.status(200).json(responseData);
+
+  logAction(userkey, "removeCurrentAD", req.body);
+};
