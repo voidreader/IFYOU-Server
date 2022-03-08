@@ -100,7 +100,6 @@ import {
 } from "./abilityController";
 import { getUserSelectionPurchaseInfo } from "./selectionController";
 
-
 dotenv.config();
 
 // 캐릭터 탈퇴일자 업데이트
@@ -1759,7 +1758,7 @@ export const accquireUserConsumableCurrency = async (req, res) => {
 
 // # 에피소드 구매 타입2 (Rent, OneTime, Permanent)
 // * 2021.08.03 추가 로직 1.0.10 버전부터 반영된다.
-export const purchaseEpisodeType2 = async (req, res) => {
+export const purchaseEpisodeType2 = async (req, res, needResponse = true) => {
   const {
     // 클라이언트에서 구매타입, 사용화폐, 화폐개수를 같이 받아온다.
     body: {
@@ -1904,10 +1903,16 @@ export const purchaseEpisodeType2 = async (req, res) => {
   responseData.bank = await getUserBankInfo(req.body); // bank.
   responseData.userProperty = await getUserProjectProperty(req.body); // 프로젝트 프로퍼티
 
-  res.status(200).json(responseData);
+  if (needResponse) {
+    res.status(200).json(responseData);
 
-  // 로그
-  logAction(userkey, "episode_purchase", req.body);
+    // 로그
+    logAction(userkey, "episode_purchase", req.body);
+  } else {
+    logAction(userkey, "episode_purchase", req.body);
+
+    return responseData;
+  }
 }; // ? 끝! purchaseEpisodeType2
 
 // ? /////////////////////////////////////////////////////////
@@ -2758,7 +2763,7 @@ const getProjectResources = async (project_id, lang, bubbleID, userkey) => {
   query += mysql.format(Q_SELECT_EPISODE_HISTORY, [userkey, project_id]); // 20. 에피소드 히스토리
   query += mysql.format(Q_SELECT_PROJECT_ALL_BG, [project_id]); // 21. 프로젝트 모든 배경
   query += mysql.format(Q_SELECT_PROJECT_ALL_EMOTICONS, [project_id]); // 22. 프로젝트 모든 이모티콘
-  query += mysql.format(Q_SELECT_ENDING_HINT, [project_id]); // 23. 엔딩 힌트 
+  query += mysql.format(Q_SELECT_ENDING_HINT, [project_id]); // 23. 엔딩 힌트
 
   // * 모인 쿼리 실행
   const result = await DB(query);
@@ -3102,9 +3107,9 @@ export const getUserSelectedStory = async (req, res) => {
     storyInfo.bubbleSet = arrangeBubbleSet(allBubbleSet);
   } // ? 말풍선 상세정보 끝
 
-  storyInfo.ability = await getUserProjectAbilityCurrent(userInfo); //유저의 현재 능력치 정보 
+  storyInfo.ability = await getUserProjectAbilityCurrent(userInfo); //유저의 현재 능력치 정보
   storyInfo.selectionPurchase = await getUserSelectionPurchaseInfo(userInfo); // 과금 선택지 정보
-  storyInfo.endingHint = projectResources.endingHint; 
+  storyInfo.endingHint = projectResources.endingHint;
 
   // response
   res.status(200).json(storyInfo);
