@@ -20,6 +20,8 @@ export const getUserProjectAbilityCurrent = async (userInfo) => {
     , b.ability_name 
     , fn_get_design_info(icon_design_id, 'url') icon_design_url 
     , fn_get_design_info(icon_design_id, 'key') icon_design_key 
+    , fn_get_design_info(imoticon_image_id, 'url') imoticon_design_url 
+    , fn_get_design_info(imoticon_image_id, 'key') imoticon_design_key 
     , ifnull(sum(add_value), 0) current_value
     FROM user_story_ability a, com_ability b
     WHERE a.ability_id = b.ability_id
@@ -41,6 +43,8 @@ export const getUserProjectAbilityCurrent = async (userInfo) => {
     , d.ability_name 
     , fn_get_design_info(d.icon_design_id, 'url') icon_design_url 
     , fn_get_design_info(d.icon_design_id, 'key') icon_design_key 
+    , fn_get_design_info(imoticon_image_id, 'url') imoticon_design_url 
+    , fn_get_design_info(imoticon_image_id, 'key') imoticon_design_key 
     , ifnull(sum(add_value), 0) current_value
     FROM user_property a, com_currency b, com_currency_ability c, com_ability d   
     WHERE a.currency = b.currency
