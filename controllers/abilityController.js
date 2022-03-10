@@ -1,4 +1,5 @@
 import mysql from "mysql2/promise";
+import { response } from "express";
 import { DB, logAction, transactionDB } from "../mysqldb";
 import { logger } from "../logger";
 import { respondDB } from "../respondent";
@@ -9,6 +10,35 @@ export const getUserProjectAbilityCurrent = async (userInfo) => {
 
   const responseData = {};
   const abilityArr = [];
+
+  // 프로젝트에 등록된 모든 능력치
+  const projectAbility = await DB(`
+  SELECT ca.speaker 
+       , ca.ability_name
+       , ca.local_id
+       , ca.is_main 
+       , ca.max_value
+       , fn_get_design_info(icon_design_id, 'url') icon_design_url 
+       , fn_get_design_info(icon_design_id, 'key') icon_design_key 
+	   , fn_get_design_info(emoticon_image_id, 'url') emoticon_design_url 
+	   , fn_get_design_info(emoticon_image_id, 'key') emoticon_design_key 
+	   , ca.ability_id 
+       , 0 current_value
+    FROM com_ability ca WHERE ca.project_id = ${project_id}
+   ORDER BY ca.speaker, ca.is_main DESC, ca.ability_name;  
+  `);
+
+  if (projectAbility.state && projectAbility.row.length > 0) {
+    // eslint-disable-next-line no-restricted-syntax
+    for (const item of projectAbility.row) {
+      // 화자 기준으로 구성
+      if (!Object.prototype.hasOwnProperty.call(responseData, item.speaker)) {
+        responseData[item.speaker] = [];
+      }
+
+      responseData[item.speaker].push(item); // push.
+    }
+  }
 
   //에피소드에서 얻은 능력치
   let result = await DB(
@@ -30,12 +60,26 @@ export const getUserProjectAbilityCurrent = async (userInfo) => {
     `,
     [userkey, project_id]
   );
+
   if (result.state) {
     // eslint-disable-next-line no-restricted-syntax
     for (const item of result.row) {
       abilityArr.push(item); //배열에 추가
+
+      // Key로 등록된 화자만 처리
+      if (Object.prototype.hasOwnProperty.call(responseData, item.speaker)) {
+        for (let i = 0; i < responseData[item.speaker].length; i++) {
+          if (
+            responseData[item.speaker][i].ability_name === item.ability_name
+          ) {
+            responseData[item.speaker][i].current_value =
+              parseInt(responseData[item.speaker][i].current_value, 10) +
+              parseInt(item.current_value, 10);
+          }
+        } // end of for
+      }
     }
-  }
+  } // 스토리 진행 능력치 합산 처리 완료
 
   //재화에서 얻은 능력치
   result = await DB(
@@ -59,46 +103,29 @@ export const getUserProjectAbilityCurrent = async (userInfo) => {
     ORDER BY speaker, ability_name;`,
     [project_id, userkey]
   );
+
   if (result.state) {
     // eslint-disable-next-line no-restricted-syntax
     for (const item of result.row) {
-      let abilityAddCheck = true; //배열에 추가할지 체크
+      abilityArr.push(item); //배열에 추가
 
-      //반복문으로 돌려 캐릭터의 능력치가 이미 있으면 합산 처리
-      for (let i = 0; i < abilityArr.length; i++) {
-        if (
-          abilityArr[i].speaker === item.speaker &&
-          abilityArr[i].ability_name === item.ability_name
-        ) {
-          abilityArr[i].current_value =
-            parseInt(abilityArr[i].current_value) +
-            parseInt(item.current_value);
-          abilityAddCheck = false;
-          break;
-        }
+      // Key로 등록된 화자만 처리
+      if (Object.prototype.hasOwnProperty.call(responseData, item.speaker)) {
+        for (let i = 0; i < responseData[item.speaker].length; i++) {
+          if (
+            responseData[item.speaker][i].ability_name === item.ability_name
+          ) {
+            responseData[item.speaker][i].current_value =
+              parseInt(responseData[item.speaker][i].current_value, 10) +
+              parseInt(item.current_value, 10);
+          }
+        } // end of for
       }
-
-      if (abilityAddCheck) abilityArr.push(item); //아무것도 없으면 새 캐릭터/능력치 추가
     }
-  }
-
-  //마지막에 캐릭터별 능력치로 정리
-  // eslint-disable-next-line no-restricted-syntax
-  for (const item of abilityArr) {
-    if (!Object.prototype.hasOwnProperty.call(responseData, item.speaker)) {
-      responseData[item.speaker] = [];
-    }
-
-    responseData[item.speaker].push({
-      ability_name: item.ability_name,
-      icon_design_url: item.icon_design_url,
-      icon_design_key: item.icon_design_key,
-      current_value: parseInt(item.current_value),
-    });
-  }
+  } // 재화에서 얻은 능력치 합산 처리 완료
 
   return responseData;
-};
+}; // ? end;
 
 //! 능력치 수치 추가
 export const addUserAbility = async (req, res) => {
