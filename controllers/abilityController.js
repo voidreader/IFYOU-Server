@@ -20,9 +20,9 @@ export const getUserProjectAbilityCurrent = async (userInfo) => {
        , ca.max_value
        , fn_get_design_info(icon_design_id, 'url') icon_design_url 
        , fn_get_design_info(icon_design_id, 'key') icon_design_key 
-	   , fn_get_design_info(emoticon_image_id, 'url') emoticon_design_url 
-	   , fn_get_design_info(emoticon_image_id, 'key') emoticon_design_key 
-	   , ca.ability_id 
+	     , fn_get_emoticon_info(emoticon_image_id, 'url') emoticon_design_url 
+	     , fn_get_emoticon_info(emoticon_image_id, 'key') emoticon_design_key 
+	     , ca.ability_id 
        , 0 current_value
     FROM com_ability ca WHERE ca.project_id = ${project_id}
    ORDER BY ca.speaker, ca.is_main DESC, ca.ability_name;  
