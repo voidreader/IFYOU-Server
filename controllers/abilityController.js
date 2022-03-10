@@ -45,10 +45,6 @@ export const getUserProjectAbilityCurrent = async (userInfo) => {
     `
     SELECT b.speaker
     , b.ability_name 
-    , fn_get_design_info(icon_design_id, 'url') icon_design_url 
-    , fn_get_design_info(icon_design_id, 'key') icon_design_key 
-    , fn_get_design_info(emoticon_image_id, 'url') emoticon_design_url 
-    , fn_get_design_info(emoticon_image_id, 'key') emoticon_design_key 
     , ifnull(sum(add_value), 0) current_value
     FROM user_story_ability a, com_ability b
     WHERE userkey = ? 
@@ -86,10 +82,6 @@ export const getUserProjectAbilityCurrent = async (userInfo) => {
     `
     SELECT d.speaker 
     , d.ability_name 
-    , fn_get_design_info(d.icon_design_id, 'url') icon_design_url 
-    , fn_get_design_info(d.icon_design_id, 'key') icon_design_key 
-    , fn_get_design_info(emoticon_image_id, 'url') emoticon_design_url 
-    , fn_get_design_info(emoticon_image_id, 'key') emoticon_design_key 
     , ifnull(sum(add_value), 0) current_value
     FROM user_property a, com_currency b, com_currency_ability c, com_ability d   
     WHERE a.currency = b.currency
