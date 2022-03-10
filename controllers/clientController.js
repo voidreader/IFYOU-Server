@@ -52,6 +52,8 @@ import {
   updateTutorialSelection,
   requestEpisodeFirstClearReward,
   updateTutorialHowToPlay,
+  resetPlayingEpisode,
+  resetUserEpisodeProgressType2,
 } from "./accountController";
 import { logger } from "../logger";
 import {
@@ -1402,7 +1404,7 @@ export const clientHome = (req, res) => {
   else if (func === "resetUserEpisodeProgress")
     resetUserEpisodeProgress(req, res);
   else if (func === "resetUserEpisodeProgressType2")
-    resetUserEpisodeProgress(req, res);
+    resetUserEpisodeProgressType2(req, res);
   else if (func === "accquireUserConsumableCurrency")
     // 재화 획득
     accquireUserConsumableCurrency(req, res);
@@ -1561,6 +1563,7 @@ export const clientHome = (req, res) => {
   //능력치 추가
   else if (func === "purchaseSelection") purchaseSelection(req, res);
   else if (func === "requestRemoveCurrentAD") requestRemoveCurrentAD(req, res);
+  else if (func === "resetPlayingEpisode") resetPlayingEpisode(req, res);
   //과금 선택지 구매
   else {
     //  res.status(400).send(`Wrong Func : ${func}`);
