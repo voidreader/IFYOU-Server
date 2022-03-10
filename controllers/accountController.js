@@ -97,6 +97,7 @@ import {
 import {
   getUserProjectAbilityCurrent,
   createQueryResetAbility,
+  getUserStoryAbilityRawList,
 } from "./abilityController";
 import { getUserSelectionPurchaseInfo } from "./selectionController";
 
@@ -2398,6 +2399,10 @@ export const resetUserEpisodeProgressType2 = async (req, res) => {
     req.body
   ); // 프로젝트 선택지 Progress
 
+  // 능력치 2개 추가
+  responseData.ability = await getUserProjectAbilityCurrent(req.body);
+  responseData.rawStoryAbility = await getUserStoryAbilityRawList(req.body);
+
   responseData.bank = await getUserBankInfo(req.body);
 
   res.status(200).json(responseData);
@@ -2425,6 +2430,50 @@ export const updateTutorialHowToPlay = async (req, res) => {
   responseData.bank = await getUserBankInfo(req.body);
 
   res.status(200).json(responseData);
+}; // ? resetUserEpisodeProgressType2 END
+
+// * 에피소드 플레이 도중 처음으로 돌아가기 호출시 동작.
+export const resetPlayingEpisode = async (req, res) => {
+  logger.info(`resetPlayingEpisode [${JSON.stringify(req.body)}]`);
+
+  const {
+    body: { userkey, episode_id, project_id },
+  } = req;
+
+  //능력치 리셋 쿼리 가져오기
+  const abilityResetQuery = await createQueryResetAbility({
+    userkey,
+    project_id,
+    episode_id,
+  });
+
+  const resetResult = await transactionDB(
+    `
+  CALL sp_reset_user_episode_progress(?, ?, ?);
+  ${abilityResetQuery}
+  `,
+    [userkey, project_id, episode_id]
+  );
+
+  if (!resetResult.state) {
+    logger.error(`resetPlayingEpisode Error 1 ${resetResult.error}`);
+    respondDB(res, 80026, resetResult.error);
+  }
+
+  // 재조회 refresh
+  const responseData = {};
+  responseData.sceneProgress = await getUserEpisodeSceneProgress(req.body); // * 유저 사건ID 진행도
+  responseData.projectCurrent = await getUserProjectCurrent(req.body); // 프로젝트 현재 플레이 지점 !
+  responseData.selectionProgress = await getUserProjectSelectionProgress(
+    req.body
+  ); // 프로젝트 선택지 Progress
+
+  // 능력치 2개 추가
+  responseData.ability = await getUserProjectAbilityCurrent(req.body);
+  responseData.rawStoryAbility = await getUserStoryAbilityRawList(req.body);
+  res.status(200).json(responseData);
+
+  logAction(userkey, "startover_episode", req.body);
 };
 
 // * 선택지 튜토리얼 여부
@@ -3108,6 +3157,7 @@ export const getUserSelectedStory = async (req, res) => {
   } // ? 말풍선 상세정보 끝
 
   storyInfo.ability = await getUserProjectAbilityCurrent(userInfo); //유저의 현재 능력치 정보
+  storyInfo.rawStoryAbility = await getUserStoryAbilityRawList(req.body); // 스토리에서 획득한 능력치 Raw 리스트
   storyInfo.selectionPurchase = await getUserSelectionPurchaseInfo(userInfo); // 과금 선택지 정보
   storyInfo.endingHint = projectResources.endingHint;
 

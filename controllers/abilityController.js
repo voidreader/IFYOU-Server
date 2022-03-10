@@ -4,12 +4,34 @@ import { DB, logAction, transactionDB } from "../mysqldb";
 import { logger } from "../logger";
 import { respondDB } from "../respondent";
 
+// * 유저가 스토리 진행하면서 획득한 능력치 raw 정보
+// * 클라이언트에서 필요해서 만들었음.
+export const getUserStoryAbilityRawList = async (userInfo) => {
+  const { project_id = -1, userkey } = userInfo;
+
+  const result = await DB(`
+    SELECT a.episode_id 
+     , a.scene_id 
+     , ca.speaker
+     , ca.ability_id 
+     , ca.ability_name
+     , a.add_value 
+  FROM user_story_ability a
+     , com_ability ca 
+ WHERE a.userkey = ${userkey}
+   AND a.project_id = ${project_id}
+   AND ca.project_id = a.project_id 
+   AND ca.ability_id = a.ability_id ;
+    `);
+
+  return result.row;
+};
+
 //! 현재 능력치 정보
 export const getUserProjectAbilityCurrent = async (userInfo) => {
   const { project_id = -1, userkey } = userInfo;
 
   const responseData = {};
-  const abilityArr = [];
 
   // 프로젝트에 등록된 모든 능력치
   const projectAbility = await DB(`
@@ -60,8 +82,6 @@ export const getUserProjectAbilityCurrent = async (userInfo) => {
   if (result.state) {
     // eslint-disable-next-line no-restricted-syntax
     for (const item of result.row) {
-      abilityArr.push(item); //배열에 추가
-
       // Key로 등록된 화자만 처리
       if (Object.prototype.hasOwnProperty.call(responseData, item.speaker)) {
         for (let i = 0; i < responseData[item.speaker].length; i++) {
@@ -99,8 +119,6 @@ export const getUserProjectAbilityCurrent = async (userInfo) => {
   if (result.state) {
     // eslint-disable-next-line no-restricted-syntax
     for (const item of result.row) {
-      abilityArr.push(item); //배열에 추가
-
       // Key로 등록된 화자만 처리
       if (Object.prototype.hasOwnProperty.call(responseData, item.speaker)) {
         for (let i = 0; i < responseData[item.speaker].length; i++) {
@@ -165,9 +183,17 @@ export const addUserAbility = async (req, res) => {
   }
 
   //합산값 리턴
-  result = await getUserProjectAbilityCurrent({ project_id, userkey });
+  const responseData = {};
+  responseData.ability = await getUserProjectAbilityCurrent({
+    project_id,
+    userkey,
+  }); //유저의 현재 능력치 정보
+  responseData.rawStoryAbility = await getUserStoryAbilityRawList({
+    project_id,
+    userkey,
+  }); // 스토리에서 획득한 능력치 Raw 리스트
 
-  res.status(200).json(result);
+  res.status(200).json(responseData);
 };
 
 //! 능력치 수치 리셋 쿼리
