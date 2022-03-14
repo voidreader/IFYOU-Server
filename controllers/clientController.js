@@ -728,6 +728,10 @@ const getIfYouProjectList = async (req, res) => {
   , fn_get_design_info(b.ifyou_thumbnail_id, 'key') ifyou_thumbnail_key
   , fn_get_design_info(b.circle_image_id, 'url') circle_image_url
   , fn_get_design_info(b.circle_image_id, 'key') circle_image_key
+  , fn_get_design_info(b.episode_finish_id, 'url') episode_finish_url
+  , fn_get_design_info(b.episode_finish_id, 'key') episode_finish_key
+  , fn_get_design_info(b.premium_pass_id, 'url') premium_pass_url
+  , fn_get_design_info(b.premium_pass_id, 'key') premium_pass_key
   , a.banner_model_id -- 메인배너 Live2D 모델ID
   , a.is_lock
   , a.color_rgb
