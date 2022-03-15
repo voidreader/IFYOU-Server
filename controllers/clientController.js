@@ -1364,6 +1364,57 @@ export const getCommingList = async (req, res) => {
   res.status(200).json(result.row);
 };
 
+const normalizeResource = async (req, res) => {
+  /*
+  const result = await DB(`
+  SELECT les.emoticon_slave_id id, les.image_name  FROM list_emoticon_master lem, list_emoticon_slave les  
+WHERE lem.project_id = 94
+  AND lem.emoticon_master_id = les.emoticon_master_id ;
+  `);
+
+  // const query = ``;
+
+  result.row.forEach((item) => {
+    DB(
+      `
+    UPDATE list_emoticon_slave
+       set image_name = ?
+    WHERE emoticon_slave_id = ?
+      AND project_id = 94;
+    `,
+      [item.image_name.normalize("NFC"), item.id]
+    );
+
+    // item.image_name = item.image_name.normalize("NFC");
+  });
+  */
+
+  const result = await DB(`
+  SELECT a.script_no, script_data, sound_effect, emoticon_expression 
+  FROM list_script a
+ WHERE a.project_id = 94;
+  `);
+
+  result.row.forEach((item) => {
+    DB(
+      `UPDATE list_script
+           SET script_data = ?
+             , sound_effect = ?
+             , emoticon_expression = ?
+        WHERE script_no = ?
+    `,
+      [
+        item.script_data.normalize("NFC"),
+        item.sound_effect.normalize("NFC"),
+        item.emoticon_expression.normalize("NFC"),
+        item.script_no,
+      ]
+    );
+  });
+
+  res.status(200).json(result);
+};
+
 // clientHome에서 func에 따라 분배
 // controller에서 또다시 controller로 보내는것이 옳을까..? ㅠㅠ
 export const clientHome = (req, res) => {

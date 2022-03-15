@@ -2325,7 +2325,7 @@ export const resetUserEpisodeProgressType2 = async (req, res) => {
       userkey,
       project_id,
       episodeID,
-      price = 150,
+      price = 200,
       isFree = false,
       scene_id,
       kind = "reset",
