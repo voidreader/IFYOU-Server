@@ -44,8 +44,8 @@ export const getUserProjectAbilityCurrent = async (userInfo) => {
        , fn_get_design_info(icon_design_id, 'key') icon_design_key 
 	     , fn_get_emoticon_info(emoticon_image_id, 'url') emoticon_design_url 
 	     , fn_get_emoticon_info(emoticon_image_id, 'key') emoticon_design_key 
-       , fn_get_emoticon_info(standing_id, 'url') background_url 
-	     , fn_get_emoticon_info(standing_id, 'key') background_key 
+       , fn_get_design_info(standing_id, 'url') background_url 
+	     , fn_get_design_info(standing_id, 'key') background_key 
 	     , ca.ability_id 
        , 0 current_value
     FROM com_ability ca WHERE ca.project_id = ${project_id}
