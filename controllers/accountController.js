@@ -235,149 +235,6 @@ const getUserUnreadMailCount = async (userkey) => {
   return cnt;
 };
 
-// * 프리패스 구매하기
-export const purchaseFreepass = async (req, res) => {
-  const {
-    body: {
-      currency,
-      userkey,
-      project_id,
-      originPrice = 0,
-      salePrice = 0,
-      freepass_no = -1,
-    },
-  } = req;
-
-  // currency 체크
-  const currencyCheck = await DB(`
-  SELECT cc.currency 
-  FROM com_currency cc 
- WHERE connected_project = ${project_id} 
-   AND currency_type = 'nonconsumable'
-   AND currency = '${currency}'
-   ;`);
-
-  // 화폐가 없어..!?
-  if (currencyCheck.row.length === 0) {
-    respondDB(res, 80059, "프리패스 구매 과정에서 오류가 발생했습니다.");
-    return;
-  }
-
-  // 이미 프리패스 구매자인지 체크
-  const freepassExists = await DB(`
-  SELECT up.currency FROM user_property up WHERE userkey = ${userkey} AND currency = '${currency}';
-  `);
-
-  // 이미 기존에 구매한 경우에 대한 처리
-  if (freepassExists.row.length > 0) {
-    respondDB(res, 80060, "이미 프리패스를 구매하였습니다.");
-    return;
-  }
-
-  // * 프리패스 구매에 필요한 가격 조회 및 보유량 체크
-  const currentGem = await getCurrencyQuantity(userkey, "gem"); // 현재 유저의 젬 보유량
-
-  let freepassPricesObject = null;
-  let fresspassSalePrice = salePrice;
-
-  // 값이 기본값으로 들어온 경우는 서버에서 정보를 가져오도록 처리한다.
-  if (originPrice === 0) {
-    freepassPricesObject = await getProjectFreepassPrice({
-      userkey,
-      project_id,
-    });
-    fresspassSalePrice = freepassPricesObject.sale_freepass_price; // 세일 가격을 서버에서 받아온다.
-  } else {
-    fresspassSalePrice = salePrice;
-  }
-
-  console.log(
-    `purchaseFreepass needGem:[${fresspassSalePrice}] / currentGem:[${currentGem}]`
-  );
-
-  // 현재 보유량이 가격보다 적은 경우! return
-  if (currentGem < fresspassSalePrice) {
-    respondDB(res, 80014, "젬이 부족합니다");
-    return;
-  } // ? 젬 부족
-
-  // * 프리미엄 패스와 연결된 뱃지 조회
-  let passBadgeCurrnecy = "";
-  const passBadgeSelect = await DB(`
-  SELECT a.currency 
-  FROM com_currency a
- WHERE a.connected_project = ${project_id}
-   AND a.currency_type = 'badge'
-   AND a.currency LIKE '%premiumpass%';
-  `);
-
-  if (passBadgeSelect.state && passBadgeSelect.row.length > 0) {
-    passBadgeCurrnecy = passBadgeSelect.row[0].currency; // 세팅
-  }
-
-  // 조건들을 다 통과했으면 실제 구매처리를 시작한다.
-  // TransactionDB 사용
-  const useQuery = mysql.format(`CALL sp_use_user_property(?,?,?,?,?);`, [
-    userkey,
-    "gem",
-    fresspassSalePrice,
-    "freepass",
-    project_id,
-  ]);
-
-  let buyQuery = mysql.format(`CALL sp_insert_user_property(?,?,?,?);`, [
-    userkey,
-    currency,
-    1,
-    "freepass",
-  ]);
-
-  // 연결된 뱃지 아이템 있으면 같이 지급하기.
-  if (passBadgeCurrnecy !== "") {
-    buyQuery += mysql.format(`CALL sp_insert_user_property(?,?,?,?);`, [
-      userkey,
-      passBadgeCurrnecy,
-      1,
-      "freepass",
-    ]);
-  }
-
-  // 최종 재화 소모 및, 프리패스 구매 처리
-  const finalResult = await transactionDB(`${useQuery}${buyQuery}`);
-  if (!finalResult.state) {
-    respondDB(res, 80059, finalResult.error);
-  }
-
-  //로그용으로 쌓기 위해 추가 (chapter_number > episode_id로 변경)
-  let episode_id = 0;
-  const logResult = await DB(
-    `
-  SELECT episode_id
-  FROM list_episode le
-  WHERE episode_id = ( SELECT episode_id FROM user_project_current WHERE userkey = ? AND project_id = ? AND is_special = 0 );`,
-    [userkey, project_id]
-  );
-  if (logResult.state && logResult.row.length > 0)
-    episode_id = logResult.row[0].episode_id;
-  req.body.episode_id = episode_id;
-
-  // * 성공했으면 bank와 userProperty(프로젝트) 갱신해서 전달해주기
-  const responseData = {};
-  responseData.bank = await getUserBankInfo(req.body);
-  responseData.userProperty = await getUserProjectProperty(req.body);
-  responseData.purchaseResult = req.body;
-
-  res.status(200).json(responseData);
-
-  // 성공했으면 gamelog에 insert
-  // 얼마에 샀고, 어떤 타임딜에 구매했는지.
-  logDB(
-    `INSERT INTO log_freepass (userkey, project_id, freepass_no, price) VALUES(${userkey}, ${project_id}, ${freepass_no}, ${fresspassSalePrice});`
-  );
-
-  logAction(userkey, "freepass", req.body);
-};
-
 // ? /////////////////////////////////////////////////////////////////////////////////////////////////
 
 // 1회권 에피소드의 플레이 카운트 0으로 만들기
@@ -1404,6 +1261,7 @@ export const updateUserEpisodePlayRecord = async (req, res) => {
       project_id,
       episodeID,
       nextEpisodeID = -1,
+      useRecord = true,
       lang = "KO",
       ver = 0,
     },
@@ -1441,8 +1299,14 @@ export const updateUserEpisodePlayRecord = async (req, res) => {
 
   logger.info(`updateCurrentParam : ${JSON.stringify(updateCurrentParam)}`);
 
+  let projectCurrent;
+  if (useRecord) {
+    projectCurrent = await requestUpdateProjectCurrent(updateCurrentParam);
+  } else {
+    projectCurrent = await getUserProjectCurrent(req.body); // useRecord false 인경우는 갱신없음.
+  }
+
   // 플레이 위치 저장 (배열로 받음)
-  const projectCurrent = await requestUpdateProjectCurrent(updateCurrentParam);
 
   // 배열로 받은 projectCurrent를 responseData.projectCurrent에 넣어준다.
   const responseData = { projectCurrent }; // * response 값
@@ -3324,4 +3188,171 @@ export const getProfileCurrencyOwnList = async (req, res) => {
   }
 
   res.status(200).json(responseData);
+};
+
+// * 프리패스 구매하기
+export const purchaseFreepass = async (req, res) => {
+  const {
+    body: {
+      currency,
+      userkey,
+      project_id,
+      originPrice = 0,
+      salePrice = 0,
+      freepass_no = -1,
+    },
+  } = req;
+
+  // currency 체크
+  const currencyCheck = await DB(`
+  SELECT cc.currency 
+  FROM com_currency cc 
+ WHERE connected_project = ${project_id} 
+   AND currency_type = 'nonconsumable'
+   AND currency = '${currency}'
+   ;`);
+
+  // 화폐가 없어..!?
+  if (currencyCheck.row.length === 0) {
+    respondDB(res, 80059, "프리패스 구매 과정에서 오류가 발생했습니다.");
+    return;
+  }
+
+  // 이미 프리패스 구매자인지 체크
+  const freepassExists = await DB(`
+  SELECT up.currency FROM user_property up WHERE userkey = ${userkey} AND currency = '${currency}';
+  `);
+
+  // 이미 기존에 구매한 경우에 대한 처리
+  if (freepassExists.row.length > 0) {
+    respondDB(res, 80060, "이미 프리패스를 구매하였습니다.");
+    return;
+  }
+
+  // * 프리패스 구매에 필요한 가격 조회 및 보유량 체크
+  const currentGem = await getCurrencyQuantity(userkey, "gem"); // 현재 유저의 젬 보유량
+
+  let freepassPricesObject = null;
+  let fresspassSalePrice = salePrice;
+
+  // 값이 기본값으로 들어온 경우는 서버에서 정보를 가져오도록 처리한다.
+  if (originPrice === 0) {
+    freepassPricesObject = await getProjectFreepassPrice({
+      userkey,
+      project_id,
+    });
+    fresspassSalePrice = freepassPricesObject.sale_freepass_price; // 세일 가격을 서버에서 받아온다.
+  } else {
+    fresspassSalePrice = salePrice;
+  }
+
+  console.log(
+    `purchaseFreepass needGem:[${fresspassSalePrice}] / currentGem:[${currentGem}]`
+  );
+
+  // 현재 보유량이 가격보다 적은 경우! return
+  if (currentGem < fresspassSalePrice) {
+    respondDB(res, 80014, "젬이 부족합니다");
+    return;
+  } // ? 젬 부족
+
+  // * 프리미엄 패스와 연결된 뱃지 조회
+  let passBadgeCurrnecy = "";
+  const passBadgeSelect = await DB(`
+  SELECT a.currency 
+  FROM com_currency a
+ WHERE a.connected_project = ${project_id}
+   AND a.currency_type = 'badge'
+   AND a.currency LIKE '%premiumpass%';
+  `);
+
+  if (passBadgeSelect.state && passBadgeSelect.row.length > 0) {
+    passBadgeCurrnecy = passBadgeSelect.row[0].currency; // 세팅
+  }
+
+  // 조건들을 다 통과했으면 실제 구매처리를 시작한다.
+  // TransactionDB 사용
+  const useQuery = mysql.format(`CALL sp_use_user_property(?,?,?,?,?);`, [
+    userkey,
+    "gem",
+    fresspassSalePrice,
+    "freepass",
+    project_id,
+  ]);
+
+  let buyQuery = mysql.format(`CALL sp_insert_user_property(?,?,?,?);`, [
+    userkey,
+    currency,
+    1,
+    "freepass",
+  ]);
+
+  // 연결된 뱃지 아이템 있으면 같이 지급하기.
+  if (passBadgeCurrnecy !== "") {
+    buyQuery += mysql.format(`CALL sp_insert_user_property(?,?,?,?);`, [
+      userkey,
+      passBadgeCurrnecy,
+      1,
+      "freepass",
+    ]);
+  }
+
+  // * 2022.03 구매 후 처리 로직 추가
+  // user_project_current 수정
+  let updateQuery = `
+  UPDATE user_project_current 
+    SET next_open_time = now()
+  WHERE userkey = ${userkey}
+    AND project_id = ${project_id}
+    AND is_special = 0;
+  `;
+
+  // * 모든 정규 에피소드 구매처리
+  updateQuery += mysql.format(`call sp_purchase_regular_episodes(?,?,?);`, [
+    userkey,
+    project_id,
+    currency,
+  ]);
+
+  // 최종 재화 소모 및, 프리패스 구매 처리
+  const finalResult = await transactionDB(
+    `${useQuery}${buyQuery}${updateQuery}`
+  );
+  if (!finalResult.state) {
+    respondDB(res, 80059, finalResult.error);
+  }
+
+  //로그용으로 쌓기 위해 추가 (chapter_number > episode_id로 변경)
+  let episode_id = 0;
+  const logResult = await DB(
+    `
+  SELECT episode_id
+  FROM list_episode le
+  WHERE episode_id = ( SELECT episode_id FROM user_project_current WHERE userkey = ? AND project_id = ? AND is_special = 0 );`,
+    [userkey, project_id]
+  );
+  if (logResult.state && logResult.row.length > 0)
+    episode_id = logResult.row[0].episode_id;
+  req.body.episode_id = episode_id;
+
+  // * 성공했으면 bank와 userProperty(프로젝트) 갱신해서 전달해주기
+  const responseData = {};
+  responseData.bank = await getUserBankInfo(req.body);
+  responseData.userProperty = await getUserProjectProperty(req.body);
+
+  // * 아래 2개 2022.03.15 추가
+  responseData.projectCurrent = await getUserProjectCurrent(req.body); // 프로젝트 현재 플레이 지점 !
+  responseData.episodePurchase = await getUserEpisodePurchaseInfo(req.body); // 구매기록
+
+  responseData.purchaseResult = req.body;
+
+  res.status(200).json(responseData);
+
+  // 성공했으면 gamelog에 insert
+  // 얼마에 샀고, 어떤 타임딜에 구매했는지.
+  logDB(
+    `INSERT INTO log_freepass (userkey, project_id, freepass_no, price) VALUES(${userkey}, ${project_id}, ${freepass_no}, ${fresspassSalePrice});`
+  );
+
+  logAction(userkey, "freepass", req.body);
 };
