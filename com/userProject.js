@@ -3,7 +3,10 @@ import { DB, logAction, transactionDB } from "../mysqldb";
 import { logger } from "../logger";
 import { respondDB } from "../respondent";
 import { getUserBankInfo } from "../controllers/bankController";
-import { purchaseEpisodeType2 } from "../controllers/accountController";
+import {
+  getUserEpisodePurchaseInfo,
+  purchaseEpisodeType2,
+} from "../controllers/accountController";
 
 // 재화 수량 조회
 // * 특정 그룹 재화를 위한 기능 추가 (1회권)
@@ -743,10 +746,10 @@ export const requestWaitingEpisodeWithAD = async (req, res) => {
   logAction(userkey, "waitingOpenAD", req.body);
 }; // ? requestWaitingEpisodeWithAD END
 
-// * 광고보고 현재 뜰 광고 제거하기
+// * 코인을 지불하고 현재 에피소드를 AD => Permanent로 변경
 export const requestRemoveCurrentAD = async (req, res) => {
   const {
-    body: { userkey, project_id, price = 20 },
+    body: { userkey, project_id, price = 20, episode_id },
   } = req;
 
   const userCoin = await getCurrencyQuantity(userkey, "coin"); // 유저 보유 코인수
@@ -762,11 +765,22 @@ export const requestRemoveCurrentAD = async (req, res) => {
     return;
   }
 
-  // * 소모 처리하고
-  const result = await DB(
+  let query = mysql.format(
     `CALL sp_use_user_property(?, 'coin', ?, 'remove_current_ad', ?);`,
     [userkey, price, project_id]
   );
+
+  query += mysql.format(`CALL sp_purchase_episode_type2(?, ?, ?, ?, ?, ?)`, [
+    userkey,
+    project_id,
+    episode_id,
+    "coin",
+    20,
+    "Permanent",
+  ]);
+
+  // * 소모 처리하고
+  const result = await transactionDB(query);
 
   if (!result.state) {
     respondDB(res, 80026, result.error);
@@ -775,6 +789,8 @@ export const requestRemoveCurrentAD = async (req, res) => {
 
   const responseData = {};
   responseData.bank = await getUserBankInfo(req.body); // 뱅크
+  responseData.episodePurchase = await getUserEpisodePurchaseInfo(req.body); // 구매기록
+
   res.status(200).json(responseData);
 
   logAction(userkey, "removeCurrentAD", req.body);

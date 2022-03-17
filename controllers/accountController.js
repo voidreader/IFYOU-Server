@@ -276,7 +276,7 @@ const getEpisodeOneTimePlayable = async (userkey, episodeID) => {
 };
 
 // 유저 에피소드 구매 정보 !
-const getUserEpisodePurchaseInfo = async (userInfo) => {
+export const getUserEpisodePurchaseInfo = async (userInfo) => {
   const result = await DB(Q_USER_EPISODE_PURCHASE, [
     userInfo.userkey,
     userInfo.project_id,
