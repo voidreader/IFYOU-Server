@@ -653,7 +653,7 @@ export const requestWaitingEpisodeWithCoin = async (req, res) => {
   // 업데이트 쿼리
   query += `
   UPDATE user_project_current
-    SET next_open_time = now() 
+    SET next_open_time = date_add(now(), INTERVAL -1 minute) 
   WHERE userkey = ${userkey}
     AND is_special = 0
     AND project_id = ${project_id};`;
