@@ -110,6 +110,7 @@ import {
   getCoinProductTypeList,
   coinProductDetail,
   getCoinProductPurchaseList,
+  getTopContent,
 } from "./coinController";
 
 import { getLevelList, updateUserLevelProcess } from "./levelController";
@@ -1620,6 +1621,7 @@ export const clientHome = (req, res) => {
   else if (func === "requestRemoveCurrentAD") requestRemoveCurrentAD(req, res);
   else if (func === "resetPlayingEpisode") resetPlayingEpisode(req, res);
   //과금 선택지 구매
+  else if (func === "getTopContent") getTopContent(req, res);
   else {
     //  res.status(400).send(`Wrong Func : ${func}`);
     logger.error(`clientHome Error`);
