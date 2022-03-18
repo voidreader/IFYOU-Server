@@ -217,7 +217,27 @@ export const deleteProjectLoading = async (req, res) => {
 
 // ? 작품별 로딩 관리 끝
 
-// * 작품의 프리패스 가격 조회
+// * 작품의 현재 프리미엄 패스 가격
+export const getCurrentProjectPassPrice = async ({ userkey, project_id }) => {
+  const result = await DB(`
+  SELECT fn_get_origin_pass_price (${project_id}) origin_price
+     , ROUND(fn_get_current_pass_price(${userkey}, ${project_id}), 2) discount
+  FROM DUAL;
+  `);
+
+  if (!result.state || result.row.length === 0) {
+    return {};
+  }
+
+  const { origin_price, discount } = result.row[0];
+  const sale_price = Math.floor(origin_price - origin_price * discount);
+
+  const responseData = { origin_price, sale_price, discount };
+
+  return responseData;
+};
+
+// * 작품의 프리패스 가격 조회 (2022.03.17 사용안함)
 export const getProjectFreepassPrice = async ({ userkey, project_id }) => {
   // 영구 구매된 것들을 제외하고의 모든 sale_price를 합치고, 10% 할인이 들어간다.
   const result = await DB(`

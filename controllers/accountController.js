@@ -73,6 +73,7 @@ import {
   checkMissionByScence,
   checkMissionByDrop,
   getProjectFreepassPrice,
+  getCurrentProjectPassPrice,
 } from "./storyController";
 import { respondDB, respondError } from "../respondent";
 import {
@@ -1227,6 +1228,7 @@ const getEpisodeFisrtClearReward = async (userkey, episodeID) => {
        , le.first_reward_quantity quantity
        , fn_get_design_info(cc.icon_image_id, 'url') icon_url
        , fn_get_design_info(cc.icon_image_id, 'key') icon_key
+       , le.first_reward_exp
   FROM list_episode le 
      , com_currency cc 
   WHERE episode_id = ${episodeID}
@@ -1444,7 +1446,7 @@ export const requestEpisodeFirstClearReward = async (req, res) => {
   }
 
   let { currency, quantity } = episodeFirstResult.row[0];
-  if (is_double) quantity *= 2;
+  if (is_double) quantity *= 5; // 5배로 변경
 
   // 재화 입력 대기
   await addUserProperty(userkey, currency, quantity, "first_clear");
@@ -2975,19 +2977,14 @@ export const getUserSelectedStory = async (req, res) => {
   // storyInfo.dressProgress = projectResources.dressProgress; // 유저 의상 정보
   storyInfo.dressProgress = []; // 유저 의상 정보 (2022.02 사용하지 않게 변경됨)
   storyInfo.episodePurchase = projectResources.episodePurchase; // 에피소드 구매 정보
-  storyInfo.userFreepassTimedeal = await checkFreepassTimedealAppear(
-    userInfo.userkey,
-    userInfo.project_id,
-    storyInfo.episodePurchase,
-    storyInfo.userProperty.freepass
-  ); // * 2021.10.01 프리패스 타임딜 처리
   storyInfo.sides = projectResources.sides; // 유저의 사이드 에피소드 리스트
 
-  storyInfo.freepasProduct = await getProjectFreepassProduct(
-    userInfo.project_id,
-    userInfo.userkey
-  ); // 프리패스 상품 리스트
-  storyInfo.freepassPrice = await getProjectFreepassPrice(userInfo); // 프리패스 가격 정보
+  storyInfo.premiumPrice = await getCurrentProjectPassPrice(userInfo); // 현재 작품의 프리미엄 패스 가격정보
+
+  // * 기존 프리패스 친구들 사용하지 않도록 변경 (2022.03.17)
+  storyInfo.userFreepassTimedeal = []; // 유저의 살아있는 프리패스 타임딜
+  storyInfo.freepasProduct = []; // 대상 작품의 프리패스 상품 리스트
+  storyInfo.freepassPrice = await getProjectFreepassPrice(userInfo); // 대상작품의 프리패스 가격정보
 
   storyInfo.selectionProgress = await getUserProjectSelectionProgress(userInfo); // 프로젝트 선택지 Progress
 
@@ -3237,11 +3234,11 @@ export const purchaseFreepass = async (req, res) => {
 
   // 값이 기본값으로 들어온 경우는 서버에서 정보를 가져오도록 처리한다.
   if (originPrice === 0) {
-    freepassPricesObject = await getProjectFreepassPrice({
+    freepassPricesObject = await getCurrentProjectPassPrice({
       userkey,
       project_id,
     });
-    fresspassSalePrice = freepassPricesObject.sale_freepass_price; // 세일 가격을 서버에서 받아온다.
+    fresspassSalePrice = freepassPricesObject.sale_price; // 세일 가격을 서버에서 받아온다.
   } else {
     fresspassSalePrice = salePrice;
   }
