@@ -394,7 +394,7 @@ export const getCoinProductTypeList = async (req, res) => {
   }
 
   const responseData = {};
-
+  
   const result = await DB(`
   SELECT coin_product_id
   , a.currency
@@ -405,32 +405,37 @@ export const getCoinProductTypeList = async (req, res) => {
     price
   END pay_price
   , CASE WHEN a.currency <> '' THEN fn_get_user_property(?, a.currency) ELSE 0 END quantity
-  , CASE WHEN a.currency <> '' THEN c.is_unique ELSE 0 END is_unique
+  , CASE WHEN a.currency <> '' THEN b.is_unique ELSE 0 END is_unique
   , fn_get_design_info(a.thumbnail_id, 'url') thumbnail_url
   , fn_get_design_info(a.thumbnail_id, 'key') thumbnail_key
-  , CASE WHEN c.currency_type = 'wallpaper' THEN
-    fn_get_bg_info(c.resource_image_id, 'url')
+  , CASE WHEN b.currency_type = 'wallpaper' THEN
+    fn_get_bg_info(b.resource_image_id, 'url')
   ELSE
-    fn_get_design_info(c.resource_image_id, 'url')
+    fn_get_design_info(b.resource_image_id, 'url')
   END resource_image_url
-  , CASE WHEN c.currency_type = 'wallpaper' THEN
-    fn_get_bg_info(c.resource_image_id, 'key')
+  , CASE WHEN b.currency_type = 'wallpaper' THEN
+    fn_get_bg_info(b.resource_image_id, 'key')
   ELSE
-    fn_get_design_info(c.resource_image_id, 'key')
+    fn_get_design_info(b.resource_image_id, 'key')
   END resource_image_key
-  , ifnull(${lang}, 'common') speaker 
-  , d.ability_id
+  , CASE WHEN is_common > 0 THEN 
+    'common' 
+  ELSE 
+    ifnull(${lang}, 'common')
+  END speaker 
+  , c.ability_id
   , fn_get_design_info(d.icon_design_id, 'url') ability_icon_url
   , fn_get_design_info(d.icon_design_id, 'key') ability_icon_key
+  , c.add_value
   FROM com_coin_product a
-  LEFT OUTER JOIN com_currency_ability b ON a.currency = b.currency
-  INNER JOIN com_currency c ON a.currency = c.currency
-  INNER JOIN com_ability d ON b.ability_id = d.ability_id AND d.project_id = connected_project
-  INNER JOIN list_nametag e ON d.speaker = e.speaker AND e.project_id = connected_project
+  INNER JOIN com_currency b ON a.currency = b.currency
+  LEFT OUTER JOIN com_currency_ability c ON a.currency = c.currency
+  LEFT OUTER JOIN com_ability d ON c.ability_id = d.ability_id AND d.project_id = connected_project
+  LEFT OUTER JOIN list_nametag e ON d.speaker = e.speaker AND e.project_id = connected_project 
   WHERE connected_project = ?
   AND currency_type = ?
   AND coin_product_id > 0
-  AND is_public > 0
+  -- AND is_public > 0
   AND now() <= end_date
   ${whereQuery};`, [userkey, project_id, currency_type]);
   if(result.state){
@@ -438,16 +443,28 @@ export const getCoinProductTypeList = async (req, res) => {
     // eslint-disable-next-line no-restricted-syntax
     for(const item of result.row){
 
-
       // 화자 기준으로 구성
       if (!Object.prototype.hasOwnProperty.call(responseData, item.speaker)) {
         responseData[item.speaker] = [];
       }
 
+      if (!Object.prototype.hasOwnProperty.call(responseData[item.speaker], 'ability'.toString())) {
+        responseData[item.speaker]['ability'.toString()] = [];
+      }
+
+      responseData[item.speaker]['ability'.toString()].push({
+        ability_icon_url: item.ability_icon_url,
+        ability_icon_key: item.ability_icon_key,
+        add_value: item.add_value, 
+      });
+
+      delete item.ability_id;
+      delete item.ability_icon_url;
+      delete item.ability_icon_key;
+      delete item.add_value;
+
       responseData[item.speaker].push(item);
-
     }
-
   }
   
   res.status(200).json(responseData);
