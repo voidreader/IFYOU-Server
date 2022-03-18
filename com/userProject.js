@@ -669,7 +669,7 @@ export const requestWaitingEpisodeWithCoin = async (req, res) => {
   req.body.episodeID = episodeID;
   req.body.purchaseType = "Permanent";
   req.body.currency = "coin";
-  req.body.currencyQuantity = price;
+  req.body.currencyQuantity = 0; // 0으로 구매해야한다.
 
   // 코인으로 기다리면 무료를 해제했을때는 Permanent로 처리한다.
   const responseData = await purchaseEpisodeType2(req, res, false);
