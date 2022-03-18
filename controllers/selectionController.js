@@ -2,8 +2,9 @@ import mysql from "mysql2/promise";
 import { DB, logAction, transactionDB } from "../mysqldb";
 import { logger } from "../logger";
 import { respondDB } from "../respondent";
-import { getUserSelectionCurrent } from "../com/userProject";
+import { getUserSelectionCurrent, } from "../com/userProject";
 import { getCurrencyQuantity } from "./accountController";
+import { getUserBankInfo } from "./bankController";
 
 //! 인게임 중 선택지 저장
 export const updateUserSelectionCurrent = async (req, res) => {
@@ -60,6 +61,7 @@ export const purchaseSelection = async (req, res) => {
   let result;
   let currentQuery = ``;
   let purchaseQuery = ``;
+  const responseData = {};
 
   //보유 스타 수 확인
   const userStar = await getCurrencyQuantity(userkey, "gem"); // 유저 보유 코인수
@@ -115,7 +117,10 @@ export const purchaseSelection = async (req, res) => {
     [userkey, project_id, episode_id]
   );
 
-  res.status(200).json(result.row);
+  responseData.list = result.row;
+  responseData.bank = await getUserBankInfo(req.body); // 뱅크
+
+  res.status(200).json(responseData);
 };
 
 //! 작품별 과금 선택지 정보
