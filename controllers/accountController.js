@@ -1699,8 +1699,12 @@ export const purchaseEpisodeType2 = async (req, res, needResponse = true) => {
       responseData.userProperty = await getUserProjectProperty(req.body); // 프로젝트 프로퍼티
       res.status(200).json(responseData);
 
-      logger.error(`purchaseEpisodeType2 double purchase`);
-      return;
+      if (needResponse) {
+        res.status(200).json(responseData);
+        return;
+      } else {
+        return responseData;
+      }
     } // ? 유효한 구매 체크 종료
 
     // ! 사용하려는 재화의 보유고를 체크한다.

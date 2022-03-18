@@ -5,6 +5,7 @@ import { respondDB } from "../respondent";
 import { getUserBankInfo } from "../controllers/bankController";
 import {
   getUserEpisodePurchaseInfo,
+  getUserProjectProperty,
   purchaseEpisodeType2,
 } from "../controllers/accountController";
 
@@ -673,8 +674,13 @@ export const requestWaitingEpisodeWithCoin = async (req, res) => {
   req.body.currencyQuantity = 0; // 0으로 구매해야한다.
 
   // 코인으로 기다리면 무료를 해제했을때는 Permanent로 처리한다.
-  const responseData = await purchaseEpisodeType2(req, res, false);
+  const responseData = {};
+  await purchaseEpisodeType2(req, res, false);
 
+  // 갱신한다.
+  responseData.episodePurchase = await getUserEpisodePurchaseInfo(req.body); // 구매기록
+  responseData.bank = await getUserBankInfo(req.body); // bank.
+  responseData.userProperty = await getUserProjectProperty(req.body); // 프로젝트 프로퍼티
   responseData.projectCurrent = await getUserProjectCurrent(req.body); // 프로젝트 현재 플레이 지점 !
   // responseData.bank = await getUserBankInfo(req.body); // 뱅크
 
