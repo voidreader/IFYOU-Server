@@ -605,6 +605,7 @@ export const requestWaitingEpisodeWithCoin = async (req, res) => {
 
   // * 현재 프로젝트의 진행중인 에피소드에 대해서 코인을 지불하고 오픈 시간을 앞당긴다.
   // * 에피소드가 열리는 시간은 user_project_current에서의  next_open_time  컬럼이다.
+  logger.info(`requestWaitingEpisodeWithCoin : ${JSON.stringify(req.body)}`);
 
   // project current 체크
   const rowCheck = await DB(`
@@ -678,6 +679,10 @@ export const requestWaitingEpisodeWithCoin = async (req, res) => {
   // responseData.bank = await getUserBankInfo(req.body); // 뱅크
 
   res.status(200).json(responseData);
+
+  logger.info(
+    `requestWaitingEpisodeWithCoin END : ${JSON.stringify(responseData)}`
+  );
 
   logAction(userkey, "waitingOpenCoin", req.body);
 }; // ? requestWaitingEpisodeWithCoin END
