@@ -7,124 +7,7 @@ import { getUserBankInfo } from "./bankController";
 import { getCurrencyQuantity } from "./accountController";
 import { getEqualConditionQuery, getInConditionQuery } from "../com/com";
 
-const getColumn = (kind, lang) => {
-  let result = `   
-    , ifnull(fn_get_currency_info(currency, 'type'), 'set') currency_type  
-    , fn_get_localize_text(ifnull(fn_get_standard_text_id('currency_type', fn_get_currency_info(currency, 'type')), 5123), '${lang}') currency_type_name
-    , CASE WHEN fn_get_currency_info(currency, 'type') = 'portrait' COLLATE utf8mb4_0900_ai_ci THEN 1 
-    WHEN fn_get_currency_info(currency, 'type') = 'frame' COLLATE utf8mb4_0900_ai_ci THEN 2 
-    WHEN fn_get_currency_info(currency, 'type') = 'wallpaper' COLLATE utf8mb4_0900_ai_ci THEN 3 
-    WHEN fn_get_currency_info(currency, 'type') = 'badge' COLLATE utf8mb4_0900_ai_ci THEN 4 
-    WHEN fn_get_currency_info(currency, 'type') = 'standing' COLLATE utf8mb4_0900_ai_ci THEN 5 
-    WHEN fn_get_currency_info(currency, 'type') = 'bubble' COLLATE utf8mb4_0900_ai_ci THEN 6 
-    WHEN fn_get_currency_info(currency, 'type') = 'sticker' COLLATE utf8mb4_0900_ai_ci THEN 7 
-    ELSE 0 END sortkey`;
-
-  if (kind) {
-    result = `
-        , ifnull(fn_get_currency_info(a.currency, 'type'), '') currency_type
-        , fn_get_localize_text(ifnull(fn_get_standard_text_id('currency_type', fn_get_currency_info(a.currency, 'type')), ''), '${lang}') currency_type_name
-        , CASE WHEN fn_get_currency_info(a.currency, 'type') = 'portrait' COLLATE utf8mb4_0900_ai_ci THEN 1
-        WHEN fn_get_currency_info(a.currency, 'type') = 'frame' COLLATE utf8mb4_0900_ai_ci THEN 2
-        WHEN fn_get_currency_info(a.currency, 'type') = 'wallpaper' COLLATE utf8mb4_0900_ai_ci THEN 3
-        WHEN fn_get_currency_info(a.currency, 'type') = 'badge' COLLATE utf8mb4_0900_ai_ci THEN 4
-        WHEN fn_get_currency_info(a.currency, 'type') = 'standing' COLLATE utf8mb4_0900_ai_ci THEN 5
-        WHEN fn_get_currency_info(a.currency, 'type') = 'bubble' COLLATE utf8mb4_0900_ai_ci THEN 6
-        WHEN fn_get_currency_info(a.currency, 'type') = 'sticker' COLLATE utf8mb4_0900_ai_ci THEN 7
-        ELSE 8 END sortkey`;
-  }
-
-  return result;
-};
-
-//! 세트 상품인 경우, 재화별 정보 가져오기
-const getCoinCurrencyInfo = async (userkey, lang, coin_product_id) => {
-  const responseData = {};
-
-  const column = getColumn(1, lang);
-  let price = 0;
-  const result = await DB(
-    `
-    SELECT 
-    a.currency 
-    , fn_get_localize_text(local_code, ?) currency_name
-    , CAST(fn_get_currency_info(a.currency, 'unique') AS signed integer) is_unique
-    , fn_get_user_property(?, a.currency) quantity
-    , fn_get_coin_product_price(a.currency, 'price') price
-    ${column}
-    FROM com_coin_product_set a, com_currency b 
-    WHERE a.currency = b.currency  
-    AND coin_product_id = ?
-    ORDER BY sortkey;
-    `,
-    [lang, userkey, coin_product_id]
-  );
-  // eslint-disable-next-line no-restricted-syntax
-  for (const item of result.row) {
-    if (item.is_unique > 0 && item.quantity > 0) price += item.price; //소유하고 있으면 그 금액만큼 더함
-  }
-  responseData.list = result.row;
-  responseData.price = price; //합산 금액
-
-  return responseData;
-};
-
-//! 리스트 출력
-const getCoinProductList = async (userkey, lang, result) => {
-  let payPrice = 0;
-  let set = {};
-
-  // eslint-disable-next-line no-restricted-syntax
-  for (const item of result) {
-    payPrice = item.price; //원 가격
-    if (item.sale_check === 1) payPrice = item.sale_price; //할인 가격이 있으면 할인 가격으로 변경
-    if (item.currency_type === "set") {
-      //세트상품인경우
-      // eslint-disable-next-line no-await-in-loop
-      set = await getCoinCurrencyInfo(userkey, lang, item.coin_product_id); //해당 세트상품의 코인 재화 가져오기
-
-      // eslint-disable-next-line no-restricted-syntax
-      for (const key of Object.keys(set)) {
-        if (key === "price") {
-          payPrice -= set[key]; //소유한 재화 금액만큼 빼기
-        }
-      }
-      delete set.price; //price 키 삭제
-      item.set = set;
-    }
-
-    item.pay_price = payPrice < 0 ? 0 : payPrice; //결제금액
-  }
-
-  return result;
-};
-
-//각 재화에 대한 능력치 리스트 
-//item.ability = await getAbilityList(project_id, userkey, item.speaker, item.is_unique, item.quantity);
-const getAbilityList = async (project_id, userkey, speaker, is_unique, quantity) => {
-  
-  const result = await DB(`
-  SELECT fn_get_design_info(icon_design_id, 'url') icon_image_url 
-  , fn_get_design_info(icon_design_id, 'key') icon_image_key  
-  , add_value
-  , CASE WHEN ( add_value + fn_get_story_ability(?, a.ability_id, ?) ) >= max_value THEN 1
-  ELSE 0 END is_max
-  FROM com_currency_ability a, com_ability b 
-  WHERE a.ability_id = b.ability_id
-  AND project_id = ?
-  AND speaker = ?;
-  `, [project_id, userkey, project_id, speaker]);
-  if(result.state){
-    // eslint-disable-next-line no-restricted-syntax
-    for(const item of result.row){
-      if(is_unique > 0 && quantity > 0) item.is_max = 0;
-    }
-  }
-
-  return result.row;
-};
-
-const coinProductFrontQuery = `
+const coinProductListQuery = `
 SELECT coin_product_id
 , fn_get_coin_product_name(coin_product_id, ?) coin_product_name
 , a.currency
@@ -148,17 +31,152 @@ END resource_image_url
 ELSE
   fn_get_design_info(b.resource_image_id, 'key')
 END resource_image_key
-`;
-
-const coinProductEndQuery = `
-FROM com_coin_product a, com_currency b
-WHERE a.currency = b.currency
-AND connected_project = ?
+, CASE WHEN is_common > 0 THEN 
+  'common' 
+ELSE 
+  ifnull(d.speaker, 'common') 
+END code 
+, ifnull(fn_get_speaker(?, a.currency, ?, 'speaker'), 'common') speaker
+, c.ability_id
+, fn_get_design_info(d.icon_design_id, 'url') ability_icon_image_url 
+, fn_get_design_info(d.icon_design_id, 'key') ability_icon_image_key 
+, c.add_value
+, CASE WHEN (add_value+fn_get_story_ability(?, c.ability_id, ?)) >= max_value 
+AND b.is_unique < 1 
+AND fn_get_user_property(?, a.currency) < 1 THEN 1
+ELSE 0 END is_max
+FROM com_coin_product a
+INNER JOIN com_currency b ON a.currency = b.currency
+LEFT OUTER JOIN com_currency_ability c ON b.currency = c.currency 
+LEFT OUTER JOIN com_ability d ON c.ability_id = d.ability_id  
+WHERE connected_project = ?
 AND currency_type = ?
 AND coin_product_id > 0
 -- AND is_public > 0
 AND now() <= end_date 
 `;
+
+//! 탑 컨텐츠(배너, 탑/캐릭터별 탭)
+const getTopContent = async (req, is_main = 0) =>{
+  
+  const {
+    body: { 
+      lang = "KO",
+      project_id = -1, 
+      currency_type = "",
+    },
+  } = req;
+
+  const responseData = {};
+
+  //탑 메뉴 
+  let result = await DB(`
+  SELECT code
+  , fn_get_localize_text(text_id, ?) name 
+  FROM list_standard
+  WHERE standard_class ='coinshop_menu'
+  AND code <> 'common'
+  ORDER BY sortkey; 
+  `, [lang]);
+  responseData.top = result.row;
+
+  //코인샵 배너 
+  result = await DB(`
+  SELECT 
+  fn_get_design_info(coin_banner_id, 'url') coin_banner_url
+  ,fn_get_design_info(coin_banner_id, 'key') coin_banner_key
+  FROM list_project_detail 
+  WHERE project_id = ? 
+  AND lang = ?; 
+  `, [project_id, lang]);
+  responseData.coin_banner = result.row;
+  
+  //카테고리별-캐릭터 목록
+  responseData.category_tab= ''; 
+  if(is_main < 1){
+    result = await DB(`
+    SELECT DISTINCT b.speaker code
+    , ${lang} name
+    FROM com_currency_ability a, com_ability b, list_nametag c 
+    WHERE a.ability_id = b.ability_id
+    AND b.speaker = c.speaker
+    AND c.project_id = ?
+    AND fn_get_currency_info(currency, 'type') COLLATE utf8mb4_0900_ai_ci = ?
+    UNION ALL
+    SELECT code 
+    , code_name name 
+    FROM list_standard
+    WHERE standard_class ='coinshop_menu'
+    AND code = 'common';
+    `, [project_id, currency_type]);
+    responseData.category_tab = result.row;
+  }
+
+  return responseData;
+};
+
+//! 코인상품 리스트 정렬 처리
+//* 같은 상품이 n개 이상 나오는 경우에는 능력치(ability) 속성에 추가 & 개별 능력치들 삭제 > 화자별로 재정리 
+const getCoinProductListSort = async (result) => {
+
+  const responseData = {};
+  const coinProductArr = [];
+  const resultArray = [];
+
+  // eslint-disable-next-line no-restricted-syntax
+  for(const item of result){
+
+    //능력치 객체 생성
+    const ability = {
+      ability_id: item.ability_id,
+      ability_icon_image_url: item.ability_icon_image_url, 
+      ability_icon_image_key: item.ability_icon_image_key,
+      add_value: item.add_value, 
+      is_max: item.is_max, 
+    };
+
+    if(!coinProductArr.includes(item.coin_product_id)){
+      //능력치 속성 추가 
+      item.ability = []; 
+      if(item.ability_id){
+        item.ability.push(ability); 
+      }
+
+      //개별 능력치 속성 삭제 
+      delete item.ability_id;
+      delete item.ability_icon_image_url;
+      delete item.ability_icon_image_key;
+      delete item.add_value;
+      delete item.is_max;
+        
+      //배열에 추가 
+      coinProductArr.push(item.coin_product_id); 
+      resultArray.push(item);
+    }else{
+      //같은 상품이 있는 경우 능력치 추가 
+      for(let i = 0; i<resultArray.length;){
+        if(resultArray[i].coin_product_id === item.coin_product_id){
+          resultArray[i].ability.push(ability);
+        }
+        i += 1;
+      }
+    }
+  }
+
+  //화자별로 리스트 재정리 
+  if(resultArray){
+    // eslint-disable-next-line no-restricted-syntax
+    for(const item of resultArray){
+      
+      if (!Object.prototype.hasOwnProperty.call(responseData, item.speaker)) {
+        responseData[item.speaker] = [];
+      }
+      responseData[item.speaker].push(item);
+    }
+  }
+
+  return responseData;
+};
 
 //! 메인 상품 목록
 export const getCoinProductMainList = async (req, res) => {
@@ -168,81 +186,30 @@ export const getCoinProductMainList = async (req, res) => {
     body: { userkey, lang = "KO", project_id = -1, },
   } = req;
 
-  const coinProductColumnQuery = `
-  , CASE WHEN is_common > 0 THEN 
-    'common'
-  ELSE
-    ifnull((SELECT ${lang} FROM list_nametag WHERE project_id = ? AND speaker = fn_get_speaker(?, a.currency)), 'common')
-  END speaker 
-  , ( SELECT speaker FROM list_nametag WHERE project_id = ? AND speaker = fn_get_speaker(?, a.currency)), 'common') ) code
-  `;
-
   const responseData = {};
 
+  //탑 컨텐츠 
+  responseData.top_content = await getTopContent(req, 1);
+
   //스탠딩
-  let result = await DB(
-  `${coinProductFrontQuery}
-  ${coinProductColumnQuery}
-  ${coinProductEndQuery} 
-  ORDER BY price DESC 
-  LIMIT 5;`, [lang, userkey, project_id, project_id, project_id, 'standing']);
-  if(result.state){
-    // eslint-disable-next-line no-restricted-syntax
-    for(const item of result.row){
-      // eslint-disable-next-line no-await-in-loop
-      item.ability = await getAbilityList(project_id, userkey, item.code, item.is_unique, item.quantity);
-    }
-  }
-  responseData.standing = result.row;
+  let result = await DB(coinProductListQuery, 
+  [lang, userkey, project_id, lang, project_id, userkey, userkey, project_id, 'standing']);
+  responseData.standing = await getCoinProductListSort(result.row);
 
   //배경
-  result = await DB(
-  `${coinProductFrontQuery}
-  ${coinProductColumnQuery}
-  ${coinProductEndQuery}
-  ORDER BY price DESC
-  LIMIT 5;`, [lang, userkey, project_id, project_id, project_id, 'wallpaper']);
-  if(result.state){
-    // eslint-disable-next-line no-restricted-syntax
-    for(const item of result.row){
-      // eslint-disable-next-line no-await-in-loop
-      item.ability = await getAbilityList(project_id, userkey, item.speaker, item.is_unique, item.quantity);
-    }
-  }
-  responseData.wallpaper = result.row;
+  result = await DB(coinProductListQuery, 
+  [lang, userkey, project_id, lang, project_id, userkey, userkey, project_id, 'wallpaper']);
+  responseData.wallpaper = await getCoinProductListSort(result.row);
 
   //스티커
-  result = await DB(
-  `${coinProductFrontQuery}
-  ${coinProductColumnQuery}
-  ${coinProductEndQuery}
-  ORDER BY price DESC
-  LIMIT 5;`, [lang, userkey, project_id, project_id, project_id, 'sticker']);
-  if(result.state){
-    // eslint-disable-next-line no-restricted-syntax
-    for(const item of result.row){
-      // eslint-disable-next-line no-await-in-loop
-      item.ability = await getAbilityList(project_id, userkey, item.speaker, item.is_unique, item.quantity);
-    }
-  }
-  responseData.sticker = result.row;
+  result = await DB(coinProductListQuery, 
+  [lang, userkey, project_id, lang, project_id, userkey, userkey, project_id, 'sticker']);
+  responseData.sticker = await getCoinProductListSort(result.row);
 
   //대사
-  result = await DB(
-  `${coinProductFrontQuery}
-  ${coinProductColumnQuery}   
-  ${coinProductEndQuery}
-  ORDER BY price DESC
-  LIMIT 5;`, [lang, userkey, project_id, project_id, project_id, 'bubble']);
-  if(result.state){
-    // eslint-disable-next-line no-restricted-syntax
-    for(const item of result.row){
-      // eslint-disable-next-line no-await-in-loop
-      item.ability = await getAbilityList(project_id, userkey, item.speaker, item.is_unique, item.quantity);
-    }
-  }
-  responseData.script = result.row;
-  
+  result = await DB(coinProductListQuery, 
+  [lang, userkey, project_id, lang, project_id, userkey, userkey, project_id, 'bubble']);
+  responseData.script = await getCoinProductListSort(result.row);
 
   res.status(200).json(responseData);
 };
@@ -277,13 +244,6 @@ export const getCoinProductSearchDetail = async (req, res) => {
     body: { userkey, lang = "KO", search_word = "", project_id = -1, },
   } = req;
 
-  const coinProductColumnQuery = `
-  , CASE WHEN is_common > 0 THEN 
-    'common'
-  ELSE
-    ifnull((SELECT ${lang} FROM list_nametag WHERE project_id = ? AND speaker = fn_get_speaker(?, a.currency)), 'common')
-  END speaker `;
-
   const responseData = {};
 
   //* 검색어 누적 > 검색어가 다를 경우에만 누적
@@ -306,114 +266,35 @@ export const getCoinProductSearchDetail = async (req, res) => {
   //* 검색어 조건절 걸기 
   let whereQuery = ``;
   if(search_word){
-
-    let currencys = ``; 
-    let coinProductIds = ``;
-
-    // 캐릭터명으로 ability_id 찾기 
-    result = await DB(`
-    SELECT 
-    DISTINCT currency 
-    FROM com_currency_ability a, com_ability b, list_nametag c 
-    WHERE a.ability_id = b.ability_id
-    AND b.speaker = c.speaker
-    AND ${lang} LIKE CONCAT('%', ?, '%')
-    AND c.project_id = ?;
-    `, [search_word, project_id]);
-    if (result.state){
-      // eslint-disable-next-line no-restricted-syntax
-      for (const item of result.row) {
-        currencys += `'${item.currency}',`;
-      }
-    }
-    if(currencys) currencys = currencys.slice(0, -1);
-
-    // 코인상품id 찾기 > 상품명
-    result = await DB(
-      `SELECT DISTINCT coin_product_id FROM com_coin_product_detail WHERE name LIKE CONCAT('%', ?, '%') AND lang = ?;`,
-      [search_word, lang]
-    );
-    if (result.state) {
-      // eslint-disable-next-line no-restricted-syntax
-      for (const item of result.row) {
-        coinProductIds += `${item.coin_product_id},`;
-      }
-    }
-    if (coinProductIds) coinProductIds = coinProductIds.slice(0, -1);    
-
-    if(currencys && coinProductIds){
-      whereQuery  = ` AND ( a.currency IN (${currencys}) OR coin_product_id IN ( ${coinProductIds} ) ) `; 
-    }else if(currencys && !coinProductIds){
-      whereQuery  = ` AND a.currency IN (${currencys}) `; 
-    }else if (!currencys && coinProductIds){
-      whereQuery  = ` AND coin_product_id IN ( ${coinProductIds} ) `; 
-    }
+    whereQuery = `
+    AND (
+      d.speaker IN ( SELECT speaker FROM list_nametag WHERE project_id = ${project_id} AND ${lang} LIKE CONCAT('%', '${search_word}', '%' ) ) 
+      OR coin_product_id IN ( SELECT coin_product_id FROM com_coin_product_detail WHERE coin_product_id = a.coin_product_id 
+        AND lang = '${lang}' 
+        AND name LIKE CONCAT('%', '${search_word}', '%') )
+    ) `;
   }
 
   //스탠딩
-  result = await DB(
-  `${coinProductFrontQuery}
-  ${coinProductColumnQuery}
-  ${coinProductEndQuery}
-  ${whereQuery}
-  ;`, [lang, userkey, project_id, project_id, project_id, 'standing']);
-  if(result.state){
-    // eslint-disable-next-line no-restricted-syntax
-    for(const item of result.row){
-      // eslint-disable-next-line no-await-in-loop
-      item.ability = await getAbilityList(project_id, userkey, item.speaker, item.is_unique, item.quantity);
-    }
-  }
-  responseData.standing = result.row;
+  result = await DB(`${coinProductListQuery} ${whereQuery};`, 
+  [lang, userkey, project_id, lang, project_id, userkey, userkey, project_id, 'standing']);
+  responseData.standing = await getCoinProductListSort(result.row);
   
   //배경
-  result = await DB(
-  `${coinProductFrontQuery}
-  ${coinProductColumnQuery}
-  ${coinProductEndQuery}
-  ${whereQuery}
-  ;`, [lang, userkey, project_id, project_id, project_id, 'wallpaper']);
-  if(result.state){
-    // eslint-disable-next-line no-restricted-syntax
-    for(const item of result.row){
-      // eslint-disable-next-line no-await-in-loop
-      item.ability = await getAbilityList(project_id, userkey, item.speaker, item.is_unique, item.quantity);
-    }
-  }
-  responseData.wallpaper = result.row;
+  result = await DB(`${coinProductListQuery} ${whereQuery};`, 
+  [lang, userkey, project_id, lang, project_id, userkey, userkey, project_id, 'wallpaper']);
+  responseData.wallpaper = await getCoinProductListSort(result.row);
   
   //스티커
-  result = await DB(
-  `${coinProductFrontQuery}
-  ${coinProductColumnQuery}
-  ${coinProductEndQuery}
-  ${whereQuery}
-  ;`, [lang, userkey, project_id, project_id, project_id, 'sticker']);
-  if(result.state){
-    // eslint-disable-next-line no-restricted-syntax
-    for(const item of result.row){
-      // eslint-disable-next-line no-await-in-loop
-      item.ability = await getAbilityList(project_id, userkey, item.speaker, item.is_unique, item.quantity);
-    }
-  }
-  responseData.sticker = result.row;
+  result = await DB(`${coinProductListQuery} ${whereQuery};`, 
+  [lang, userkey, project_id, lang, project_id, userkey, userkey, project_id, 'sticker']);
+  responseData.sticker = await getCoinProductListSort(result.row);
   
   //대사
-  result = await DB(
-  `${coinProductFrontQuery}
-  ${coinProductColumnQuery}   
-  ${coinProductEndQuery}
-  ${whereQuery}
-  ;`, [lang, userkey, project_id, project_id, project_id, 'bubble']);
-  if(result.state){
-    // eslint-disable-next-line no-restricted-syntax
-    for(const item of result.row){
-      // eslint-disable-next-line no-await-in-loop
-      item.ability = await getAbilityList(project_id, userkey, item.speaker, item.is_unique, item.quantity);
-    }
-  }
-  responseData.script = result.row;
-  
+  result = await DB(`${coinProductListQuery} ${whereQuery};`, 
+  [lang, userkey, project_id, lang, project_id, userkey, userkey, project_id, 'bubble']);
+  responseData.script = await getCoinProductListSort(result.row);
+
   res.status(200).json(responseData);
 };
 
@@ -466,102 +347,23 @@ export const getCoinProductTypeList = async (req, res) => {
   logger.info(`getCoinProductTypeList`);
 
   const {
-    body: { userkey, lang = "KO", project_id = -1, currency_type = "", speaker = "", },
+    body: { userkey, lang = "KO", project_id = -1, currency_type = "", code = "", },
   } = req;
-
-  const coinProductColumnQuery = `
-  , CASE WHEN is_common > 0 THEN 
-    'common'
-  ELSE
-    ifnull((SELECT ${lang} FROM list_nametag WHERE project_id = ? AND speaker = fn_get_speaker(?, a.currency)), 'common')
-  END speaker `;
-
-  //조건절 추가
-  let whereQuery = ``; 
-  if(speaker){
-    if(speaker !== "common"){ // 캐릭터 능력치가 있는 경우 
-      whereQuery = ` AND a.currency IN ( 
-        SELECT DISTINCT cca.currency
-        FROM com_currency_ability cca, com_ability ca
-        WHERE cca.ability_id = ca.ability_id 
-        AND ca.speaker = (SELECT speaker FROM list_nametag WHERE project_id = ${project_id} AND ${lang} = '${speaker}' )
-      ) `;
-    }else{   //캐릭터 능력치가 없는 경우(공통)
-      whereQuery = ` AND ( is_common > 0 OR 
-      a.currency NOT IN ( 
-        SELECT cca.currency 
-        FROM com_currency_ability cca, com_ability ca 
-        WHERE cca.ability_id = ca.ability_id 
-        AND ca.project_id = ${project_id}
-      )) `;
-    }
-  }
 
   const responseData = {};
-  const result = await DB(`
-  ${coinProductFrontQuery}
-  ${coinProductColumnQuery}
-  ${coinProductEndQuery}
-  ${whereQuery};`, [lang, userkey, project_id, project_id, project_id, currency_type]);
-  if(result.state){
+  let whereQuery = ``; 
 
-    // eslint-disable-next-line no-restricted-syntax
-    for(const item of result.row){
+  //탑 컨텐츠 
+  responseData.top_content = await getTopContent(req);
 
-      // 화자 기준으로 구성
-      if (!Object.prototype.hasOwnProperty.call(responseData, item.speaker)) {
-        responseData[item.speaker] = [];
-      }
+  //조건절 추가
+  if(code) whereQuery = ` AND ( is_common > 0 OR ifnull(d.speaker, 'common') = '${code}' ) `;
 
-      //능력치 리스트 가져오기
-      // eslint-disable-next-line no-await-in-loop
-      item.ability = await getAbilityList(project_id, userkey, item.speaker, item.is_unique, item.quantity);
-
-      
-      responseData[item.speaker].push(item);
-    }
-  }
+  const result = await DB(`${coinProductListQuery} ${whereQuery};`, 
+  [lang, userkey, project_id, lang, project_id, userkey, userkey, project_id, currency_type]);
+  responseData.list = await getCoinProductListSort(result.row);
 
   res.status(200).json(responseData);
-};
-
-//! 상품 상세
-export const coinProductDetail = async (req, res) => {
-  logger.info(`coinProductDetail`);
-
-  const {
-    body: { userkey, lang = "KO", coin_product_id },
-  } = req;
-
-  const result = await DB(
-    `
-    SELECT coin_product_id 
-    , fn_get_coin_product_name(coin_product_id, ?) name  
-    , price
-    , sale_price
-    , CASE WHEN sale_price > 0 THEN 
-        CASE WHEN NOW() <= end_date THEN 1 ELSE 0 END
-    ELSE 0 END sale_check     
-    , DATE_FORMAT(start_date, '%Y-%m-%d %T') start_date
-    , DATE_FORMAT(end_date, '%Y-%m-%d %T') end_date
-    , fn_get_design_info(thumbnail_id, 'url') thumbnail_url
-    , fn_get_design_info(thumbnail_id, 'key') thumbnail_key
-    , currency 
-    , ifnull(fn_get_currency_info(currency, 'type'), 'set') currency_type 
-    , fn_get_localize_text(ifnull(fn_get_standard_text_id('currency_type', fn_get_currency_info(currency, 'type')), 5123), '${lang}') currency_type_name
-    , CASE WHEN currency <> '' THEN fn_get_user_property(?, currency) ELSE 0 END quantity
-    , CASE WHEN currency <> '' THEN CAST(fn_get_currency_info(currency, 'unique') AS signed integer) ELSE 0 END is_unique
-    , CASE WHEN currency <> '' THEN 
-        fn_get_project_name_new((SELECT connected_project FROM com_currency WHERE currency = a.currency), ?) 
-    ELSE '' END project_name
-    FROM com_coin_product a
-    WHERE coin_product_id = ?;
-    `,
-    [lang, userkey, lang, coin_product_id]
-  );
-  const list = await getCoinProductList(userkey, lang, result.row);
-
-  res.status(200).json(list);
 };
 
 //! 구매
@@ -781,62 +583,135 @@ export const getCoinProductPurchaseList = async (req, res) => {
   res.status(200).json(result.row);
 };
 
-//! 탑(배너, 캐릭터별 탭)
-export const getTopContent = async (req, res) =>{
-  
-  const {
-    body: { 
-      lang = "KO",
-      project_id = -1, 
-      currency_type = "",
-    },
-  } = req;
 
+//// 차후에 삭제할 예정 
+const getColumn = (kind, lang) => {
+  let result = `   
+    , ifnull(fn_get_currency_info(currency, 'type'), 'set') currency_type  
+    , fn_get_localize_text(ifnull(fn_get_standard_text_id('currency_type', fn_get_currency_info(currency, 'type')), 5123), '${lang}') currency_type_name
+    , CASE WHEN fn_get_currency_info(currency, 'type') = 'portrait' COLLATE utf8mb4_0900_ai_ci THEN 1 
+    WHEN fn_get_currency_info(currency, 'type') = 'frame' COLLATE utf8mb4_0900_ai_ci THEN 2 
+    WHEN fn_get_currency_info(currency, 'type') = 'wallpaper' COLLATE utf8mb4_0900_ai_ci THEN 3 
+    WHEN fn_get_currency_info(currency, 'type') = 'badge' COLLATE utf8mb4_0900_ai_ci THEN 4 
+    WHEN fn_get_currency_info(currency, 'type') = 'standing' COLLATE utf8mb4_0900_ai_ci THEN 5 
+    WHEN fn_get_currency_info(currency, 'type') = 'bubble' COLLATE utf8mb4_0900_ai_ci THEN 6 
+    WHEN fn_get_currency_info(currency, 'type') = 'sticker' COLLATE utf8mb4_0900_ai_ci THEN 7 
+    ELSE 0 END sortkey`;
+
+  if (kind) {
+    result = `
+        , ifnull(fn_get_currency_info(a.currency, 'type'), '') currency_type
+        , fn_get_localize_text(ifnull(fn_get_standard_text_id('currency_type', fn_get_currency_info(a.currency, 'type')), ''), '${lang}') currency_type_name
+        , CASE WHEN fn_get_currency_info(a.currency, 'type') = 'portrait' COLLATE utf8mb4_0900_ai_ci THEN 1
+        WHEN fn_get_currency_info(a.currency, 'type') = 'frame' COLLATE utf8mb4_0900_ai_ci THEN 2
+        WHEN fn_get_currency_info(a.currency, 'type') = 'wallpaper' COLLATE utf8mb4_0900_ai_ci THEN 3
+        WHEN fn_get_currency_info(a.currency, 'type') = 'badge' COLLATE utf8mb4_0900_ai_ci THEN 4
+        WHEN fn_get_currency_info(a.currency, 'type') = 'standing' COLLATE utf8mb4_0900_ai_ci THEN 5
+        WHEN fn_get_currency_info(a.currency, 'type') = 'bubble' COLLATE utf8mb4_0900_ai_ci THEN 6
+        WHEN fn_get_currency_info(a.currency, 'type') = 'sticker' COLLATE utf8mb4_0900_ai_ci THEN 7
+        ELSE 8 END sortkey`;
+  }
+
+  return result;
+};
+
+//! 세트 상품인 경우, 재화별 정보 가져오기
+const getCoinCurrencyInfo = async (userkey, lang, coin_product_id) => {
   const responseData = {};
 
-  //탑 메뉴 
-  let result = await DB(`
-  SELECT code
-  , fn_get_localize_text(text_id, ?) name 
-  FROM list_standard
-  WHERE standard_class ='currency_design'
-  AND code <> 'currency_icon'
-  ORDER BY sortkey; 
-  `, [lang]);
-  result.row.push({
-    code: 'home', 
-    name: 'Home'
-  });
-  responseData.top = result.row;
-
-  //코인샵 배너 
-  result = await DB(`
-  SELECT 
-  fn_get_design_info(coin_banner_id, 'url') coin_banner_url
-  ,fn_get_design_info(coin_banner_id, 'key') coin_banner_key
-  FROM list_project_detail 
-  WHERE project_id = ? 
-  AND lang = ?; 
-  `, [project_id, lang]);
-  responseData.coin_banner = result.row;
-  
-  //카테고리별-캐릭터 목록
-  if(currency_type){
-    result = await DB(`
-    SELECT DISTINCT b.speaker code
-    , ${lang} name
-    FROM com_currency_ability a, com_ability b, list_nametag c 
-    WHERE a.ability_id = b.ability_id
-    AND b.speaker = c.speaker
-    AND c.project_id = ?
-    AND currency IN (SELECT currency FROM com_currency cc WHERE cc.connected_project = ? AND cc.currency_type = ?);
-    `, [project_id, project_id, currency_type]);
-    responseData.speaker_tab = result.row;
+  const column = getColumn(1, lang);
+  let price = 0;
+  const result = await DB(
+    `
+    SELECT 
+    a.currency 
+    , fn_get_localize_text(local_code, ?) currency_name
+    , CAST(fn_get_currency_info(a.currency, 'unique') AS signed integer) is_unique
+    , fn_get_user_property(?, a.currency) quantity
+    , fn_get_coin_product_price(a.currency, 'price') price
+    ${column}
+    FROM com_coin_product_set a, com_currency b 
+    WHERE a.currency = b.currency  
+    AND coin_product_id = ?
+    ORDER BY sortkey;
+    `,
+    [lang, userkey, coin_product_id]
+  );
+  // eslint-disable-next-line no-restricted-syntax
+  for (const item of result.row) {
+    if (item.is_unique > 0 && item.quantity > 0) price += item.price; //소유하고 있으면 그 금액만큼 더함
   }
-  responseData.speaker_tab.push({
-    code: "common",
-    name: "Common"
-  });
+  responseData.list = result.row;
+  responseData.price = price; //합산 금액
 
-  res.status(200).json(responseData);
+  return responseData;
+};
+
+//! 리스트 출력
+const getCoinProductList = async (userkey, lang, result) => {
+  let payPrice = 0;
+  let set = {};
+
+  // eslint-disable-next-line no-restricted-syntax
+  for (const item of result) {
+    payPrice = item.price; //원 가격
+    if (item.sale_check === 1) payPrice = item.sale_price; //할인 가격이 있으면 할인 가격으로 변경
+    if (item.currency_type === "set") {
+      //세트상품인경우
+      // eslint-disable-next-line no-await-in-loop
+      set = await getCoinCurrencyInfo(userkey, lang, item.coin_product_id); //해당 세트상품의 코인 재화 가져오기
+
+      // eslint-disable-next-line no-restricted-syntax
+      for (const key of Object.keys(set)) {
+        if (key === "price") {
+          payPrice -= set[key]; //소유한 재화 금액만큼 빼기
+        }
+      }
+      delete set.price; //price 키 삭제
+      item.set = set;
+    }
+
+    item.pay_price = payPrice < 0 ? 0 : payPrice; //결제금액
+  }
+
+  return result;
+};
+
+//! 상품 상세
+export const coinProductDetail = async (req, res) => {
+  logger.info(`coinProductDetail`);
+
+  const {
+    body: { userkey, lang = "KO", coin_product_id },
+  } = req;
+
+  const result = await DB(
+    `
+    SELECT coin_product_id 
+    , fn_get_coin_product_name(coin_product_id, ?) name  
+    , price
+    , sale_price
+    , CASE WHEN sale_price > 0 THEN 
+        CASE WHEN NOW() <= end_date THEN 1 ELSE 0 END
+    ELSE 0 END sale_check     
+    , DATE_FORMAT(start_date, '%Y-%m-%d %T') start_date
+    , DATE_FORMAT(end_date, '%Y-%m-%d %T') end_date
+    , fn_get_design_info(thumbnail_id, 'url') thumbnail_url
+    , fn_get_design_info(thumbnail_id, 'key') thumbnail_key
+    , currency 
+    , ifnull(fn_get_currency_info(currency, 'type'), 'set') currency_type 
+    , fn_get_localize_text(ifnull(fn_get_standard_text_id('currency_type', fn_get_currency_info(currency, 'type')), 5123), '${lang}') currency_type_name
+    , CASE WHEN currency <> '' THEN fn_get_user_property(?, currency) ELSE 0 END quantity
+    , CASE WHEN currency <> '' THEN CAST(fn_get_currency_info(currency, 'unique') AS signed integer) ELSE 0 END is_unique
+    , CASE WHEN currency <> '' THEN 
+        fn_get_project_name_new((SELECT connected_project FROM com_currency WHERE currency = a.currency), ?) 
+    ELSE '' END project_name
+    FROM com_coin_product a
+    WHERE coin_product_id = ?;
+    `,
+    [lang, userkey, lang, coin_product_id]
+  );
+  const list = await getCoinProductList(userkey, lang, result.row);
+
+  res.status(200).json(list);
 };
