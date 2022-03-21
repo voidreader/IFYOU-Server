@@ -46,6 +46,7 @@ export const getUserProjectSelectionProgress = async (userInfo) => {
     SELECT a.episode_id 
         , a.target_scene_id
         , a.selection_data
+        , 0 is_passed -- 클라이언트에서 사용
     FROM user_selection_progress a
     WHERE a.userkey = ?
     AND a.project_id = ?
@@ -64,6 +65,7 @@ export const getUserProjectSelectionProgress = async (userInfo) => {
     responseData[item.episode_id.toString()].push({
       target_scene_id: item.target_scene_id,
       selection_data: item.selection_data,
+      is_passed: item.is_passed,
     });
   });
 
