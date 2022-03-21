@@ -48,8 +48,10 @@ export const getUserProjectAbilityCurrent = async (userInfo) => {
 	     , fn_get_design_info(standing_id, 'key') background_key 
 	     , ca.ability_id 
        , 0 current_value
-    FROM com_ability ca WHERE ca.project_id = ${project_id}
-   ORDER BY ca.speaker, ca.is_main DESC, ca.ability_name;  
+    FROM com_ability ca 
+      LEFT OUTER JOIN list_nametag t ON t.speaker = ca.speaker
+    WHERE ca.project_id = ${project_id}
+   ORDER BY ifnull(t.sortkey, 10), ca.speaker, ca.is_main DESC, ca.ability_name;  
   `);
 
   if (projectAbility.state && projectAbility.row.length > 0) {
