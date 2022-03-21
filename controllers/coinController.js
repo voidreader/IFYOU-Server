@@ -17,6 +17,7 @@ SELECT coin_product_id
 ELSE
   price
 END pay_price
+, fn_get_localize_text(ifnull(fn_get_standard_text_id('currency_type', fn_get_currency_info(a.currency, 'type')), 5123), ?) currency_type_name
 , CASE WHEN a.currency <> '' THEN fn_get_user_property(?, a.currency) ELSE 0 END quantity
 , CASE WHEN a.currency <> '' THEN b.is_unique ELSE 0 END is_unique
 , fn_get_design_info(a.thumbnail_id, 'url') thumbnail_url
@@ -41,9 +42,9 @@ END code
 , fn_get_design_info(d.icon_design_id, 'url') ability_icon_image_url 
 , fn_get_design_info(d.icon_design_id, 'key') ability_icon_image_key 
 , c.add_value
-, CASE WHEN (add_value+fn_get_story_ability(?, c.ability_id, ?)) >= max_value 
-AND b.is_unique < 1 
-AND fn_get_user_property(?, a.currency) < 1 THEN 1
+, CASE WHEN (add_value+fn_get_story_ability(?, c.ability_id, ?)) >= max_value THEN 
+    CASE WHEN b.is_unique > 0 AND fn_get_user_property(?, a.currency) > 0 THEN 0
+    ELSE 1 END 
 ELSE 0 END is_max
 FROM com_coin_product a
 INNER JOIN com_currency b ON a.currency = b.currency
@@ -75,7 +76,7 @@ const getTopContent = async (req, is_main = 0) =>{
   , fn_get_localize_text(text_id, ?) name 
   FROM list_standard
   WHERE standard_class ='coinshop_menu'
-  AND code <> 'common'
+  AND code NOT IN ('common', 'set')
   ORDER BY sortkey; 
   `, [lang]);
   responseData.top = result.row;
@@ -104,11 +105,11 @@ const getTopContent = async (req, is_main = 0) =>{
     AND fn_get_currency_info(currency, 'type') COLLATE utf8mb4_0900_ai_ci = ?
     UNION ALL
     SELECT code 
-    , code_name name 
+    , fn_get_localize_text(text_id, ?) name
     FROM list_standard
     WHERE standard_class ='coinshop_menu'
     AND code = 'common';
-    `, [project_id, currency_type]);
+    `, [project_id, currency_type, lang]);
     responseData.category_tab = result.row;
   }
 
@@ -192,24 +193,24 @@ export const getCoinProductMainList = async (req, res) => {
   responseData.top_content = await getTopContent(req, 1);
 
   //스탠딩
-  let result = await DB(coinProductListQuery, 
-  [lang, userkey, project_id, lang, project_id, userkey, userkey, project_id, 'standing']);
+  let result = await DB(`${coinProductListQuery} ORDER BY price DESC, rand() LIMIT 5;`, 
+  [lang, lang, userkey, project_id, lang, project_id, userkey, userkey, project_id, 'standing']);
   responseData.standing = await getCoinProductListSort(result.row);
 
   //배경
-  result = await DB(coinProductListQuery, 
-  [lang, userkey, project_id, lang, project_id, userkey, userkey, project_id, 'wallpaper']);
+  result = await DB(`${coinProductListQuery} ORDER BY price DESC, rand() LIMIT 5;`, 
+  [lang, lang, userkey, project_id, lang, project_id, userkey, userkey, project_id, 'wallpaper']);
   responseData.wallpaper = await getCoinProductListSort(result.row);
 
   //스티커
-  result = await DB(coinProductListQuery, 
-  [lang, userkey, project_id, lang, project_id, userkey, userkey, project_id, 'sticker']);
+  result = await DB(`${coinProductListQuery} ORDER BY price DESC, rand() LIMIT 5;`, 
+  [lang, lang, userkey, project_id, lang, project_id, userkey, userkey, project_id, 'sticker']);
   responseData.sticker = await getCoinProductListSort(result.row);
 
   //대사
-  result = await DB(coinProductListQuery, 
-  [lang, userkey, project_id, lang, project_id, userkey, userkey, project_id, 'bubble']);
-  responseData.script = await getCoinProductListSort(result.row);
+  result = await DB(`${coinProductListQuery} ORDER BY price DESC, rand() LIMIT 5;`, 
+  [lang, lang, userkey, project_id, lang, project_id, userkey, userkey, project_id, 'bubble']);
+  responseData.line = await getCoinProductListSort(result.row);
 
   res.status(200).json(responseData);
 };
@@ -263,37 +264,46 @@ export const getCoinProductSearchDetail = async (req, res) => {
     );
   }
 
-  //* 검색어 조건절 걸기 
+  //* 검색어 조건절 걸기(캐릭터명, 상품명) 
   let whereQuery = ``;
   if(search_word){
     whereQuery = `
     AND (
-      d.speaker IN ( SELECT speaker FROM list_nametag WHERE project_id = ${project_id} AND ${lang} LIKE CONCAT('%', '${search_word}', '%' ) ) 
-      OR coin_product_id IN ( SELECT coin_product_id FROM com_coin_product_detail WHERE coin_product_id = a.coin_product_id 
+      d.speaker IN ( SELECT DISTINCT speaker FROM list_nametag WHERE project_id = ${project_id} AND ${lang} LIKE CONCAT('%', '${search_word}', '%') ) 
+      OR coin_product_id IN ( 
+        SELECT DISTINCT coin_product_id FROM com_coin_product_detail 
+        WHERE coin_product_id = a.coin_product_id 
         AND lang = '${lang}' 
-        AND name LIKE CONCAT('%', '${search_word}', '%') )
+        AND name LIKE CONCAT('%', '${search_word}', '%') 
+      )
     ) `;
+  }
+
+  if (!whereQuery) {
+    logger.info(`getCoinProductSearchDetail search no`);
+    responDBCoinShop(res, 80098, lang);
+    return;
   }
 
   //스탠딩
   result = await DB(`${coinProductListQuery} ${whereQuery};`, 
-  [lang, userkey, project_id, lang, project_id, userkey, userkey, project_id, 'standing']);
+  [lang, lang, userkey, project_id, lang, project_id, userkey, userkey, project_id, 'standing']);
   responseData.standing = await getCoinProductListSort(result.row);
   
   //배경
   result = await DB(`${coinProductListQuery} ${whereQuery};`, 
-  [lang, userkey, project_id, lang, project_id, userkey, userkey, project_id, 'wallpaper']);
+  [lang, lang, userkey, project_id, lang, project_id, userkey, userkey, project_id, 'wallpaper']);
   responseData.wallpaper = await getCoinProductListSort(result.row);
   
   //스티커
   result = await DB(`${coinProductListQuery} ${whereQuery};`, 
-  [lang, userkey, project_id, lang, project_id, userkey, userkey, project_id, 'sticker']);
+  [lang, lang, userkey, project_id, lang, project_id, userkey, userkey, project_id, 'sticker']);
   responseData.sticker = await getCoinProductListSort(result.row);
   
   //대사
   result = await DB(`${coinProductListQuery} ${whereQuery};`, 
-  [lang, userkey, project_id, lang, project_id, userkey, userkey, project_id, 'bubble']);
-  responseData.script = await getCoinProductListSort(result.row);
+  [lang, lang, userkey, project_id, lang, project_id, userkey, userkey, project_id, 'bubble']);
+  responseData.line = await getCoinProductListSort(result.row);
 
   res.status(200).json(responseData);
 };
@@ -360,7 +370,7 @@ export const getCoinProductTypeList = async (req, res) => {
   if(code) whereQuery = ` AND ( is_common > 0 OR ifnull(d.speaker, 'common') = '${code}' ) `;
 
   const result = await DB(`${coinProductListQuery} ${whereQuery};`, 
-  [lang, userkey, project_id, lang, project_id, userkey, userkey, project_id, currency_type]);
+  [lang, lang, userkey, project_id, lang, project_id, userkey, userkey, project_id, currency_type]);
   responseData.list = await getCoinProductListSort(result.row);
 
   res.status(200).json(responseData);
