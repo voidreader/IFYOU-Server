@@ -110,6 +110,7 @@ import {
   getCoinProductTypeList,
   coinProductDetail,
   getCoinProductPurchaseList,
+  getTopContent,
 } from "./coinController";
 
 import { getLevelList, updateUserLevelProcess } from "./levelController";
