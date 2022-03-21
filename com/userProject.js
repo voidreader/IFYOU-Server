@@ -50,7 +50,7 @@ export const getUserProjectSelectionProgress = async (userInfo) => {
     FROM user_selection_progress a
     WHERE a.userkey = ?
     AND a.project_id = ?
-    ORDER BY a.update_date desc;
+    ORDER BY a.update_date;
   `,
     [userInfo.userkey, userInfo.project_id]
   );
