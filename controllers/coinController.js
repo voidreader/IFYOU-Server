@@ -53,7 +53,7 @@ LEFT OUTER JOIN com_ability d ON c.ability_id = d.ability_id
 WHERE connected_project = ?
 AND currency_type = ?
 AND coin_product_id > 0
--- AND is_public > 0
+AND is_public > 0
 AND now() <= end_date 
 `;
 
