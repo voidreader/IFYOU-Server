@@ -2,7 +2,7 @@
 import mysql from "mysql2/promise";
 import { restart } from "nodemon";
 import { response } from "express";
-import { ImportExport } from "aws-sdk";
+import dotenv from "dotenv";
 import { DB, logAction, transactionDB, logDB } from "../mysqldb";
 import {
   Q_MODEL_RESOURCE_INFO,
@@ -127,6 +127,8 @@ import {
   updateUserSelectionCurrent,
   purchaseSelection,
 } from "./selectionController";
+
+dotenv.config();
 
 // * 클라이언트에서 호출하는 프로젝트 크레딧 리스트
 const getProjectCreditList = async (req, res) => {
@@ -714,6 +716,19 @@ const getIfYouProjectList = async (req, res) => {
     },
   } = req;
 
+  const isBETA = process.env.BETA;
+  console.log(`isBETA : [${isBETA}]`);
+
+  const postfixQuery = `AND a.is_deploy = 1`;
+
+  let onlyDeploy = false;
+  // 숫자를 입력해도 스트링으로 받는다.
+  if (isBETA === "1") {
+    onlyDeploy = true;
+  }
+
+  console.log("onlyDeploy : ", onlyDeploy);
+
   const query = `
   SELECT a.project_id 
   , ifnull(b.title, a.title) title
@@ -745,7 +760,9 @@ const getIfYouProjectList = async (req, res) => {
   WHERE a.is_public > 0
   AND a.service_package LIKE CONCAT('%', ?, '%')
   AND (a.service_country IS NULL OR a.service_country = ?)
+  ${onlyDeploy ? postfixQuery : ""}
   `;
+  // * 위에 베타서버용 추가 쿼리 관련 로직 추가되었음 2022.03.22
 
   const result = await DB(`${query} ORDER BY a.sortkey;`, [build, country]);
   if (!result.state) {
@@ -753,6 +770,8 @@ const getIfYouProjectList = async (req, res) => {
     respondDB(res, 80026, result.error);
     return;
   }
+
+  console.log(`result of projects count : `, result.row.length);
 
   // * 장르 추가
   for await (const item of result.row) {
