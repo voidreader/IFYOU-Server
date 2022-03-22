@@ -75,6 +75,7 @@ import { respondDB } from "../respondent";
 import {
   updateSelectionProgress,
   updateUserProjectCurrent,
+  getSelectionCurrent,
   getTop3SelectionList,
   getEndingSelectionList,
   checkUserIdValidation,
@@ -1621,6 +1622,8 @@ export const clientHome = (req, res) => {
   else if (func === "requestRemoveCurrentAD") requestRemoveCurrentAD(req, res);
   else if (func === "resetPlayingEpisode") resetPlayingEpisode(req, res);
   //과금 선택지 구매
+  else if (func === "getSelectionCurrent") getSelectionCurrent(req, res);
+  //현재 선택지
   else {
     //  res.status(400).send(`Wrong Func : ${func}`);
     logger.error(`clientHome Error`);

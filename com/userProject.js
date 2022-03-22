@@ -214,6 +214,128 @@ export const getUserSelectionCurrent = async (userkey, project_id) => {
   return result.row;
 };
 
+//! 현재 선택지 로그
+export const getSelectionCurrent = async (req, res) =>{
+  
+  const {
+    body: { userkey, project_id, lang = "KO" },
+  } = req;  
+
+  const responseData = {}; 
+  const selection = {};
+  const ending = {};
+
+  //* 현재 셀렉션(user_selection_current) 값이 있는지 확인
+  let endingCheck = true;
+  let result = await DB(
+    `SELECT * FROM user_selection_current 
+  WHERE userkey = ? AND project_id =?;
+  `,
+    [userkey, project_id]
+  );
+  if (!result.state || result.row.length === 0) endingCheck = false;
+
+  //* 현재 설렉션(user_selection_current), 엔딩(user_selection_ending) 같은 데이터가 있는지 확인
+  if (endingCheck) {
+    result = await DB(  
+    `SELECT *
+    FROM user_selection_current a, user_selection_ending b 
+    WHERE a.userkey = b.userkey 
+    AND a.project_id = b.project_id 
+    AND a.play_count = b.play_count 
+    AND a.userkey = ? AND a.project_id = ?;
+    `,
+      [userkey, project_id]
+    );
+    if (result.row.length > 0) endingCheck = false;
+  }
+
+  if(!endingCheck){
+
+    result = await DB(`
+    SELECT a.episode_id episodeId 
+    , ifnull(fn_get_episode_title_lang(a.episode_id, ?), '') title
+    , a.selection_group selectionGroup
+    , a.selection_no selectionNo
+    , a.selection_order selectionOrder
+    , ${lang} selection_content
+    , CASE WHEN a.selection_group = b.selection_group AND a.selection_no = b.selection_no 
+    THEN 1 ELSE 0 END selected
+    , ifnull((SELECT sortkey FROM list_episode WHERE episode_id = a.episode_id),0) sortkey
+    , DATE_FORMAT(origin_action_date, '%Y-%m-%d %T') action_date  
+    , ending_id
+    , ifnull(fn_get_episode_title_lang(ending_id, ?), '') ending_title 
+    , fn_get_ending_type(ending_id) ending_type
+    , fn_get_script_data(a.episode_id, a.selection_group, a.selection_no, '${lang}') script_data
+    FROM list_selection a LEFT OUTER JOIN user_selection_ending b 
+    ON a.project_id = b.project_id AND a.episode_id = b.episode_id AND a.selection_group = b.selection_group
+    WHERE userkey = ? 
+    AND a.project_id = ?
+    AND play_count = (SELECT max(play_count) FROM user_selection_ending use3 WHERE userkey = ? AND project_id = ?)
+    ORDER BY sortkey, a.episode_id, selectionGroup, a.selection_order;`, [lang, lang, userkey, project_id, userkey, project_id]);    
+  }else{
+
+    result = await DB(`
+    SELECT a.episode_id episodeId  
+    , ifnull(fn_get_episode_title_lang(a.episode_id, ?), '') title
+    , a.selection_group selectionGroup
+    , a.selection_no selectionNo
+    , a.selection_order selectionOrder
+    , ${lang} selection_content
+    , CASE WHEN a.selection_group = b.selection_group AND a.selection_no = b.selection_no 
+    THEN 1 ELSE 0 END selected
+    , ifnull((SELECT sortkey FROM list_episode WHERE episode_id = a.episode_id),0) sortkey
+    , DATE_FORMAT(action_date, '%Y-%m-%d %T') action_date  
+    , '' ending_title
+    , fn_get_script_data(a.episode_id, a.selection_group, a.selection_no, '${lang}') script_data
+    FROM list_selection a LEFT OUTER JOIN user_selection_current b 
+    on a.project_id = b.project_id AND a.episode_id = b.episode_id AND a.selection_group = b.selection_group
+    WHERE userkey = ?
+    AND a.project_id = ?
+    ORDER BY sortkey, a.episode_id, selectionGroup, a.selection_order;`, [lang, userkey, project_id]);
+  }
+  if(result.state){
+
+    // eslint-disable-next-line no-restricted-syntax
+    for(const item of result.row){
+      if (!Object.prototype.hasOwnProperty.call(selection, item.title)) {
+        selection[item.title] = {};
+      }
+  
+      if (!Object.prototype.hasOwnProperty.call(selection[item.title],item.script_data)) {
+        selection[item.title][item.script_data] = []; // 없으면 빈 배열 생성
+      }
+  
+      selection[item.title][item.script_data].push({
+        //선택지
+        selection_group: item.selectionGroup,
+        selection_no: item.selectionNo,
+        selection_order: item.selectionOrder,
+        selection_content: item.selection_content,
+        selected: item.selected,
+      });
+  
+      if(item.ending_title){
+        if (!Object.prototype.hasOwnProperty.call(ending, item.ending_title)) {
+          ending[item.ending_title] = [];
+
+          //엔딩
+          ending[item.ending_title].push({
+            ending_id: item.ending_id,
+            ending_title: item.ending_title,
+            ending_type: item.ending_type,
+          });
+        }
+      }
+    }
+  }
+
+  responseData.selection = selection;
+  responseData.ending = ending;
+
+  res.status(200).json(responseData);
+};
+
 //! 선택지 로그 top3 리스트
 export const getTop3SelectionList = async (req, res) => {
   logger.info(`getTop3SelectionList : ${JSON.stringify(req.body)}`);
