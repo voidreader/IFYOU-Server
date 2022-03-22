@@ -69,32 +69,35 @@ const getTopContent = async (req, is_main = 0) =>{
   } = req;
 
   const responseData = {};
+  let result;
 
-  //탑 메뉴 
-  let result = await DB(`
-  SELECT code
-  , fn_get_localize_text(text_id, ?) name 
-  FROM list_standard
-  WHERE standard_class ='coinshop_menu'
-  AND code NOT IN ('common', 'set')
-  ORDER BY sortkey; 
-  `, [lang]);
-  responseData.top = result.row;
+  if(is_main){
+    
+    //탑 메뉴 
+    result = await DB(`
+    SELECT code
+    , fn_get_localize_text(text_id, ?) name 
+    FROM list_standard
+    WHERE standard_class ='coinshop_menu'
+    AND code NOT IN ('common', 'set')
+    ORDER BY sortkey; 
+    `, [lang]);
+    responseData.top = result.row;
 
-  //코인샵 배너 
-  result = await DB(`
-  SELECT 
-  fn_get_design_info(coin_banner_id, 'url') coin_banner_url
-  ,fn_get_design_info(coin_banner_id, 'key') coin_banner_key
-  FROM list_project_detail 
-  WHERE project_id = ? 
-  AND lang = ?; 
-  `, [project_id, lang]);
-  responseData.coin_banner = result.row;
-  
-  //카테고리별-캐릭터 목록
-  responseData.category_tab= ''; 
-  if(is_main < 1){
+    //코인샵 배너 
+    result = await DB(`
+    SELECT 
+    fn_get_design_info(coin_banner_id, 'url') coin_banner_url
+    ,fn_get_design_info(coin_banner_id, 'key') coin_banner_key
+    FROM list_project_detail 
+    WHERE project_id = ? 
+    AND lang = ?; 
+    `, [project_id, lang]);
+    responseData.coin_banner = result.row;
+
+  }else{
+
+    //카테고리별-캐릭터 목록
     result = await DB(`
     SELECT DISTINCT b.speaker code
     , ${lang} name
@@ -118,9 +121,9 @@ const getTopContent = async (req, is_main = 0) =>{
 
 //! 코인상품 리스트 정렬 처리
 //* 같은 상품이 n개 이상 나오는 경우에는 능력치(ability) 속성에 추가 & 개별 능력치들 삭제 > 화자별로 재정리 
-const getCoinProductListSort = async (result) => {
+const getCoinProductListSort = async (result, is_main = 0) => {
 
-  const responseData = {};
+  let responseData = {};
   const coinProductArr = [];
   const resultArray = [];
 
@@ -164,17 +167,24 @@ const getCoinProductListSort = async (result) => {
     }
   }
 
-  //화자별로 리스트 재정리 
-  if(resultArray){
-    // eslint-disable-next-line no-restricted-syntax
-    for(const item of resultArray){
-      
-      if (!Object.prototype.hasOwnProperty.call(responseData, item.speaker)) {
-        responseData[item.speaker] = [];
+  if(is_main){
+    responseData = resultArray;
+  }else{
+
+    //화자별로 리스트 재정리 
+    // eslint-disable-next-line no-lonely-if
+    if(resultArray){
+      // eslint-disable-next-line no-restricted-syntax
+      for(const item of resultArray){
+        
+        if (!Object.prototype.hasOwnProperty.call(responseData, item.speaker)) {
+          responseData[item.speaker] = [];
+        }
+        responseData[item.speaker].push(item);
       }
-      responseData[item.speaker].push(item);
     }
   }
+
 
   return responseData;
 };
@@ -195,22 +205,22 @@ export const getCoinProductMainList = async (req, res) => {
   //스탠딩
   let result = await DB(`${coinProductListQuery} ORDER BY price DESC, rand() LIMIT 5;`, 
   [lang, lang, userkey, project_id, lang, project_id, userkey, userkey, project_id, 'standing']);
-  responseData.standing = await getCoinProductListSort(result.row);
+  responseData.character = await getCoinProductListSort(result.row, 1);
 
   //배경
   result = await DB(`${coinProductListQuery} ORDER BY price DESC, rand() LIMIT 5;`, 
   [lang, lang, userkey, project_id, lang, project_id, userkey, userkey, project_id, 'wallpaper']);
-  responseData.wallpaper = await getCoinProductListSort(result.row);
+  responseData.wallpaper = await getCoinProductListSort(result.row, 1);
 
   //스티커
   result = await DB(`${coinProductListQuery} ORDER BY price DESC, rand() LIMIT 5;`, 
   [lang, lang, userkey, project_id, lang, project_id, userkey, userkey, project_id, 'sticker']);
-  responseData.sticker = await getCoinProductListSort(result.row);
+  responseData.sticker = await getCoinProductListSort(result.row, 1);
 
   //대사
   result = await DB(`${coinProductListQuery} ORDER BY price DESC, rand() LIMIT 5;`, 
   [lang, lang, userkey, project_id, lang, project_id, userkey, userkey, project_id, 'bubble']);
-  responseData.line = await getCoinProductListSort(result.row);
+  responseData.line = await getCoinProductListSort(result.row, 1);
 
   res.status(200).json(responseData);
 };
