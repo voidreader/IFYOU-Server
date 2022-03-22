@@ -215,18 +215,19 @@ export const getUserSelectionCurrent = async (userkey, project_id) => {
 };
 
 //! 현재 선택지 로그
-export const getSelectionCurrent = async (req, res) =>{
-  
+export const getSelectionCurrent = async (req, res) => {
   const {
     body: { userkey, project_id, lang = "KO" },
-  } = req;  
+  } = req;
 
-  const responseData = {}; 
+  const responseData = {};
   const selection = {};
-  const ending = {};
+  const ending = [];
 
   //* 현재 셀렉션(user_selection_current) 값이 있는지 확인
   let endingCheck = true;
+  let index = 0;
+
   let result = await DB(
     `SELECT * FROM user_selection_current 
   WHERE userkey = ? AND project_id =?;
@@ -237,8 +238,8 @@ export const getSelectionCurrent = async (req, res) =>{
 
   //* 현재 설렉션(user_selection_current), 엔딩(user_selection_ending) 같은 데이터가 있는지 확인
   if (endingCheck) {
-    result = await DB(  
-    `SELECT *
+    result = await DB(
+      `SELECT *
     FROM user_selection_current a, user_selection_ending b 
     WHERE a.userkey = b.userkey 
     AND a.project_id = b.project_id 
@@ -250,9 +251,9 @@ export const getSelectionCurrent = async (req, res) =>{
     if (result.row.length > 0) endingCheck = false;
   }
 
-  if(!endingCheck){
-
-    result = await DB(`
+  if (!endingCheck) {
+    result = await DB(
+      `
     SELECT a.episode_id episodeId 
     , ifnull(fn_get_episode_title_lang(a.episode_id, ?), '') title
     , a.selection_group selectionGroup
@@ -272,10 +273,12 @@ export const getSelectionCurrent = async (req, res) =>{
     WHERE userkey = ? 
     AND a.project_id = ?
     AND play_count = (SELECT max(play_count) FROM user_selection_ending use3 WHERE userkey = ? AND project_id = ?)
-    ORDER BY sortkey, a.episode_id, selectionGroup, a.selection_order;`, [lang, lang, userkey, project_id, userkey, project_id]);    
-  }else{
-
-    result = await DB(`
+    ORDER BY sortkey, a.episode_id, selectionGroup, a.selection_order;`,
+      [lang, lang, userkey, project_id, userkey, project_id]
+    );
+  } else {
+    result = await DB(
+      `
     SELECT a.episode_id episodeId  
     , ifnull(fn_get_episode_title_lang(a.episode_id, ?), '') title
     , a.selection_group selectionGroup
@@ -292,20 +295,26 @@ export const getSelectionCurrent = async (req, res) =>{
     on a.project_id = b.project_id AND a.episode_id = b.episode_id AND a.selection_group = b.selection_group
     WHERE userkey = ?
     AND a.project_id = ?
-    ORDER BY sortkey, a.episode_id, selectionGroup, a.selection_order;`, [lang, userkey, project_id]);
+    ORDER BY sortkey, a.episode_id, selectionGroup, a.selection_order;`,
+      [lang, userkey, project_id]
+    );
   }
-  if(result.state){
-
+  if (result.state) {
     // eslint-disable-next-line no-restricted-syntax
-    for(const item of result.row){
+    for (const item of result.row) {
       if (!Object.prototype.hasOwnProperty.call(selection, item.title)) {
         selection[item.title] = {};
       }
-  
-      if (!Object.prototype.hasOwnProperty.call(selection[item.title],item.script_data)) {
+
+      if (
+        !Object.prototype.hasOwnProperty.call(
+          selection[item.title],
+          item.script_data
+        )
+      ) {
         selection[item.title][item.script_data] = []; // 없으면 빈 배열 생성
       }
-  
+
       selection[item.title][item.script_data].push({
         //선택지
         selection_group: item.selectionGroup,
@@ -314,18 +323,18 @@ export const getSelectionCurrent = async (req, res) =>{
         selection_content: item.selection_content,
         selected: item.selected,
       });
-  
-      if(item.ending_title){
-        if (!Object.prototype.hasOwnProperty.call(ending, item.ending_title)) {
-          ending[item.ending_title] = [];
 
+      if (item.ending_title) {
+        if (index === 0) {
           //엔딩
-          ending[item.ending_title].push({
+          ending.push({
             ending_id: item.ending_id,
             ending_title: item.ending_title,
             ending_type: item.ending_type,
           });
         }
+
+        index += 1;
       }
     }
   }
