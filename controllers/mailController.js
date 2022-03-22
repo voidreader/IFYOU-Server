@@ -74,7 +74,7 @@ export const readUserSingleMail = async (req, res, next) => {
     if (currentMail.quantity > 0) {
       const propertyInsert = await DB(
         `
-      CALL sp_insert_user_property_paid(?, ?, ?, ?);
+      CALL sp_insert_user_property_paid(?, ?, ?, ?, ?);
       `,
         [
           userkey,
