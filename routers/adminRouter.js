@@ -29,14 +29,7 @@ import {
   mailReservationCancel,
   mailReceiveList,
 } from "../controllers/adminController";
-import {
-  deleteComModel,
-  getComModelDetail,
-  getComModelMaster,
-  registerComModel,
-  updateComModel,
-  uploadComModelZipFile,
-} from "../controllers/designController";
+
 import {
   productAllList,
   productDetail,
@@ -46,7 +39,6 @@ import {
   productPrieodSearch,
 } from "../controllers/shopController";
 
-import { uploadComModelZip } from "../middlewares";
 import routes from "../routes";
 
 const adminRouter = express.Router();
@@ -97,17 +89,5 @@ adminRouter.post(routes.productAllUpdate, productInsertOrUpdate); // 상품 등�
 adminRouter.post(routes.productAllDelete, productAllDelete); // 상품 전체 삭제
 adminRouter.post(routes.productDetailDelete, productDetailDelete); // 상세 삭제(daliy 빼고)
 adminRouter.post(routes.productPrieodSearch, productPrieodSearch); // 판매 중인 상품 기간 조회
-
-// ! 공용 모델
-adminRouter.post(routes.comModelList, getComModelMaster); // 마스터 조회
-adminRouter.post(routes.comModelRegister, registerComModel); // 등록
-adminRouter.post(routes.comModelDelete, deleteComModel); // 삭제
-adminRouter.post(routes.comModelDetailList, getComModelDetail); // 상세정보 조회
-adminRouter.post(
-  routes.comModelUpload,
-  uploadComModelZip,
-  uploadComModelZipFile
-); // zip 업로드
-adminRouter.post(routes.comModelUpdate, updateComModel); // 수정
 
 export default adminRouter;
