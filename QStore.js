@@ -1,11 +1,4 @@
 // 쿼리 저장소입니다!
-export const Q_SELECT_SOUND_S3 = `
-SELECT ls.project_id
-     , ls.sound_key object_key
-     , ls.bucket 
-  FROM list_sound ls 
- WHERE ls.sound_id = ?;
-`;
 
 export const Q_SELECT_MINICUT_S3 = `
 SELECT lm.project_id
@@ -108,82 +101,10 @@ AND a.lang = ?
 ORDER BY a.sortkey, a.script_no;  
 `;
 
-// 에피소드 수정전, 에피소드 데이터 클리어
-export const Q_SCRIPT_CLEAR = `
-DELETE FROM list_script WHERE episode_id = ? AND lang = ?;
-`;
-
-export const Q_SCRIPT_INSERT = `
-INSERT INTO pier.list_script 
-(scene_id,
- template, 
- speaker, 
- script_data, 
-
- target_scene_id, 
- requisite, 
- character_expression, 
- emoticon_expression, 
- 
- in_effect, 
- out_effect, 
- bubble_size, 
- bubble_pos, 
- 
- bubble_hold, 
- bubble_reverse, 
- voice, 
- sound_effect, 
-
- autoplay_row, 
- dev_comment, 
- project_id, 
- episode_id, 
-
- control,
- lang
-)
-VALUES 
-(?,
- fn_get_standard_code('script_template', ?),
- ?,
- TRIM(?),
-
- ?,
- ?,
- TRIM(?),
- TRIM(?),
-
- fn_get_standard_code('in_effect', ?),
- fn_get_standard_code('out_effect', ?), 
- nullif(?, ''), 
- nullif(?, ''),
-
- nullif(?, ''), 
- nullif(?, ''), 
- ?,
- ?, 
-
- ?,
- ?,
- ?,
- ?,
-
- ?,
- ?
-);
-`;
-
 // 스크립트 복원 테이블에 데이터 있는지 체크
 export const Q_CHECK_SCRIPT_RECOVER_EXISTS = `
 SELECT EXISTS (SELECT a.script_no FROM list_script_recover a WHERE a.episode_id = ? AND a.lang = ifnull(?, 'KO')) is_exists
   FROM DUAL;
-`;
-
-// 복원 테이블에 입력
-export const Q_INSERT_SCRIPT_RECOVER = `
-INSERT INTO list_script_recover 
-SELECT a.* FROM list_script a WHERE a.episode_id = ? AND a.lang = ?;
 `;
 
 export const Q_DELETE_SCRIPT_RECOVER = `
@@ -192,12 +113,6 @@ DELETE FROM list_script_recover WHERE episode_id = ? AND lang = ?;
 
 export const Q_DELETE_SCRIPT_RECOVER_ALL = `
 DELETE FROM list_script_recover WHERE episode_id = ?;
-`;
-
-// 스크립트 복원
-export const Q_RECOVER_SCRIPT = `
-INSERT INTO list_script 
-SELECT a.* FROM list_script_recover a WHERE a.episode_id = ? AND a.lang = ?;
 `;
 
 // 스크립트 신규 입력
@@ -219,15 +134,6 @@ VALUES
  fn_get_standard_code('in_effect', ?), fn_get_standard_code('out_effect', ?), 
  nullif(?, ''), nullif(?, ''), nullif(?, ''), nullif(?, ''), nullif(?, ''), 
  ?, ?, nullif(?, ''), ?, ?, ?);
-`;
-
-// 스크립트 유효성 검사 호출
-export const Q_SP_CALL_SCRIPT_VALIDATION = `
-CALL sp_select_script_validation (?,?);
-`;
-
-export const Q_SELECT_SCRIPT_VALIDATION = `
-SELECT * FROM script_validtaion sv WHERE sv.episode_id = ? ORDER BY script_no;
 `;
 
 export const SCRIPT_OBJECT = {
@@ -371,45 +277,6 @@ CALL sp_update_bg(?,?,?,?,?);
 //TODO: 파라미터 추가(minicut_id, minicut_type, lang)
 export const Q_CREATE_OR_REPLACE_IMAGE = `
 CALL sp_update_image_zip(?,?,?,?,?,?,?,?);
-`;
-
-export const Q_SCRIPT_SELECT_WITH_DIRECTION = `
-SELECT ls.script_no   
-     , ls.episode_id 
-     , ls.scene_id 
-     , ls.template 
-     , ls.speaker origin_speaker
-     , substring_index(ls.speaker, ':', 1) speaker 
---      , substring_index(ls.speaker, ':', -1) direction
-     , CASE WHEN ls.speaker IS NOT NULL AND instr(ls.speaker, ':') > 0 THEN substring_index(ls.speaker, ':', -1) 
-            WHEN ls.speaker IS NULL OR ls.speaker = '' THEN ''
-       ELSE 'C' END direction
-     , ls.script_data 
-     , ls.target_scene_id
-     , ls.requisite 
-     , ls.character_expression 
-     , ls.emoticon_expression 
-     , ls.in_effect 
-     , ls.out_effect 
-     , ls.bubble_size
-     , ls.bubble_pos
-     , ls.bubble_hold
-     , ls.bubble_reverse
-     , ls.emoticon_size 
-     , ls.voice 
-     , ls.sound_effect
-     , ls.autoplay_row 
-     , ls.dev_comment
-     , ls.project_id
-     , ifnull(ls.control, '') control
-     , ls.selection_group
-     , ls.selection_no
-     , CASE WHEN ls.template IN ('illust', 'image') THEN fn_get_live_pair_id(ls.project_id, ls.template, ls.script_data) 
-            ELSE -1 END live_pair_id
- FROM list_script ls
-WHERE ls.episode_id = ?
-  AND ls.lang = ?
-ORDER BY script_no;
 `;
 
 // 스크립트에서 사용하는 리소스들
@@ -586,27 +453,11 @@ ORDER BY a.episode_type, a.sortkey
 ;
 `;
 
-// 신규 에피소드 입력
-export const Q_INSERT_EPISODE = `
-INSERT INTO list_episode (project_id, episode_type, title)
- VALUES (?, ?, ?);
-`;
-
 // 에피소드 정렬
 export const Q_UPDATE_EPISODE_SORTKEY = `
 UPDATE list_episode 
    SET sortkey = ?
  WHERE episode_id = ?;
-`;
-
-// 프로젝트 에피소드ID 리스트 - 잠금해제
-export const Q_SELECT_PROJECT_EPISODES_FOR_UNLOCK = `
-SELECT le.episode_id
-     , concat(le.episode_id, ':', trim(le.title)) title 
-     , le.episode_type 
-  FROM list_episode le 
- WHERE le.project_id = ?
-ORDER BY le.episode_type, le.episode_id;
 `;
 
 // 프로젝트 사건ID 리스트 - 잠금해제
@@ -838,55 +689,7 @@ ORDER BY a.live_illust_id;
 `;
 
 // ===================================
-// 사운드 관리 시작
-export const Q_SELECT_PROJECT_SOUND = `
-SELECT a.*
-  FROM list_sound a
-WHERE a.project_id = ?
-  AND a.sound_type = ?
-`;
-export const Q_INSERT_PROJECT_SOUND = `
-INSERT INTO list_sound (sound_name, sound_url, sound_key, game_volume, project_id, sound_type, bucket, speaker)
-VALUES(?, ?, ?, 1, ?, ?, ?, ?);
-`;
-export const Q_UPDATE_PROJECT_SOUND = `
-UPDATE list_sound 
-   SET sound_name = ?
-     , sound_type = ?
-     , sound_url = ifnull(?, sound_url)
-     , sound_key = ifnull(?, sound_key)
-     , bucket = ifnull(?, bucket)
-     , game_volume = ?
- WHERE sound_id = ?;
-`;
 
-export const Q_UPDATE_PROJECT_VOICE = `
-UPDATE list_sound 
-   SET sound_name = ?
-     , sound_type = ?
-     , sound_url = ifnull(?, sound_url)
-     , sound_key = ifnull(?, sound_key)
-     , bucket = ifnull(?, bucket)
-     , game_volume = ?
-     , speaker = ?
-     , is_public = ?
- WHERE sound_id = ?;
-`;
-
-export const Q_DELETE_PROJECT_SOUND = `DELETE FROM list_sound WHERE sound_id = ?;`;
-
-export const Q_SELECT_REPLACED_S3_DESIGN = `SELECT ld.project_id
-, ld.image_key object_key
-, ld.bucket 
-FROM list_design ld 
-WHERE ld.design_id = ?;`;
-export const Q_SELECT_REPLACED_S3_BG = `
-  SELECT a.project_id
-       , a.image_key object_key
-       , a.bucket
-    FROM list_bg a
-   WHERE a.bg_id = ?;
-`;
 export const Q_SELECT_REPLACED_S3_ILLUST = `
 SELECT a.project_id
      , a.image_key object_key
