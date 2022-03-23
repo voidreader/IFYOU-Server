@@ -11,10 +11,6 @@ import {
 } from "../respondent";
 import { logger } from "../logger";
 import {
-  MQ_ADMIN_DELETE_MISSION,
-  MQ_ADMIN_INSERT_MISSION,
-  MQ_ADMIN_SELECT_MISSION,
-  MQ_ADMIN_UPDATE_MISSION,
   MQ_CLIENT_SELECT_MISSION,
   MQ_CLIENT_UPDATE_MISSION,
   MQ_CLIENT_CHECK_MISSION,
@@ -30,128 +26,6 @@ const getUserMissionList = async (userInfo) => {
   ]);
   return result;
 };
-
-// 어드민 미션 리스트 조회
-export const selectAdminMissionList = async (req, res) => {
-  const {
-    params: { id },
-    body: { lang = "KO" },
-  } = req;
-
-  logger.info(`selectAdminMissionList with [${lang}]`);
-
-  const result = await DB(MQ_ADMIN_SELECT_MISSION, [lang, lang, lang, id]);
-
-  respond(result, res, "selectAdminMissionList");
-};
-
-// 미션 신규 입력
-export const insertMission = async (req, res) => {
-  const {
-    params: { id },
-    body: {
-      mission_name,
-      mission_hint,
-      mission_type,
-      is_hidden,
-      mission_condition,
-      mission_figure,
-      id_condition,
-      reward_exp,
-      reward_currency,
-      reward_quantity,
-    },
-  } = req;
-
-  // 이미지 파일 관련 처리
-  let file;
-  if (req.file) file = req.file;
-  else file = { location: null, key: null };
-
-  logger.info(`insertMission [${JSON.stringify(req.body)}]`);
-
-  const result = await DB(MQ_ADMIN_INSERT_MISSION, [
-    mission_name,
-    mission_hint,
-    mission_type,
-    is_hidden,
-    id,
-    mission_condition,
-    mission_figure,
-    id_condition,
-    reward_exp,
-    reward_currency,
-    reward_quantity,
-    file.location,
-    file.key,
-  ]);
-
-  adminLogInsert(req, "mission_insert");
-  respondRedirect(req, res, selectAdminMissionList, result, "insertMission");
-};
-
-// 미션 수정
-export const updateMission = async (req, res) => {
-  const {
-    params: { id },
-    body: {
-      mission_id,
-      mission_name,
-      mission_hint,
-      mission_type,
-      is_hidden,
-      mission_condition = null,
-      mission_figure,
-      id_condition,
-      reward_exp,
-      reward_currency,
-      reward_quantity,
-      lang = "KO",
-    },
-  } = req;
-
-  logger.info(`updateMission [${JSON.stringify(req.body)}]`);
-
-  // 이미지 파일 관련 처리
-  let file;
-  if (req.file) file = req.file;
-  else file = { location: null, key: null };
-
-  const result = await DB(MQ_ADMIN_UPDATE_MISSION, [
-    mission_id,
-    mission_name,
-    mission_hint,
-    mission_type,
-    is_hidden,
-    mission_condition,
-    mission_figure,
-    id_condition,
-    reward_exp,
-    reward_currency,
-    reward_quantity,
-    file.location,
-    file.key,
-    lang,
-  ]);
-
-  adminLogInsert(req, "mission_update");
-  respondRedirect(req, res, selectAdminMissionList, result, "updateMission");
-}; // 미션 수정 끝!
-
-// 미션 지우기
-export const deleteMission = async (req, res) => {
-  const {
-    params: { id },
-    body: { mission_id },
-  } = req;
-
-  const result = await DB(MQ_ADMIN_DELETE_MISSION, [mission_id, mission_id]);
-
-  adminLogInsert(req, "mission_delete");
-  respondRedirect(req, res, selectAdminMissionList, result, "deleteMission");
-};
-
-export const selectMissionRewardCurrency = async (req, res) => {};
 
 ////////// 클라이언트 호출 시작 /////////////////
 
