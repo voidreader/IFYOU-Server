@@ -203,19 +203,18 @@ SELECT ta.userkey
 , ta.gamebaseid 
 , concat('#', ta.pincode, '-', ta.userkey) pincode 
 , fn_get_user_unread_mail_count(ta.userkey) unreadMailCount
-, ta.tutorial_step
 , ta.uid
 , ta.ad_charge
 , ta.current_level
 , ta.current_experience
 , ta.account_link
-, ifnull(t.tutorial_step, 0) tutorial_step 
-, ifnull(t.first_project_id, -1) first_project_id
-, ifnull(t.tutorial_selection, 0) tutorial_selection
-, t.how_to_play
+, ifnull(t.step, 0) tutorial_step
+, ifnull(t.is_clear, 0) tutorial_clear
 FROM table_account ta 
-LEFT OUTER JOIN user_tutorial t ON t.userkey = ta.userkey
-WHERE ta.gamebaseid  = ?;
+LEFT OUTER JOIN user_tutorial_ver2 t ON t.userkey = ta.userkey
+WHERE ta.gamebaseid  = ?
+ORDER BY t.step DESC
+LIMIT 1;
 `;
 
 export const Q_CLIENT_LOGIN_BY_USERKEY = `
@@ -226,19 +225,18 @@ SELECT ta.userkey
 , ta.gamebaseid 
 , concat('#', ta.pincode, '-', ta.userkey) pincode 
 , fn_get_user_unread_mail_count(ta.userkey) unreadMailCount
-, ta.tutorial_step
 , ta.uid
 , ta.ad_charge
 , ta.current_level
 , ta.current_experience
 , ta.account_link
-, ifnull(t.tutorial_step, 0) tutorial_step 
-, ifnull(t.first_project_id, -1) first_project_id
-, ifnull(t.tutorial_selection, 0) tutorial_selection
-, t.how_to_play
+, ifnull(t.step, 0) tutorial_step
+, ifnull(t.is_clear, 0) tutorial_clear
 FROM table_account ta 
-LEFT OUTER JOIN user_tutorial t ON t.userkey = ta.userkey
-WHERE ta.userkey  = ?;
+LEFT OUTER JOIN user_tutorial_ver2 t ON t.userkey = ta.userkey
+WHERE ta.userkey  = ?
+ORDER BY t.step DESC
+LIMIT 1;
 `;
 
 // 클라이언트에서 계정 생성
