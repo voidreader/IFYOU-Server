@@ -67,7 +67,6 @@ import { logger } from "../logger";
 import { getUserVoiceHistory } from "./soundController";
 import {
   checkSideUnlockByEpisode,
-  requestProjectNametag,
   checkSideUnlockByScene,
   checkMissionByEpisode,
   checkMissionByScence,
