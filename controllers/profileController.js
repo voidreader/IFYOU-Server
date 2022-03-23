@@ -19,55 +19,91 @@ export const getUserStoryProfileCurrencyList = async (req, res) => {
   } = req;
 
   const responseData = {};
+  const currencyArr = [];
+  const resultArray = [];
+
   // 재화별로 리스트 가져오기
   const result = await DB(
-    `
-  SELECT a.currency
-       , fn_get_design_info(icon_image_id, 'url') icon_url
-       , fn_get_design_info(icon_image_id, 'key') icon_key
+  `
+  SELECT DISTINCT a.currency
+       , fn_get_design_info(b.icon_image_id, 'url') icon_url
+       , fn_get_design_info(b.icon_image_id, 'key') icon_key
        , CASE WHEN currency_type = 'wallpaper' THEN fn_get_bg_info(resource_image_id, 'url') 
-              ELSE fn_get_design_info(resource_image_id, 'url') 
+              ELSE fn_get_design_info(b.resource_image_id, 'url') 
               END currency_url
        , CASE WHEN currency_type = 'wallpaper' THEN fn_get_bg_info(resource_image_id, 'key') 
-              ELSE fn_get_design_info(resource_image_id, 'key') 
+              ELSE fn_get_design_info(b.resource_image_id, 'key') 
               END currency_key
-       , currency_type
+       , b.currency_type
        , b.model_id
        , fn_get_currency_model_name(b.currency_type, ${project_id}, b.model_id) model_name
        , fn_get_currency_origin_name(b.currency_type, ${project_id}, b.resource_image_id) origin_name
        , fn_get_user_property(${userkey}, a.currency) total_cnt
        , (SELECT ifnull(count(*), 0) FROM user_story_profile WHERE userkey = ${userkey} AND project_id = ${project_id} AND currency = a.currency) current_cnt
-   FROM user_property a, com_currency b 
-  WHERE a.currency = b.currency
-    AND b.connected_project = ${project_id} 
+       , d.ability_id
+       , fn_get_design_info(d.icon_design_id, 'url') ability_icon_image_url 
+       , fn_get_design_info(d.icon_design_id, 'key') ability_icon_image_key
+       , c.add_value
+   FROM user_property a
+   INNER JOIN com_currency b ON a.currency = b.currency
+   LEFT OUTER JOIN com_currency_ability c ON b.currency = c.currency
+   LEFT OUTER JOIN com_ability d ON c.ability_id = d.ability_id
+    WHERE b.connected_project = ${project_id} 
     AND userkey = ${userkey}
     AND NOW() < expire_date 
-  GROUP BY a.currency
+    AND currency_type NOT in('consumable', 'nonconsumable', 'ticker', 'badge', 'ticket')
   ORDER BY a.currency;
   `
   );
-
   // eslint-disable-next-line no-restricted-syntax
   for (const item of result.row) {
-    if (
-      !Object.prototype.hasOwnProperty.call(responseData, item.currency_type)
-    ) {
-      responseData[item.currency_type] = [];
-    }
+    //능력치 객체 생성
+    const ability = {
+      ability_icon_image_url: item.ability_icon_image_url,
+      ability_icon_image_key: item.ability_icon_image_key,
+      add_value: item.add_value,
+    };
 
-    responseData[item.currency_type].push({
-      currency: item.currency,
-      currency_type: item.currency_type,
-      model_id: item.model_id,
-      model_name: item.model_name,
-      origin_name: item.origin_name,
-      icon_url: item.icon_url,
-      icon_key: item.icon_key,
-      currency_url: item.currency_url,
-      currency_key: item.currency_key,
-      total_cnt: item.total_cnt,
-      current_cnt: item.current_cnt,
-    });
+    if (!currencyArr.includes(item.currency)) {
+      //능력치 속성 추가
+      item.ability = [];
+      if (item.ability_id) {
+        item.ability.push(ability);
+      }
+
+      //개별 능력치 속성 삭제
+      delete item.ability_id;
+      delete item.ability_icon_image_url;
+      delete item.ability_icon_image_key;
+      delete item.add_value;
+
+      //배열에 추가
+      currencyArr.push(item.currency);
+      resultArray.push(item);
+    }else{
+
+      //같은 재화인 경우 능력치 추가
+      for (let i = 0; i < resultArray.length; ) {
+        if (resultArray[i].currency === item.currency) {
+          resultArray[i].ability.push(ability);
+        }
+        i += 1;
+      }
+    }
+  }
+
+  if (resultArray) {
+    // eslint-disable-next-line no-restricted-syntax
+    for (const item of resultArray) {
+    
+      if (
+        !Object.prototype.hasOwnProperty.call(responseData, item.currency_type)
+      ) {
+        responseData[item.currency_type] = [];
+      }
+
+      responseData[item.currency_type].push(item);
+    }
   }
 
   res.status(200).json(responseData);
