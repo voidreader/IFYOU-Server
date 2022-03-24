@@ -1550,10 +1550,10 @@ const getProjectCurrency = async (project_id, lang) => {
   return result.row;
 };
 
-// 현재 튜토리얼 정보 
+// 현재 튜토리얼 정보
 const getUserTutorialCurrent = async (userInfo) => {
-  
-  const result = await DB(`
+  const result = await DB(
+    `
   SELECT 
   ifnull(step, 0) tutorial_step 
   , ifnull(is_clear, 0) tutorial_clear
@@ -1561,7 +1561,9 @@ const getUserTutorialCurrent = async (userInfo) => {
   WHERE userkey = ? 
   ORDER BY step DESC 
   LIMIT 1; 
-  `, [userInfo.userkey]);
+  `,
+    [userInfo.userkey]
+  );
 
   return result.row;
 };
@@ -1852,6 +1854,9 @@ export const registerClientAccount = async (req, res) => {
       ]);
     }
 
+    // * 2022.03.24 더이상 추가 아이템 주지 않음!
+
+    /*
     await DB(UQ_ACCQUIRE_CURRENCY, [
       userResult.row[0].userkey,
       "profileBackground19",
@@ -1886,12 +1891,13 @@ export const registerClientAccount = async (req, res) => {
       1200,
       0,
     ]);
+    */
 
     // 그 외 재화는 메일 발송
-    await DB(UQ_SEND_MAIL_NEWBIE, [userResult.row[0].userkey, "ifyouFrame01"]);
-    await DB(UQ_SEND_MAIL_NEWBIE, [userResult.row[0].userkey, "ifyouFrame02"]);
-    await DB(UQ_SEND_MAIL_NEWBIE, [userResult.row[0].userkey, "ifyouFrame03"]);
-    await DB(UQ_SEND_MAIL_NEWBIE, [userResult.row[0].userkey, "ifyouFrame04"]);
+    // await DB(UQ_SEND_MAIL_NEWBIE, [userResult.row[0].userkey, "ifyouFrame01"]);
+    // await DB(UQ_SEND_MAIL_NEWBIE, [userResult.row[0].userkey, "ifyouFrame02"]);
+    // await DB(UQ_SEND_MAIL_NEWBIE, [userResult.row[0].userkey, "ifyouFrame03"]);
+    // await DB(UQ_SEND_MAIL_NEWBIE, [userResult.row[0].userkey, "ifyouFrame04"]);
   }
   //}
 
@@ -3374,78 +3380,91 @@ export const purchaseFreepass = async (req, res) => {
   logAction(userkey, "freepass", req.body);
 };
 
-
-//! 튜토리얼 리뉴얼 
+//! 튜토리얼 리뉴얼
 export const requestUserTutorialProgress = async (req, res) => {
-
   const {
-    body:{
-      userkey, 
-      step = 1, 
-    }
+    body: { userkey, step = 1 },
   } = req;
 
   let result;
   let isOpen = false;
-  let isReward = false; 
+  let isReward = false;
 
-  //단계 건너 뛰고 진행했는지 확인 
-  if(step > 1){
-
-
+  //단계 건너 뛰고 진행했는지 확인
+  if (step > 1) {
     //이전 진행단계 개수 확인
-    result = await DB(`SELECT is_clear FROM user_tutorial_ver2 WHERE userkey = ? AND step < ?;`, [userkey, step]);
-    if(!result.state || result.row.length !== (step-1)){
+    result = await DB(
+      `SELECT is_clear FROM user_tutorial_ver2 WHERE userkey = ? AND step < ?;`,
+      [userkey, step]
+    );
+    if (!result.state || result.row.length !== step - 1) {
       logger.error(`getTutorialRenewalProgress Error 1-1`);
       respondDB(res, 80019);
-      return;    
+      return;
     }
 
     //이전 단계 클리어 안했는지 확인
-    result = await DB(`SELECT * FROM user_tutorial_ver2 WHERE userkey = ? AND step < ? AND is_clear = 0;`, [userkey, step]);
-    if(!result.state || result.row.length > 0){
+    result = await DB(
+      `SELECT * FROM user_tutorial_ver2 WHERE userkey = ? AND step < ? AND is_clear = 0;`,
+      [userkey, step]
+    );
+    if (!result.state || result.row.length > 0) {
       logger.error(`getTutorialRenewalProgress Error 1-2`);
       respondDB(res, 80019);
-      return;    
+      return;
     }
   }
 
-  //단계가 있는지 확인 
-  result = await DB(`SELECT * FROM user_tutorial_ver2 WHERE userkey = ? AND step = ?;`, [userkey, step]);
-  if(result.state && result.row.length > 0) isOpen = true; 
+  //단계가 있는지 확인
+  result = await DB(
+    `SELECT * FROM user_tutorial_ver2 WHERE userkey = ? AND step = ?;`,
+    [userkey, step]
+  );
+  if (result.state && result.row.length > 0) isOpen = true;
 
-  if(!isOpen)// 해당 단계 오픈
-    result = await DB(`INSERT INTO user_tutorial_ver2(userkey, step) VALUES(?, ?);`, [userkey, step]);
-  else // 해당 단계 완료 
-    result= await DB(`UPDATE user_tutorial_ver2 SET is_clear = 1, clear_date = now() WHERE userkey = ? AND step = ?;`, [userkey, step]);
+  if (!isOpen)
+    // 해당 단계 오픈
+    result = await DB(
+      `INSERT INTO user_tutorial_ver2(userkey, step) VALUES(?, ?);`,
+      [userkey, step]
+    );
+  // 해당 단계 완료
+  else
+    result = await DB(
+      `UPDATE user_tutorial_ver2 SET is_clear = 1, clear_date = now() WHERE userkey = ? AND step = ?;`,
+      [userkey, step]
+    );
 
-  if(!result.state){
+  if (!result.state) {
     logger.error(`getTutorialRenewalProgress Error 2 ${result.error}`);
     respondDB(res, 80026, result.error);
-    return;     
+    return;
   }
-  
-  //튜토리얼 보상 처리(1, 3단계에서만 보상 획득) 
-  if( isOpen && (step === 1 || step === 3) ){
-    await addUserProperty(userkey, 'coin', 100, "tutorial_ver2");
-    isReward = true; 
+
+  //튜토리얼 보상 처리(1, 3단계에서만 보상 획득)
+  if (isOpen && (step === 1 || step === 3)) {
+    await addUserProperty(userkey, "coin", 100, "tutorial_ver2");
+    isReward = true;
   }
 
   const accountInfo = {};
 
   //유저의 현재 튜토리얼 단계 가져오기
-  result = await DB(`
+  result = await DB(
+    `
   SELECT step tutorial_step
   , ifnull(is_clear, 0) tutorial_clear
   FROM user_tutorial_ver2 
   WHERE userkey = ? 
   ORDER BY step DESC 
-  LIMIT 1;` , [userkey]);
-  accountInfo.tutorial_current = result.row; 
+  LIMIT 1;`,
+    [userkey]
+  );
+  accountInfo.tutorial_current = result.row;
 
   //보상받는 경우, 뱅크값 갱신
-  if(isReward){
-    accountInfo.bank = await getUserBankInfo(req.body); 
+  if (isReward) {
+    accountInfo.bank = await getUserBankInfo(req.body);
   }
 
   res.status(200).json(accountInfo);
