@@ -3383,7 +3383,7 @@ export const purchaseFreepass = async (req, res) => {
 //! 튜토리얼 리뉴얼
 export const requestUserTutorialProgress = async (req, res) => {
   const {
-    body: { userkey, step = 1 },
+    body: { userkey, step = 1,  is_clear = 0,  },
   } = req;
 
   let result;
@@ -3422,27 +3422,30 @@ export const requestUserTutorialProgress = async (req, res) => {
   );
   if (result.state && result.row.length > 0) isOpen = true;
 
-  if (!isOpen)
+
+  if(!isOpen){
     // 해당 단계 오픈
     result = await DB(
       `INSERT INTO user_tutorial_ver2(userkey, step) VALUES(?, ?);`,
       [userkey, step]
     );
-  // 해당 단계 완료
-  else
-    result = await DB(
-      `UPDATE user_tutorial_ver2 SET is_clear = 1, clear_date = now() WHERE userkey = ? AND step = ?;`,
-      [userkey, step]
-    );
+  }else{
+    // eslint-disable-next-line no-lonely-if
+    if(is_clear === 1){
+      result = await DB(
+        `UPDATE user_tutorial_ver2 SET is_clear = ?, clear_date = now() WHERE userkey = ? AND step = ?;`, [is_clear, userkey, step]
+      );
+    }
+  }
 
   if (!result.state) {
     logger.error(`getTutorialRenewalProgress Error 2 ${result.error}`);
     respondDB(res, 80026, result.error);
     return;
-  }
+  } 
 
   //튜토리얼 보상 처리(1, 3단계에서만 보상 획득)
-  if (isOpen && (step === 1 || step === 3)) {
+  if (isOpen && is_clear && (step === 1 || step === 3)) {
     await addUserProperty(userkey, "coin", 100, "tutorial_ver2");
     isReward = true;
   }
@@ -3451,7 +3454,7 @@ export const requestUserTutorialProgress = async (req, res) => {
 
   //유저의 현재 튜토리얼 단계 가져오기
   result = await DB(
-    `
+  `
   SELECT step tutorial_step
   , ifnull(is_clear, 0) tutorial_clear
   FROM user_tutorial_ver2 
