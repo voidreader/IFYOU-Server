@@ -1,6 +1,6 @@
+import mysql from "mysql2/promise";
 import { DB } from "../mysqldb";
 import { respondError, respondDB } from "../respondent";
-
 import { getUserBankInfo } from "./bankController";
 
 import { logger } from "../logger";
@@ -70,17 +70,18 @@ export const readUserSingleMail = async (req, res, next) => {
   } else {
     // 일반 메일 처리
 
-    // 재화 지급처리
+    // 재화 지급처리 (유료 재화 관련 처리)
     if (currentMail.quantity > 0) {
       const propertyInsert = await DB(
         `
-      CALL sp_insert_user_property(?, ?, ?, ?);
+      CALL sp_insert_user_property_paid(?, ?, ?, ?, ?);
       `,
         [
           userkey,
           currentMail.currency,
           currentMail.quantity,
           currentMail.mail_type,
+          currentMail.paid,
         ]
       );
 

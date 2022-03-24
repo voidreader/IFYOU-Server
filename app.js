@@ -6,15 +6,12 @@ import helmet from "helmet";
 import cookieParser from "cookie-parser";
 import bodyParser from "body-parser";
 import globalRouter from "./routers/globalRouter";
-import storyRouter from "./routers/storyRouter";
 import { logger } from "./logger";
 
 // import { localsMiddleware } from "./middlewares";
 import routes from "./routes";
 
 import adminRouter from "./routers/adminRouter";
-
-import { scheduleMail } from "./schedule";
 
 const app = express();
 
@@ -42,7 +39,6 @@ app.use(
 );
 
 app.use(routes.home, globalRouter);
-app.use(routes.story, storyRouter);
 app.use(routes.admin, adminRouter);
 
 logger.info(`Platform Node Starts`);
