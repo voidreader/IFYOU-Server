@@ -279,6 +279,45 @@ export const Q_CREATE_OR_REPLACE_IMAGE = `
 CALL sp_update_image_zip(?,?,?,?,?,?,?,?);
 `;
 
+export const Q_SCRIPT_SELECT_WITH_DIRECTION = `
+SELECT ls.script_no   
+     , ls.episode_id 
+     , ls.scene_id 
+     , ls.template 
+     , ls.speaker origin_speaker
+     , substring_index(ls.speaker, ':', 1) speaker 
+--      , substring_index(ls.speaker, ':', -1) direction
+     , CASE WHEN ls.speaker IS NOT NULL AND instr(ls.speaker, ':') > 0 THEN substring_index(ls.speaker, ':', -1) 
+            WHEN ls.speaker IS NULL OR ls.speaker = '' THEN ''
+       ELSE 'C' END direction
+     , ls.script_data 
+     , ls.target_scene_id
+     , ls.requisite 
+     , ls.character_expression 
+     , ls.emoticon_expression 
+     , ls.in_effect 
+     , ls.out_effect 
+     , ls.bubble_size
+     , ls.bubble_pos
+     , ls.bubble_hold
+     , ls.bubble_reverse
+     , ls.emoticon_size 
+     , ls.voice 
+     , ls.sound_effect
+     , ls.autoplay_row 
+     , ls.dev_comment
+     , ls.project_id
+     , ifnull(ls.control, '') control
+     , ls.selection_group
+     , ls.selection_no
+     , CASE WHEN ls.template IN ('illust', 'image') THEN fn_get_live_pair_id(ls.project_id, ls.template, ls.script_data) 
+            ELSE -1 END live_pair_id
+ FROM list_script ls
+WHERE ls.episode_id = ?
+  AND ls.lang = ?
+ORDER BY script_no;
+`;
+
 // 스크립트에서 사용하는 리소스들
 export const Q_SCRIPT_RESOURCE_BG = `
 SELECT DISTINCT lb.bg_id
