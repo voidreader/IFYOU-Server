@@ -64,6 +64,7 @@ import {
   getClientLocalizingList,
   getAppCommonResources,
   getServerMasterInfo,
+  getPlatformEvents,
 } from "./serverController";
 import { updateUserVoiceHistory } from "./soundController";
 import {
@@ -1650,6 +1651,7 @@ export const clientHome = (req, res) => {
   //현재 선택지
   else if (func === "requestUserTutorialProgress")
     requestUserTutorialProgress(req, res);
+  else if (func === "getPlatformEvents") getPlatformEvents(req, res);
   //단계별 튜토리얼 처리
   else {
     //  res.status(400).send(`Wrong Func : ${func}`);
