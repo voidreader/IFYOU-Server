@@ -79,3 +79,356 @@ export const getProjectEpisodeProgressCount = async (req, res) => {
   // 예의상 response
   res.status(200).json(responseData);
 };
+
+//? 스케줄러용 통계 데이터 
+
+//! 이프유 
+export const getStatIfyouList = async (search_date) =>{
+
+  let dau = 0; 
+  let nru = 0; 
+  let pu = 0; 
+
+  // 일 사용자
+  let result = await DB(`
+  SELECT *
+  FROM gamelog.log_action la 
+  WHERE action_type = 'login'
+  AND action_date BETWEEN '${search_date} 00:00:00' AND '${search_date} 23:59:59';`);
+  if(result.state) dau = result.row.length; 
+
+  //신규 가입자
+  result = await DB(`
+  SELECT *
+  FROM table_account ta 
+  WHERE createtime BETWEEN '${search_date} 00:00:00' AND '${search_date} 23:59:59';`);
+  if(result.state) nru = result.row.length;
+
+  //유료 결제자
+  result = await DB(`
+  SELECT *
+  FROM user_purchase up
+  WHERE purchase_date BETWEEN '${search_date} 00:00:00' AND '${search_date} 23:59:59';`);
+  if(result.state) pu = result.row.length;
+
+  result = await DB(`
+  INSERT INTO stat_ifyou(dau, nru, pu, search_date) VALUES(?, ?, ?, ?);
+  `, [dau, nru, pu, search_date]);
+
+  if(!result.state){
+    logger.error(`getStatIfyouList error`);
+  }
+
+};
+
+//! 튜토리얼
+export const getStatTutorialList = async (search_date) =>{
+
+  let result; 
+
+  let tutorial_cancel = 0;
+  let tutorial_excute = 0; 
+  let tutorial_done = 0; 
+  let tutorial_reward = 0; 
+
+  // 튜토리얼 거절
+  result = await DB(`
+  SELECT *
+  FROM gamelog.log_action
+  WHERE action_type = 'tutorial_cancel'
+  AND action_date BETWEEN '${search_date} 00:00:00' AND '${search_date} 23:59:59';`);
+  if(result.state) tutorial_cancel = result.row.length;
+  
+  // 튜토리얼 실행 
+  result = await DB(`
+  SELECT *
+  FROM gamelog.log_action
+  WHERE action_type = 'update_tutorial'
+  AND action_date BETWEEN '${search_date} 00:00:00' AND '${search_date} 23:59:59'
+  AND JSON_EXTRACT(log_data, '$.tutorial_step') <> '3';`);
+  if(result.state) tutorial_excute = result.row.length;
+  
+  
+  // 튜토리얼 완료 
+  result = await DB(`
+  SELECT *
+  FROM gamelog.log_action
+  WHERE action_type = 'tutorial_done'
+  AND action_date BETWEEN '${search_date} 00:00:00' AND '${search_date} 23:59:59';`);
+  if(result.state) tutorial_done = result.row.length;
+  
+
+  // 튜토리얼 보상 획득 
+  result = await DB(`
+  SELECT *
+  FROM user_mail 
+  WHERE mail_type = 'tutorial' 
+  AND receive_date BETWEEN '${search_date} 00:00:00' AND '${search_date} 23:59:59';`);
+  if(result.state) tutorial_reward = result.row.length;
+  
+  
+  result = await DB(`
+  INSERT INTO stat_tutorial(cancel_count, excute_count, done_count, reward_count, search_date) 
+  VALUES(?, ?, ?, ?, ?);
+  `, [tutorial_cancel, tutorial_excute, tutorial_done, tutorial_reward, search_date]);
+
+  if(!result.state){
+    logger.error(`getStatTutorialList error`);
+  }
+
+};
+
+//! 작품별 
+export const getStatProjectList = async (search_date) =>{
+
+  let result;
+  const start_date = `${search_date} 00:00:00`; //시작일
+  const end_date = `${search_date} 23:59:59`;  //끝일
+  
+  let currentQuery = ``;
+  let insertQuery = ``; 
+
+  result = await DB(`  
+  SELECT project_id 
+  , fn_get_project_cnt(project_id, ?, ?, 'project_enter') project_enter
+  , fn_get_project_cnt(project_id, ?, ?, 'project_like') project_like
+  , fn_get_project_cnt(project_id, ?, ?, 'ad_view') ad_view
+  FROM list_project_master WHERE project_id > 0 AND is_deploy = 1;`, [
+    start_date, end_date, start_date, end_date, start_date, end_date
+  ]);
+  if(result.state && result.row.length > 0) {
+    // eslint-disable-next-line no-restricted-syntax
+    for(const item of result.row){
+        
+      currentQuery = `
+      INSERT INTO stat_project(project_id, project_enter_count, project_like_count, ad_view_count, search_date) 
+      VALUES(?, ?, ?, ?, ?);
+      `;
+      insertQuery += mysql.format(currentQuery, [item.project_id, item.project_enter, item.project_like, item.ad_view, search_date]);  
+    }
+
+    if(insertQuery){
+      result = await transactionDB(insertQuery);
+      if(!result.state){
+        logger.error(`getStatProjectList error`);
+      }
+    }
+
+  }
+
+};
+
+//! 에피소드별 플레이
+export const getStatEpisodePlayList = async (search_date) =>{
+
+  let result; 
+  const start_date = `${search_date} 00:00:00`; //시작일
+  const end_date = `${search_date} 23:59:59`;   //끝일
+
+  let insertQuery = ``; 
+  const currentQuery = `
+  INSERT INTO stat_episode_play(project_id, episode_id, free_count, star_count, premium_count, search_date) 
+  VALUES(?, ?, ?, ?, ?, ?);`;
+
+  result = await DB(`
+  SELECT
+  project_id
+  , episode_id 
+  , fn_get_episode_cnt(episode_id, ?, ?, 'free_count') free_count
+  , fn_get_episode_cnt(episode_id, ?, ?, 'star_count') star_count
+  , fn_get_episode_cnt(episode_id, ?, ?, 'premium_count') premium_count
+  FROM user_episode_purchase
+  WHERE purchase_date BETWEEN ? AND ?
+  GROUP BY project_id, episode_id 
+  ORDER BY project_id, episode_id
+  ;`, [start_date, end_date, start_date, end_date, start_date, end_date, start_date, end_date]); 
+  if(result.state && result.row.length > 0){
+    // eslint-disable-next-line no-restricted-syntax
+    for(const item of result.row){
+      insertQuery += mysql.format(currentQuery, [
+        item.project_id
+        , item.episode_id
+        , item.free_count
+        , item.star_count
+        , item.premium_count
+        , search_date
+      ]);
+    }
+  }
+
+  if(insertQuery){
+    result = await transactionDB(insertQuery); 
+    if(!result.state){
+      logger.error(`getStatEpisodeList error`);
+    }
+  }
+
+};
+
+//! 에피소드별 활동 타입
+export const getStatEpisodeActionList = async (search_date) =>{
+
+  let result; 
+  const start_date = `${search_date} 00:00:00`; //시작일
+  const end_date = `${search_date} 23:59:59`;   //끝일
+  const base_date = '2022-02-02 00:00:00';      //어플 개시일
+
+  const currentQuery = `
+  INSERT INTO stat_episode_action(project_id, episode_id, clear_count, reset_count, clear_total, premium_change_point_count, search_date) 
+  VALUES(?, ?, ?, ?, ?, ?, ?);`;
+  let insertQuery = ``; 
+
+  result = await DB(`
+  SELECT CAST(JSON_EXTRACT(log_data, '$.project_id') AS UNSIGNED) project_id
+  , CAST(JSON_EXTRACT(log_data, '$.episodeID') AS UNSIGNED) episode_id
+  , fn_get_episode_cnt(CAST(JSON_EXTRACT(log_data, '$.episodeID') AS UNSIGNED), ?, ?, 'episode_clear') clear_count
+  , fn_get_episode_cnt(CAST(JSON_EXTRACT(log_data, '$.episodeID') AS UNSIGNED), ?, ?, 'reset_progress') reset_count
+  , fn_get_episode_cnt(CAST(JSON_EXTRACT(log_data, '$.episodeID') AS UNSIGNED), ?, ?, 'episode_clear') clear_total
+  , fn_get_episode_cnt(CAST(JSON_EXTRACT(log_data, '$.episode_id') AS UNSIGNED), ?, ?, 'freepass') premium_change_point_count
+  FROM gamelog.log_action
+  WHERE action_type IN ('episode_clear', 'reset_progress', 'freepass')
+  AND action_date BETWEEN ? AND ?
+  GROUP BY project_id, episode_id
+  ORDER BY project_id, episode_id;`, [
+    start_date, end_date
+    , start_date, end_date 
+    , base_date , end_date 
+    , start_date, end_date
+    , start_date, end_date 
+  ]);
+  if(result.state && result.row.length > 0){    
+    // eslint-disable-next-line no-restricted-syntax
+    for(const item of result.row){
+      insertQuery += mysql.format(currentQuery, [item.project_id, item.episode_id, item.clear_count, item.reset_count, item.clear_total, item.premium_change_point_count, search_date]);
+    }
+  }
+
+  if(insertQuery){
+    result = await transactionDB(insertQuery); 
+    if(!result.state){
+      logger.error(`getStatEpisodeActionList error`);
+    }
+  }
+};
+
+//! 재화 사용 
+export const getStatPropertyList = async (search_date) =>{
+  
+  let result; 
+  let currentQuery = ``; 
+  let insertQuery = ``;
+
+  result = await DB(`
+  SELECT 
+  fn_get_userkey_info(userkey) uid 
+  , project_id
+  , currency
+  , quantity
+  , log_type 
+  , fn_get_standard_name('property_path_code', log_code) property_path
+  , paid
+  FROM gamelog.log_property
+  WHERE action_date BETWEEN '${search_date} 00:00:00' AND '${search_date} 23:59:59'
+  ORDER BY userkey;`);
+  if(result.state && result.row.length > 0){
+    currentQuery = `
+    INSERT INTO stat_property(uid, project_id, currency, quantity, property_type, property_path, paid, search_date) 
+    VALUES(?, ?, ?, ?, ?, ?, ?, ?);
+    `; 
+    // eslint-disable-next-line no-restricted-syntax
+    for(const item of result.row){
+      insertQuery += mysql.format(currentQuery, [item.uid, item.project_id, item.currency, item.quantity, item.log_type, item.property_path, item.paid, search_date]);
+    }
+
+    if(insertQuery){
+      result = await transactionDB(insertQuery);
+      if(!result.state){
+        logger.error(`getStatPropertyList error`);
+      }
+    }
+
+  }
+};
+
+//! 패키지/스타샵
+export const getStatInappList = async (search_date) => {
+
+
+  let result; 
+  let currentQuery = ``; 
+  let insertQuery = ``;
+
+  result = await DB(`
+  SELECT 
+  fn_get_userkey_info(userkey) uid 
+  , product_id 
+  FROM user_purchase a
+  WHERE purchase_date BETWEEN '${search_date} 00:00:00' AND '${search_date} 23:59:59';`);
+  if(result.state && result.row.length > 0){
+    currentQuery = `INSERT INTO stat_inapp(uid, product_id, search_date) VALUES(?, ?, ?);`;
+    
+    // eslint-disable-next-line no-restricted-syntax
+    for(const item of result.row){
+      insertQuery += mysql.format(currentQuery, [item.uid, item.product_id, search_date]);
+    }
+
+    if(insertQuery){
+      result = await transactionDB(insertQuery); 
+      if(!result.state){
+        logger.error(`getStatInappList error`);
+      }
+    }
+  }
+}; 
+
+//! 코인샵 
+export const getStatCoinList = async(search_date) => {
+  
+  let result; 
+  let currentQuery = ``; 
+  let insertQuery = ``;
+
+  result = await DB(`
+  SELECT 
+  fn_get_userkey_info(userkey) uid 
+  , coin_product_id
+  FROM user_coin_purchase 
+  WHERE coin_purchase_date BETWEEN '${search_date} 00:00:00' AND '${search_date} 23:59:59';`);
+  if(result.state && result.row.length > 0){
+    currentQuery = `INSERT INTO stat_coin(uid, coin_product_id, search_date) VALUES(?, ?, ?);`;
+    
+    // eslint-disable-next-line no-restricted-syntax
+    for(const item of result.row){
+      insertQuery += mysql.format(currentQuery, [item.uid, item.coin_product_id, search_date]);
+    }
+
+    if(insertQuery){  
+      result = await transactionDB(insertQuery);
+      if(!result.state){
+        logger.error(`getStatCoinList error`);
+      }
+    }
+  }
+};
+
+export const setStatList = async (req, res) => {
+
+  const {
+    body: {
+      mode = "", 
+      search_date = "",
+    }
+  } = req;
+
+  if(mode === "getStatIfyouList")  await getStatIfyouList(search_date);
+  else if (mode === "getStatTutorialList") await getStatTutorialList(search_date);
+  else if (mode === "getStatProjectList") await getStatProjectList(search_date);
+  else if (mode === "getStatEpisodePlayList") await getStatEpisodePlayList(search_date);
+  else if (mode === "getStatEpisodeActionList") await getStatEpisodeActionList(search_date);
+  else if (mode === "getStatPropertyList") await getStatPropertyList(search_date);
+  else if (mode === "getStatInappList") await getStatInappList(search_date);
+  else if (mode === "getStatCoinList") await getStatCoinList(search_date);
+  
+  res.status(200).json("done");
+
+};

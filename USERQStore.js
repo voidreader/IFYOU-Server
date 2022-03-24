@@ -493,6 +493,7 @@ SELECT a.episode_id
 , fn_get_count_scene_in_history(?, a.episode_id, ?, 'total') total_scene_count
 , fn_get_count_scene_in_history(?, a.episode_id, ?, 'played') played_scene_count     
 , fn_check_special_episode_open(?, a.episode_id) is_open
+, a.next_open_min
 FROM list_episode a
 WHERE a.project_id = ?
 AND a.episode_type = 'side'
@@ -667,3 +668,47 @@ VALUES( ?, ?, ?, ?, ?, ?, ?, ? );
 
 export const UQ_SEND_MAIL_NEWBIE = `INSERT INTO user_mail( userkey, mail_type, currency, quantity, expire_date, connected_project ) 
 VALUES(?, 'newbie', ?, 1, DATE_ADD(NOW(), INTERVAL 1 YEAR), -1);`;
+
+// 작품별 꾸미기 저장 쿼리
+export const UQ_SAVE_STORY_PROFILE = `
+INSERT INTO user_story_profile ( userkey, project_id, currency, sorting_order, pos_x, pos_y, width, height, angle ) 
+VALUES( ?, ?, ?, ?, ?, ?, ?, ?, ? );
+`;
+
+// 작품별 꾸미기 조회 쿼리
+export const UQ_GET_USER_STORY_PROFILE = `
+SELECT a.currency
+, CASE WHEN currency_type = 'wallpaper' THEN fn_get_bg_info(resource_image_id, 'url')
+       ELSE fn_get_design_info(resource_image_id, 'url') END currency_url
+, CASE WHEN currency_type = 'wallpaper' THEN fn_get_bg_info(resource_image_id, 'key')
+       ELSE fn_get_design_info(resource_image_id, 'key') END currency_key
+, sorting_order
+, pos_x
+, pos_y 
+, width
+, height
+, angle 
+, currency_type
+, b.model_id
+, fn_get_currency_model_name(b.currency_type, a.project_id, b.model_id) model_name
+, fn_get_currency_origin_name(b.currency_type, a.project_id, b.resource_image_id) origin_name
+FROM user_story_profile a
+, com_currency b 
+WHERE a.userkey = ?
+  AND a.project_id = ?
+  AND a.currency = b.currency
+ORDER BY sorting_order;  
+`;
+
+
+//엔딩 힌트 리스트
+export const Q_SELECT_ENDING_HINT = `
+SELECT ending_id 
+, a.unlock_scenes
+, a.currency
+, a.price
+FROM com_ending_hint a, list_episode b 
+WHERE a.ending_id = b.episode_id
+AND a.project_id = ?
+ORDER BY sortkey, episode_id;
+`;

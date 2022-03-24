@@ -3,6 +3,16 @@ import schedule from "node-schedule";
 import dotenv from "dotenv";
 import { DB, transactionDB } from "./mysqldb";
 import { logger } from "./logger";
+import {
+  getStatIfyouList,
+  getStatTutorialList,
+  getStatProjectList,
+  getStatEpisodePlayList,
+  getStatEpisodeActionList,
+  getStatPropertyList,
+  getStatInappList,
+  getStatCoinList,
+} from "./controllers/statController";
 
 dotenv.config();
 
@@ -156,3 +166,33 @@ resetChargeRule.minute = 0;
 export const scheduleAdCharge = schedule.scheduleJob(resetChargeRule, () => {
   resetAdChargeDaily();
 });
+
+//! 통계 데이터(새벽 0시마다 호출)
+export const scheduleStatInsert = schedule.scheduleJob(
+  "0 0 0 * * *",
+  async () => {
+    const isMail = process.env.MAIL_SCHEDULE;
+
+    const now = new Date();
+    const yesterday = new Date(now.setDate(now.getDate() - 1));
+    const year = yesterday.getFullYear();
+    const month = String(yesterday.getMonth() + 1).padStart(2, "0");
+    const day = String(yesterday.getDate()).padStart(2, "0");
+    const setDay = `${year}-${month}-${day}`; //어제 날짜 셋팅
+
+    logger.info(`scheduleStatInsert [${setDay} : ${isMail}]`);
+
+    if (isMail < 1) return;
+
+    await getStatIfyouList(setDay);
+    await getStatTutorialList(setDay);
+    await getStatProjectList(setDay);
+    await getStatEpisodePlayList(setDay);
+    await getStatEpisodeActionList(setDay);
+    await getStatPropertyList(setDay);
+    await getStatInappList(setDay);
+    await getStatCoinList(setDay);
+
+    logger.info(`scheduleStatInsert End`);
+  }
+);

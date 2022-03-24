@@ -2,7 +2,7 @@
 import mysql from "mysql2/promise";
 import { restart } from "nodemon";
 import { response } from "express";
-import { ImportExport } from "aws-sdk";
+import dotenv from "dotenv";
 import { DB, logAction, transactionDB, logDB } from "../mysqldb";
 import {
   Q_MODEL_RESOURCE_INFO,
@@ -46,13 +46,15 @@ import {
   requestFreeCharge,
   requestExchangeOneTimeTicketWithCoin,
   getProfileCurrencyOwnList,
-  getProfileCurrencyCurrent,
   updateUserMinicutHistoryVer2,
   insertUserProperty,
   requestTutorialReward,
   updateTutorialSelection,
   requestEpisodeFirstClearReward,
   updateTutorialHowToPlay,
+  resetPlayingEpisode,
+  resetUserEpisodeProgressType2,
+  requestUserTutorialProgress,
 } from "./accountController";
 import { logger } from "../logger";
 import {
@@ -74,11 +76,14 @@ import { respondDB } from "../respondent";
 import {
   updateSelectionProgress,
   updateUserProjectCurrent,
-  updateUserSelectionCurrent,
+  getSelectionCurrent,
   getTop3SelectionList,
   getEndingSelectionList,
   checkUserIdValidation,
   updateUserNickname,
+  requestWaitingEpisodeWithCoin,
+  requestWaitingEpisodeWithAD,
+  requestRemoveCurrentAD,
 } from "../com/userProject";
 import {
   getAllProductList,
@@ -90,8 +95,14 @@ import { getUserPropertyHistory, reportRequestError } from "./logController";
 import { useCoupon } from "./couponController";
 import { getUserBankInfo, getUserBankInfoWithResponse } from "./bankController";
 
-import { getProjectEpisodeProgressCount } from "./statController";
-import { userProfileSave, userProfileSaveVer2 } from "./profileController";
+import { getProjectEpisodeProgressCount, setStatList } from "./statController";
+import {
+  getUserStoryProfileCurrencyList,
+  saveUserStoryProfile,
+  userProfileSave,
+  userProfileSaveVer2,
+  getProfileCurrencyCurrent,
+} from "./profileController";
 import {
   userCoinPurchase,
   getCoinProductMainList,
@@ -101,6 +112,7 @@ import {
   getCoinProductTypeList,
   coinProductDetail,
   getCoinProductPurchaseList,
+  getTopContent,
 } from "./coinController";
 
 import { getLevelList, updateUserLevelProcess } from "./levelController";
@@ -111,6 +123,13 @@ import {
 } from "./exchangeController";
 import { attendanceList, sendAttendanceReward } from "./attendanceController";
 import { updateSnippetPlayCount } from "./snippetController";
+import { firstResetAbility, addUserAbility } from "./abilityController";
+import {
+  updateUserSelectionCurrent,
+  purchaseSelection,
+} from "./selectionController";
+
+dotenv.config();
 
 // * 클라이언트에서 호출하는 프로젝트 크레딧 리스트
 const getProjectCreditList = async (req, res) => {
@@ -399,6 +418,8 @@ const getEpisodeScriptWithResources = async (req, res) => {
     userInfo.episode_id,
     lang,
   ]);
+
+  console.log("script count : ", sc.row.length);
 
   if (purchaseType !== "AD") {
     console.log("Change to pay");
@@ -698,6 +719,19 @@ const getIfYouProjectList = async (req, res) => {
     },
   } = req;
 
+  const isBETA = process.env.BETA;
+  console.log(`isBETA : [${isBETA}]`);
+
+  const postfixQuery = `AND a.is_deploy = 1`;
+
+  let onlyDeploy = false;
+  // 숫자를 입력해도 스트링으로 받는다.
+  if (isBETA === "1") {
+    onlyDeploy = true;
+  }
+
+  console.log("onlyDeploy : ", onlyDeploy);
+
   const query = `
   SELECT a.project_id 
   , ifnull(b.title, a.title) title
@@ -714,6 +748,12 @@ const getIfYouProjectList = async (req, res) => {
   , fn_get_design_info(b.ifyou_thumbnail_id, 'key') ifyou_thumbnail_key
   , fn_get_design_info(b.circle_image_id, 'url') circle_image_url
   , fn_get_design_info(b.circle_image_id, 'key') circle_image_key
+  , fn_get_design_info(b.episode_finish_id, 'url') episode_finish_url
+  , fn_get_design_info(b.episode_finish_id, 'key') episode_finish_key
+  , fn_get_design_info(b.premium_pass_id, 'url') premium_pass_url
+  , fn_get_design_info(b.premium_pass_id, 'key') premium_pass_key
+  , fn_get_design_info(b.category_thumbnail_id, 'url') category_thumbnail_url
+  , fn_get_design_info(b.category_thumbnail_id, 'key') category_thumbnail_key
   , a.banner_model_id -- 메인배너 Live2D 모델ID
   , a.is_lock
   , a.color_rgb
@@ -725,7 +765,9 @@ const getIfYouProjectList = async (req, res) => {
   WHERE a.is_public > 0
   AND a.service_package LIKE CONCAT('%', ?, '%')
   AND (a.service_country IS NULL OR a.service_country = ?)
+  ${onlyDeploy ? postfixQuery : ""}
   `;
+  // * 위에 베타서버용 추가 쿼리 관련 로직 추가되었음 2022.03.22
 
   const result = await DB(`${query} ORDER BY a.sortkey;`, [build, country]);
   if (!result.state) {
@@ -733,6 +775,8 @@ const getIfYouProjectList = async (req, res) => {
     respondDB(res, 80026, result.error);
     return;
   }
+
+  console.log(`result of projects count : `, result.row.length);
 
   // * 장르 추가
   for await (const item of result.row) {
@@ -1346,6 +1390,57 @@ export const getCommingList = async (req, res) => {
   res.status(200).json(result.row);
 };
 
+const normalizeResource = async (req, res) => {
+  /*
+  const result = await DB(`
+  SELECT les.emoticon_slave_id id, les.image_name  FROM list_emoticon_master lem, list_emoticon_slave les  
+WHERE lem.project_id = 94
+  AND lem.emoticon_master_id = les.emoticon_master_id ;
+  `);
+
+  // const query = ``;
+
+  result.row.forEach((item) => {
+    DB(
+      `
+    UPDATE list_emoticon_slave
+       set image_name = ?
+    WHERE emoticon_slave_id = ?
+      AND project_id = 94;
+    `,
+      [item.image_name.normalize("NFC"), item.id]
+    );
+
+    // item.image_name = item.image_name.normalize("NFC");
+  });
+  */
+
+  const result = await DB(`
+  SELECT a.script_no, script_data, sound_effect, emoticon_expression 
+  FROM list_script a
+ WHERE a.project_id = 94;
+  `);
+
+  result.row.forEach((item) => {
+    DB(
+      `UPDATE list_script
+           SET script_data = ?
+             , sound_effect = ?
+             , emoticon_expression = ?
+        WHERE script_no = ?
+    `,
+      [
+        item.script_data.normalize("NFC"),
+        item.sound_effect.normalize("NFC"),
+        item.emoticon_expression.normalize("NFC"),
+        item.script_no,
+      ]
+    );
+  });
+
+  res.status(200).json(result);
+};
+
 // clientHome에서 func에 따라 분배
 // controller에서 또다시 controller로 보내는것이 옳을까..? ㅠㅠ
 export const clientHome = (req, res) => {
@@ -1389,6 +1484,8 @@ export const clientHome = (req, res) => {
     changeAccountByGamebase(req, res);
   else if (func === "resetUserEpisodeProgress")
     resetUserEpisodeProgress(req, res);
+  else if (func === "resetUserEpisodeProgressType2")
+    resetUserEpisodeProgressType2(req, res);
   else if (func === "accquireUserConsumableCurrency")
     // 재화 획득
     accquireUserConsumableCurrency(req, res);
@@ -1530,7 +1627,30 @@ export const clientHome = (req, res) => {
     updateTutorialHowToPlay(req, res);
   //출석 보상
   else if (func === "userProfileSaveVer2") userProfileSaveVer2(req, res);
-  //프로필 저장Ver2
+  // 통합 프로필 저장Ver2
+  else if (func === "saveUserStoryProfile") saveUserStoryProfile(req, res);
+  else if (func === "getUserStoryProfileCurrencyList")
+    getUserStoryProfileCurrencyList(req, res);
+  // * 작품별 프로필 저장
+  else if (func === "setStatList") setStatList(req, res);
+  //통계
+  else if (func === "firstResetAbility") firstResetAbility(req, res);
+  //처음부터 능력치 리셋
+  else if (func === "addUserAbility") addUserAbility(req, res);
+  else if (func === "requestWaitingEpisodeWithCoin")
+    requestWaitingEpisodeWithCoin(req, res);
+  else if (func === "requestWaitingEpisodeWithAD")
+    requestWaitingEpisodeWithAD(req, res);
+  //능력치 추가
+  else if (func === "purchaseSelection") purchaseSelection(req, res);
+  else if (func === "requestRemoveCurrentAD") requestRemoveCurrentAD(req, res);
+  else if (func === "resetPlayingEpisode") resetPlayingEpisode(req, res);
+  //과금 선택지 구매
+  else if (func === "getSelectionCurrent") getSelectionCurrent(req, res);
+  //현재 선택지
+  else if (func === "requestUserTutorialProgress")
+    requestUserTutorialProgress(req, res);
+  //단계별 튜토리얼 처리
   else {
     //  res.status(400).send(`Wrong Func : ${func}`);
     logger.error(`clientHome Error`);
