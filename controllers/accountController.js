@@ -1551,6 +1551,22 @@ const getProjectCurrency = async (project_id, lang) => {
   return result.row;
 };
 
+// 현재 튜토리얼 정보 
+const getUserTutorialCurrent = async (userInfo) => {
+  
+  const result = await DB(`
+  SELECT 
+  ifnull(step, 0) tutorial_step 
+  , ifnull(is_clear, 0) tutorial_clear
+  FROM user_tutorial_ver2 
+  WHERE userkey = ? 
+  ORDER BY step DESC 
+  LIMIT 1; 
+  `, [userInfo.userkey]);
+
+  return result.row;
+};
+
 // * 유저 소모성 재화의 사용 처리
 export const consumeUserCurrency = async (req, res) => {
   const {
@@ -1914,6 +1930,7 @@ export const loginClient = async (req, res) => {
     accountInfo.account = result.row[0];
     const userInfo = { userkey: accountInfo.account.userkey };
     accountInfo.bank = await getUserBankInfo(userInfo);
+    accountInfo.tutorial = await getUserTutorialCurrent(userInfo);
     accountInfo.unreadMailCount = accountInfo.account.unreadMailCount;
 
     // 테이블에 uid 컬럼이 비어있으면, uid 업데이트 이후에 nickname 변경
@@ -3415,7 +3432,7 @@ export const requestUserTutorialProgress = async (req, res) => {
     isReward = true; 
   }
 
-  const responseData = {};
+  const accountInfo = {};
 
   //유저의 현재 튜토리얼 단계 가져오기
   result = await DB(`
@@ -3425,14 +3442,14 @@ export const requestUserTutorialProgress = async (req, res) => {
   WHERE userkey = ? 
   ORDER BY step DESC 
   LIMIT 1;` , [userkey]);
-  responseData.tutorial_current = result.row; 
+  accountInfo.tutorial_current = result.row; 
 
   //보상받는 경우, 뱅크값 갱신
   if(isReward){
-    responseData.bank = await getUserBankInfo(req.body); 
+    accountInfo.bank = await getUserBankInfo(req.body); 
   }
 
-  res.status(200).json(responseData);
+  res.status(200).json(accountInfo);
 
   logAction(userkey, "tutorial_ver2", req.body);
 };
