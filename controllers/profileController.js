@@ -26,8 +26,12 @@ export const getUserStoryProfileCurrencyList = async (req, res) => {
   const result = await DB(
   `
   SELECT DISTINCT a.currency
-       , fn_get_design_info(b.icon_image_id, 'url') icon_url
-       , fn_get_design_info(b.icon_image_id, 'key') icon_key
+       , CASE WHEN currency_type = 'wallpaper' THEN fn_get_bg_info(b.icon_image_id, 'url') 
+              ELSE fn_get_design_info(b.icon_image_id, 'url') 
+              END icon_url
+       , CASE WHEN currency_type = 'wallpaper' THEN fn_get_bg_info(b.icon_image_id, 'key') 
+              ELSE fn_get_design_info(b.icon_image_id, 'key') 
+              END icon_key
        , CASE WHEN currency_type = 'wallpaper' THEN fn_get_bg_info(resource_image_id, 'url') 
               ELSE fn_get_design_info(b.resource_image_id, 'url') 
               END currency_url
