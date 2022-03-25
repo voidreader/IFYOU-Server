@@ -55,6 +55,7 @@ import {
   resetPlayingEpisode,
   resetUserEpisodeProgressType2,
   requestUserTutorialProgress,
+  requestGalleryShareBonus,
 } from "./accountController";
 import { logger } from "../logger";
 import {
@@ -1652,10 +1653,12 @@ export const clientHome = (req, res) => {
   else if (func === "requestUserTutorialProgress")
     requestUserTutorialProgress(req, res);
   else if (func === "getPlatformEvents") getPlatformEvents(req, res);
+  else if (func === "requestGalleryShareBonus")
+    requestGalleryShareBonus(req, res);
   //단계별 튜토리얼 처리
   else {
     //  res.status(400).send(`Wrong Func : ${func}`);
-    logger.error(`clientHome Error`);
+    logger.error(`clientHome Error ${func}`);
     respondDB(res, 80033, func);
   }
 };
