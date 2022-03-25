@@ -20,8 +20,16 @@ END pay_price
 , fn_get_localize_text(ifnull(fn_get_standard_text_id('currency_type', fn_get_currency_info(a.currency, 'type')), 5123), ?) currency_type_name
 , CASE WHEN a.currency <> '' THEN fn_get_user_property(?, a.currency) ELSE 0 END quantity
 , CASE WHEN a.currency <> '' THEN b.is_unique ELSE 0 END is_unique
-, fn_get_design_info(a.thumbnail_id, 'url') thumbnail_url
-, fn_get_design_info(a.thumbnail_id, 'key') thumbnail_key
+, CASE WHEN b.currency_type = 'wallpaper' THEN 
+  fn_get_bg_info(b.resource_image_id, 'url')
+ELSE 
+  fn_get_design_info(a.thumbnail_id, 'url') 
+END thumbnail_url
+, CASE WHEN b.currency_type = 'wallpaper' THEN 
+  fn_get_bg_info(b.resource_image_id, 'key')
+ELSE 
+  fn_get_design_info(a.thumbnail_id, 'key') 
+END thumbnail_key
 , CASE WHEN b.currency_type = 'wallpaper' THEN
   fn_get_bg_info(b.resource_image_id, 'url')
 ELSE
