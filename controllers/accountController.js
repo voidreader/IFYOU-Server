@@ -892,22 +892,107 @@ const getUserIllustHistory = async (userInfo) => {
 // * 갤러리에 들어가는 공개된, 미니컷, 일러스트, 라이브 오브제, 라이브 일러스트 리스트 조회
 const getUserGalleryHistory = async (userInfo) => {
   // 공개된 이미지들.
-  const publicImages = await DB(Q_SELECT_USER_GALLERY_IMAGES, [
-    userInfo.userkey,
-    userInfo.userkey,
-    userInfo.lang,
-    userInfo.lang,
-    userInfo.project_id,
-    userInfo.lang,
-    userInfo.lang,
-    userInfo.project_id,
-    userInfo.lang,
-    userInfo.lang,
-    userInfo.project_id,
-    userInfo.lang,
-    userInfo.lang,
-    userInfo.project_id,
-  ]);
+  const publicImages = await DB(
+    `
+  
+    SELECT z.illust_type
+    , z.illust_id
+    , z.illust_name
+    , z.thumbnail_url
+    , z.thumbnail_key
+    , ifnull(z.public_name, z.illust_name) public_name
+    , ifnull(z.summary, '입력되지 않았음') summary
+    , CASE WHEN z.is_minicut = 0 THEN fn_check_user_illust_exists(${userInfo.userkey}, z.origin_type, z.illust_id)
+          ELSE fn_check_user_minicut_exists_new(${userInfo.userkey}, z.origin_type, z.illust_id) END illust_open
+    , CASE WHEN z.is_minicut = 0 THEN fn_check_gallery_share_bonus(${userInfo.userkey}, 'illust', z.origin_type, z.illust_id)
+          ELSE fn_check_gallery_share_bonus(${userInfo.userkey}, 'minicut', z.origin_type, z.illust_id) END share_bonus          
+    , z.is_public
+    , z.image_url
+    , z.image_key
+    , z.appear_episode
+    , fn_get_episode_type(z.appear_episode) appear_episode_type
+    , z.live_pair_id
+  FROM (
+      SELECT 'illust' illust_type
+        , li.illust_id illust_id
+        , li.image_name  illust_name
+        , fn_get_design_info(li.thumbnail_id, 'url') thumbnail_url
+        , fn_get_design_info(li.thumbnail_id, 'key') thumbnail_key
+        , fn_get_illust_localized_text(li.illust_id, 'illust', '${userInfo.lang}', 'name') public_name
+        , fn_get_illust_localized_text(li.illust_id, 'illust', '${userInfo.lang}', 'summary') summary
+        , 0 is_minicut
+        , li.is_public
+        , li.image_url
+        , li.image_key
+        , li.appear_episode
+        , li.live_pair_id
+        , 'illust' origin_type
+      FROM list_illust li
+      WHERE li.project_id = ${userInfo.project_id}
+      AND li.is_public > 0
+      AND li.appear_episode > 0
+      UNION ALL
+      SELECT 'live_illust' illust_type
+      , lli.live_illust_id  illust_id
+      , lli.live_illust_name  illust_name
+      , fn_get_design_info(lli.thumbnail_id, 'url') thumbnail_url
+      , fn_get_design_info(lli.thumbnail_id, 'key') thumbnail_key
+      , fn_get_illust_localized_text(lli.live_illust_id , 'live2d', '${userInfo.lang}', 'name') public_name
+      , fn_get_illust_localized_text(lli.live_illust_id, 'live2d', '${userInfo.lang}', 'summary') summary    
+      , 0 is_minicut
+      , lli.is_public
+      , '' image_url
+      , '' image_key
+      , lli.appear_episode
+      , -1 live_pair_id
+      , 'live2d' origin_type
+      FROM list_live_illust lli
+      WHERE lli.project_id = ${userInfo.project_id}
+      AND lli.is_public > 0
+      AND lli.appear_episode > 0
+      UNION ALL 
+      SELECT 'live_object' illust_type
+      , a.live_object_id  illust_id
+      , a.live_object_name  illust_name
+      , fn_get_design_info(a.thumbnail_id, 'url') thumbnail_url
+      , fn_get_design_info(a.thumbnail_id, 'key') thumbnail_key
+      , fn_get_minicut_localized_text(a.live_object_id, 'live2d', '${userInfo.lang}', 'name') public_name
+      , fn_get_minicut_localized_text(a.live_object_id, 'live2d', '${userInfo.lang}', 'summary') summary
+      , 1 is_minicut
+      , a.is_public
+      , '' image_url
+      , '' image_key
+      , a.appear_episode
+      , -1 live_pair_id
+      , 'live2d' origin_type
+      FROM list_live_object a 
+      WHERE a.project_id = ${userInfo.project_id}
+      AND a.is_public > 0
+      AND a.appear_episode > 0
+      UNION ALL
+      SELECT 'minicut' illust_type
+      , a.minicut_id  illust_id
+      , a.image_name  illust_name
+      , fn_get_design_info(a.thumbnail_id, 'url') thumbnail_url
+      , fn_get_design_info(a.thumbnail_id, 'key') thumbnail_key
+      , fn_get_minicut_localized_text(a.minicut_id, 'minicut', '${userInfo.lang}', 'name') public_name
+      , fn_get_minicut_localized_text(a.minicut_id, 'minicut', '${userInfo.lang}', 'summary') summary
+      , 1 is_minicut
+      , a.is_public
+      , a.image_url
+      , a.image_key
+      , a.appear_episode
+      , a.live_pair_id
+      , 'minicut' origin_type
+      FROM list_minicut a 
+      WHERE a.project_id = ${userInfo.project_id}
+      AND a.appear_episode > 0
+      AND a.is_public > 0
+  ) z, list_episode le 
+  WHERE z.appear_episode = le.episode_id
+  ORDER BY le.sortkey, z.illust_name;  
+  `
+  );
 
   const images = publicImages.row;
 
@@ -979,15 +1064,68 @@ const getUserGalleryHistory = async (userInfo) => {
   return images;
 }; // ? End getUserGalleryHistory
 
-// 유저 프로젝트 호감도 히스토리
-const getUserFavorHistory = async (userInfo) => {
-  const result = await DB(Q_SELECT_USER_FAVOR_HISTORY, [
-    userInfo.userkey,
-    userInfo.project_id,
-  ]);
+// * 갤러리 공유 보너스 요청
+export const requestGalleryShareBonus = async (req, res) => {
+  const {
+    body: { userkey, illust_type, illust_id, project_id, lang = "KO" },
+  } = req;
 
-  if (result.state) return result.row;
-  else return [];
+  logger.info(`requestGalleryShareBonus : ${JSON.stringify(req.body)}`);
+
+  // illust, minicut, live_object, live_illust
+
+  let query = "";
+  let image_type = illust_type;
+
+  if (illust_type === "live_object" || illust_type === "live_illust")
+    image_type = "live2d";
+
+  // * 미니컷과 일러스트가 서로 다른 테이블을 사용한다
+  if (illust_type === "minicut" || illust_type === "live_object") {
+    //
+    // user_minicut
+    query = mysql.format(
+      `
+    UPDATE user_minicut 
+      SET share_bonus = 1 
+    WHERE userkey = ?
+      AND minicut_type = ?
+      AND minicut_id = ?;
+    `,
+      [userkey, image_type, illust_id]
+    );
+  } else {
+    // user_illust
+    query = mysql.format(
+      `
+    UPDATE user_illust 
+      SET share_bonus = 1 
+    WHERE userkey = ?
+      AND illust_type = ?
+      AND illust_id = ?;
+    `,
+      [userkey, image_type, illust_id]
+    );
+  }
+
+  // 재화 획득
+  query += mysql.format(UQ_ACCQUIRE_CURRENCY, [userkey, "gem", 1, "share"]);
+
+  const result = await transactionDB(query);
+
+  if (!result.state) {
+    logger.error(`requestGalleryShareBonus : ${JSON.stringify(result.error)}`);
+    res.status(400).json(result.error);
+    return;
+  }
+
+  const responseData = {};
+  responseData.currency = "gem"; // 받은 보상 정보
+  responseData.quantity = 1;
+  responseData.bank = await getUserBankInfo(req.body);
+  responseData.galleryImages = await getUserGalleryHistory(req.body);
+
+  res.status(200).json(responseData); // 보내기
 };
 
 // 유저 프로젝트 도전과제 히스토리
@@ -3019,8 +3157,6 @@ export const getUserSelectedStory = async (req, res) => {
   storyInfo.rawVoiceHistory = voiceData.rawVoiceHistory; // 리스트 그대로 형태의 보이스
   storyInfo.progress = await getUserCollectionProgress(userInfo); // 수집요소 진행률
   storyInfo.episodes = await requestMainEpisodeList(userInfo); // 유저의 정규 에피소드 리스트
-  //storyInfo.favorProgress = await getUserFavorHistory(userInfo); // 유저 호감도 진행도
-  // storyInfo.illustHistory = await getUserIllustHistory(userInfo); // 유저 일러스트 히스토리
 
   // 작품 기준정보
   //storyInfo.galleryBanner = await getProjectGalleryBannerInfo(userInfo); // 갤러리 상단 배너
@@ -3383,7 +3519,7 @@ export const purchaseFreepass = async (req, res) => {
 //! 튜토리얼 리뉴얼
 export const requestUserTutorialProgress = async (req, res) => {
   const {
-    body: { userkey, step = 1,  is_clear = 0,  },
+    body: { userkey, step = 1, is_clear = 0 },
   } = req;
 
   let result;
@@ -3422,18 +3558,18 @@ export const requestUserTutorialProgress = async (req, res) => {
   );
   if (result.state && result.row.length > 0) isOpen = true;
 
-
-  if(!isOpen){
+  if (!isOpen) {
     // 해당 단계 오픈
     result = await DB(
       `INSERT INTO user_tutorial_ver2(userkey, step) VALUES(?, ?);`,
       [userkey, step]
     );
-  }else{
+  } else {
     // eslint-disable-next-line no-lonely-if
-    if(is_clear === 1){
+    if (is_clear === 1) {
       result = await DB(
-        `UPDATE user_tutorial_ver2 SET is_clear = ?, clear_date = now() WHERE userkey = ? AND step = ?;`, [is_clear, userkey, step]
+        `UPDATE user_tutorial_ver2 SET is_clear = ?, clear_date = now() WHERE userkey = ? AND step = ?;`,
+        [is_clear, userkey, step]
       );
     }
   }
@@ -3442,7 +3578,7 @@ export const requestUserTutorialProgress = async (req, res) => {
     logger.error(`getTutorialRenewalProgress Error 2 ${result.error}`);
     respondDB(res, 80026, result.error);
     return;
-  } 
+  }
 
   //튜토리얼 보상 처리(1, 3단계에서만 보상 획득)
   if (isOpen && is_clear && (step === 1 || step === 3)) {
@@ -3454,7 +3590,7 @@ export const requestUserTutorialProgress = async (req, res) => {
 
   //유저의 현재 튜토리얼 단계 가져오기
   result = await DB(
-  `
+    `
   SELECT step tutorial_step
   , ifnull(is_clear, 0) tutorial_clear
   FROM user_tutorial_ver2 
