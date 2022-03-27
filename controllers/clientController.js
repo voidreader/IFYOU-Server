@@ -104,6 +104,7 @@ import {
   userProfileSave,
   userProfileSaveVer2,
   getProfileCurrencyCurrent,
+  getUserStoryProfileAndAbility,
 } from "./profileController";
 import {
   userCoinPurchase,
@@ -1655,6 +1656,8 @@ export const clientHome = (req, res) => {
   else if (func === "getPlatformEvents") getPlatformEvents(req, res);
   else if (func === "requestGalleryShareBonus")
     requestGalleryShareBonus(req, res);
+  else if (func === "getUserStoryProfileAndAbility")
+    getUserStoryProfileAndAbility(req, res);
   //단계별 튜토리얼 처리
   else {
     //  res.status(400).send(`Wrong Func : ${func}`);

@@ -3087,7 +3087,6 @@ export const getUserSelectedStory = async (req, res) => {
 
   // * 스토리 프로필 15 버전부터 추가 (2022.02.21)
   storyInfo.storyProfile = await getUserStoryProfile(req, res, false); // 작품별 프로필
-  storyInfo.userSnippet = {}; // * 사용하지 않음
 
   storyInfo.galleryImages = await getUserGalleryHistory(userInfo); // 갤러리 공개 이미지
   storyInfo.projectCurrent = await getUserProjectCurrent(userInfo); // 프로젝트 현재 플레이 지점 !
@@ -3133,7 +3132,7 @@ export const getUserSelectedStory = async (req, res) => {
   storyInfo.currency = projectResources.currency; // 화폐정보 추가
   //* 사건 정보
   storyInfo.sceneProgress = projectResources.sceneProgress; // 유저 사건ID 진행도
-  console.log(storyInfo.sceneProgress);
+  // console.log(storyInfo.sceneProgress);
   storyInfo.sceneHistory = projectResources.sceneHistory; // 유저가 한번이라도 오픈한 프로젝트별 사건ID (신규 입력만, 삭제나 변경 없음)
   //* 에피소드 정보
   storyInfo.episodeProgress = projectResources.episodeProgress; // ! 유저 에피소드 진행도
@@ -3161,8 +3160,8 @@ export const getUserSelectedStory = async (req, res) => {
   // 작품 기준정보
   //storyInfo.galleryBanner = await getProjectGalleryBannerInfo(userInfo); // 갤러리 상단 배너
   storyInfo.bgmBanner = await getProjectBgmBannerInfo(userInfo); // BGM 배너
-  storyInfo.freepassBanner = await getProjectFreepassBannerInfo(userInfo); // 프리패스 배너
-  storyInfo.freepassTitle = await getProjectFreepassTitleInfo(userInfo); // 프리패스 타이틀 // ! 1.1.10 삭제 대상
+  // storyInfo.freepassBanner = await getProjectFreepassBannerInfo(userInfo); // 프리패스 배너
+  // storyInfo.freepassTitle = await getProjectFreepassTitleInfo(userInfo); // 프리패스 타이틀 // ! 1.1.10 삭제 대상
   storyInfo.freepassBadge = await getProjectFreepassBadge(userInfo); // 프리패스 뱃지
   storyInfo.bubbleMaster = bubbleMaster; // 말풍선 마스터 정보
 
