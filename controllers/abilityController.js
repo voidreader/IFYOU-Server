@@ -49,7 +49,7 @@ export const getUserProjectAbilityCurrent = async (userInfo) => {
 	     , ca.ability_id 
        , 0 current_value
     FROM com_ability ca 
-      LEFT OUTER JOIN list_nametag t ON t.speaker = ca.speaker
+      LEFT OUTER JOIN list_nametag t ON t.speaker = ca.speaker AND t.project_id = ca.project_id
     WHERE ca.project_id = ${project_id}
    ORDER BY ifnull(t.sortkey, 10), ca.speaker, ca.is_main DESC, ca.ability_name;  
   `);
