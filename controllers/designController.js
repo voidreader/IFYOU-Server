@@ -26,61 +26,6 @@ AND a.currency LIKE '%premiumpass%';
   return result.row[0];
 };
 
-export const getProjectFreepassTitleInfo = async ({ project_id }) => {
-  const result = await DB(
-    `
-  SELECT ld.image_url, ld.image_key 
-  FROM list_design ld
- WHERE ld.project_id = ?
-   AND ld.design_type ='freepass_title'
-ORDER BY design_id 
-LIMIT 1;
-  `,
-    [project_id]
-  );
-
-  if (result.row.length === 0) return { image_url: "", image_key: "" };
-
-  return result.row[0];
-};
-export const getProjectFreepassBannerInfo = async ({ project_id }) => {
-  const result = await DB(
-    `
-  SELECT ld.image_url, ld.image_key 
-  FROM list_design ld
- WHERE ld.project_id = ?
-   AND ld.design_type ='freepass_banner'
-ORDER BY design_id 
-LIMIT 1;
-  `,
-    [project_id]
-  );
-
-  if (result.row.length === 0) return { image_url: "", image_key: "" };
-
-  return result.row[0];
-};
-
-export const getProjectGalleryBannerInfo = async ({ project_id }) => {
-  console.log(`getProjectGalleryBannerInfo : `, project_id);
-
-  const result = await DB(
-    `
-  SELECT ld.image_url, ld.image_key 
-  FROM list_design ld
- WHERE ld.project_id = ?
-   AND ld.design_type ='gallery_top_banner'
-ORDER BY design_id 
-LIMIT 1;
-  `,
-    [project_id]
-  );
-
-  if (result.row.length === 0) return { image_url: "", image_key: "" };
-
-  return result.row[0];
-};
-
 // ? 프로젝트 BGM 배너 정보
 export const getProjectBgmBannerInfo = async ({ project_id }) => {
   const result = await DB(

@@ -1,6 +1,7 @@
 /* eslint-disable consistent-return */
 /* eslint-disable no-await-in-loop */
 import mysql from "mysql2/promise";
+import { response } from "express";
 import { DB, logAction, transactionDB } from "../mysqldb";
 import { logger } from "../logger";
 import { respondDB } from "../respondent";
@@ -9,9 +10,15 @@ import {
   UQ_GET_USER_STORY_PROFILE,
   UQ_SAVE_STORY_PROFILE,
 } from "../USERQStore";
+import { getUserProjectAbilityCurrent } from "./abilityController";
+import { getUserBankInfo } from "./bankController";
 
 // * 유저가 보유한 재화 (작품 꾸미기 가능 재화 한정) 리스트 (2022.02.21)
-export const getUserStoryProfileCurrencyList = async (req, res) => {
+export const getUserStoryProfileCurrencyList = async (
+  req,
+  res,
+  needResponse = true
+) => {
   logger.info(`getUserStoryProfileCurrencyList`);
 
   const {
@@ -24,7 +31,7 @@ export const getUserStoryProfileCurrencyList = async (req, res) => {
 
   // 재화별로 리스트 가져오기
   const result = await DB(
-  `
+    `
   SELECT DISTINCT a.currency
        , CASE WHEN currency_type = 'wallpaper' THEN fn_get_bg_info(b.icon_image_id, 'url') 
               ELSE fn_get_design_info(b.icon_image_id, 'url') 
@@ -84,8 +91,7 @@ export const getUserStoryProfileCurrencyList = async (req, res) => {
       //배열에 추가
       currencyArr.push(item.currency);
       resultArray.push(item);
-    }else{
-
+    } else {
       //같은 재화인 경우 능력치 추가
       for (let i = 0; i < resultArray.length; ) {
         if (resultArray[i].currency === item.currency) {
@@ -99,7 +105,6 @@ export const getUserStoryProfileCurrencyList = async (req, res) => {
   if (resultArray) {
     // eslint-disable-next-line no-restricted-syntax
     for (const item of resultArray) {
-    
       if (
         !Object.prototype.hasOwnProperty.call(responseData, item.currency_type)
       ) {
@@ -110,7 +115,11 @@ export const getUserStoryProfileCurrencyList = async (req, res) => {
     }
   }
 
-  res.status(200).json(responseData);
+  if (needResponse) {
+    res.status(200).json(responseData);
+  } else {
+    return responseData;
+  }
 }; // ? getUserStoryProfileCurrencyList
 
 // * 유저 작품별 꾸미기 조회
@@ -529,4 +538,24 @@ export const saveUserStoryProfile = async (req, res) => {
 
   // 저장했으면 작품별 꾸미기 재조회
   getUserStoryProfile(req, res, true);
+};
+
+// * 유저 스토리 프로필 및 능력 정보 조회
+export const getUserStoryProfileAndAbility = async (req, res) => {
+  const {
+    body: { userkey, project_id },
+  } = req;
+
+  logger.rinfo;
+
+  const responseData = {};
+  responseData.profileCurrency = await getUserStoryProfileCurrencyList(
+    req,
+    res,
+    false
+  ); // 스토리 프로필 아이템 리스트
+  responseData.ability = await getUserProjectAbilityCurrent(req.body); // 능력 정보 합산
+  responseData.bank = await getUserBankInfo(req.body);
+
+  res.status(200).json(responseData);
 };
