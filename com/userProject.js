@@ -800,6 +800,8 @@ export const requestWaitingEpisodeWithCoin = async (req, res) => {
     return;
   }
 
+  console.log(`requestWaitingEpisodeWithCoin #1`);
+
   // * 에피소드 구매 처리
   req.body.episodeID = episodeID;
   req.body.purchaseType = "Permanent";
@@ -810,6 +812,8 @@ export const requestWaitingEpisodeWithCoin = async (req, res) => {
   const responseData = {};
   await purchaseEpisodeType2(req, res, false);
 
+  console.log(`requestWaitingEpisodeWithCoin #2`);
+
   // 갱신한다.
   responseData.episodePurchase = await getUserEpisodePurchaseInfo(req.body); // 구매기록
   responseData.bank = await getUserBankInfo(req.body); // bank.
@@ -817,6 +821,7 @@ export const requestWaitingEpisodeWithCoin = async (req, res) => {
   responseData.projectCurrent = await getUserProjectCurrent(req.body); // 프로젝트 현재 플레이 지점 !
   // responseData.bank = await getUserBankInfo(req.body); // 뱅크
 
+  console.log(`requestWaitingEpisodeWithCoin #3`);
   res.status(200).json(responseData);
 
   logger.info(
