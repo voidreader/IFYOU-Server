@@ -1125,7 +1125,8 @@ export const requestGalleryShareBonus = async (req, res) => {
   responseData.bank = await getUserBankInfo(req.body);
   responseData.galleryImages = await getUserGalleryHistory(req.body);
 
-  res.status(200).json(responseData); // 보내기
+  console.log("done share bonus");
+  res.status(200).json(responseData);
 };
 
 // 유저 프로젝트 도전과제 히스토리
@@ -1852,8 +1853,8 @@ export const purchaseEpisodeType2 = async (req, res, needResponse = true) => {
       responseData.episodePurchase = await getUserEpisodePurchaseInfo(req.body); // 구매기록
       responseData.bank = await getUserBankInfo(req.body); // bank.
       responseData.userProperty = await getUserProjectProperty(req.body); // 프로젝트 프로퍼티
-      res.status(200).json(responseData);
-
+      
+      
       if (needResponse) {
         res.status(200).json(responseData);
         return;
