@@ -55,7 +55,7 @@ FROM com_coin_product a
 INNER JOIN com_currency b ON a.currency = b.currency
 LEFT OUTER JOIN com_currency_ability c ON b.currency = c.currency 
 LEFT OUTER JOIN com_ability d ON c.ability_id = d.ability_id  
-LEFT OUTER JOIN list_nametag e ON d.speaker = e.speaker 
+LEFT OUTER JOIN list_nametag e ON d.speaker = e.speaker AND e.project_id = connected_project 
 WHERE connected_project = ?
 AND currency_type = ?
 AND coin_product_id > 0
