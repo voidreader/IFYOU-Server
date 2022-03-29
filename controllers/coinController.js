@@ -45,7 +45,7 @@ END resource_image_key
 ELSE 
   ifnull(d.speaker, 'common') 
 END code 
-, ifnull(e.speaker, fn_get_localize_text(2011, ?)) speaker
+, ifnull(fn_get_speaker(?, a.currency, ?, 'speaker'), fn_get_localize_text(2011, ?)) speaker
 , c.ability_id
 , fn_get_design_info(d.icon_design_id, 'url') ability_icon_image_url 
 , fn_get_design_info(d.icon_design_id, 'key') ability_icon_image_key 
@@ -210,9 +210,11 @@ export const getCoinProductMainList = async (req, res) => {
     [
       lang,
       lang,
-      userkey,
+      userkey, 
+      project_id, 
       lang,
-      project_id,
+      lang, 
+      project_id, 
       "standing",
     ]
   );
@@ -224,9 +226,11 @@ export const getCoinProductMainList = async (req, res) => {
     [
       lang,
       lang,
-      userkey,
+      userkey, 
+      project_id, 
       lang,
-      project_id,
+      lang, 
+      project_id, 
       "wallpaper",
     ]
   );
@@ -238,9 +242,11 @@ export const getCoinProductMainList = async (req, res) => {
     [
       lang,
       lang,
-      userkey,
+      userkey, 
+      project_id, 
       lang,
-      project_id,
+      lang, 
+      project_id, 
       "sticker",
     ]
   );
@@ -356,9 +362,11 @@ export const getCoinProductSearchDetail = async (req, res) => {
     ORDER BY sorting_order, a.price DESC;`, [
     lang,
     lang,
-    userkey,
+    userkey, 
+    project_id, 
     lang,
-    project_id,
+    lang, 
+    project_id, 
     "standing",
   ]);
   responseData.character = await getCoinProductListSort(result.row);
@@ -369,9 +377,11 @@ export const getCoinProductSearchDetail = async (req, res) => {
     ORDER BY sorting_order, a.price DESC;`, [
     lang,
     lang,
-    userkey,
+    userkey, 
+    project_id, 
     lang,
-    project_id,
+    lang, 
+    project_id, 
     "wallpaper",
   ]);
   responseData.wallpaper = await getCoinProductListSort(result.row);
@@ -382,9 +392,11 @@ export const getCoinProductSearchDetail = async (req, res) => {
     ORDER BY sorting_order, a.price DESC;`, [
     lang,
     lang,
-    userkey,
+    userkey, 
+    project_id, 
     lang,
-    project_id,
+    lang, 
+    project_id, 
     "sticker",
   ]);
   responseData.sticker = await getCoinProductListSort(result.row);
@@ -395,9 +407,11 @@ export const getCoinProductSearchDetail = async (req, res) => {
     ORDER BY sorting_order, a.price DESC;`, [
     lang,
     lang,
-    userkey,
+    userkey, 
+    project_id, 
     lang,
-    project_id,
+    lang, 
+    project_id, 
     "bubble",
   ]);
   responseData.line = await getCoinProductListSort(result.row);
@@ -478,9 +492,11 @@ export const getCoinProductTypeList = async (req, res) => {
     ORDER BY sorting_order, a.price DESC;`, [
     lang,
     lang,
-    userkey,
+    userkey, 
+    project_id, 
     lang,
-    project_id,
+    lang, 
+    project_id, 
     currency_type,
   ]);
   responseData.list = await getCoinProductListSort(result.row);
