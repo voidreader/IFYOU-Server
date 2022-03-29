@@ -905,7 +905,9 @@ const getUserGalleryHistory = async (userInfo) => {
     , CASE WHEN z.is_minicut = 0 THEN fn_check_user_illust_exists(${userInfo.userkey}, z.origin_type, z.illust_id)
           ELSE fn_check_user_minicut_exists_new(${userInfo.userkey}, z.origin_type, z.illust_id) END illust_open
     , CASE WHEN z.is_minicut = 0 THEN fn_check_gallery_share_bonus(${userInfo.userkey}, 'illust', z.origin_type, z.illust_id)
-          ELSE fn_check_gallery_share_bonus(${userInfo.userkey}, 'minicut', z.origin_type, z.illust_id) END share_bonus          
+          ELSE fn_check_gallery_share_bonus(${userInfo.userkey}, 'minicut', z.origin_type, z.illust_id) END share_bonus
+    , CASE WHEN z.is_minicut = 0 THEN fn_check_gallery_real_open(${userInfo.userkey}, 'illust', z.origin_type, z.illust_id)
+          ELSE fn_check_gallery_real_open(${userInfo.userkey}, 'minicut', z.origin_type, z.illust_id) END gallery_open
     , z.is_public
     , z.image_url
     , z.image_key
@@ -1128,6 +1130,61 @@ export const requestGalleryShareBonus = async (req, res) => {
   console.log("done share bonus");
   res.status(200).json(responseData);
 };
+
+// * 갤러리 로비에서 일러스트를 오픈했다!
+export const requestGalleryLobbyOpen = async (req, res) => {
+  const {
+    body: { userkey, illust_type, illust_id, project_id, lang = "KO" },
+  } = req;
+
+  logger.info(`requestGalleryLobbyOpen : ${JSON.stringify(req.body)}`);
+
+  let query = "";
+  let image_type = illust_type;
+
+  if (illust_type === "live_object" || illust_type === "live_illust")
+    image_type = "live2d";
+
+  // * 미니컷과 일러스트가 서로 다른 테이블을 사용한다
+  if (illust_type === "minicut" || illust_type === "live_object") {
+    //
+    // user_minicut
+    query = mysql.format(
+      `
+    UPDATE user_minicut 
+      SET gallery_open = 1 
+    WHERE userkey = ?
+      AND minicut_type = ?
+      AND minicut_id = ?;
+    `,
+      [userkey, image_type, illust_id]
+    );
+  } else {
+    // user_illust
+    query = mysql.format(
+      `
+    UPDATE user_illust 
+      SET gallery_open = 1 
+    WHERE userkey = ?
+      AND illust_type = ?
+      AND illust_id = ?;
+    `,
+      [userkey, image_type, illust_id]
+    );
+  }
+
+  const result = await DB(query);
+
+  if (!result.state) {
+    logger.error(`requestGalleryLobbyOpen : ${JSON.stringify(result.error)}`);
+    res.status(400).json(result.error);
+    return;
+  }
+
+  const responseData = {};
+  responseData.galleryImages = await getUserGalleryHistory(req.body);
+  res.status(200).json(responseData);
+}; // ? END OF requestGalleryLobbyOpen
 
 // 유저 프로젝트 도전과제 히스토리
 const getUserMissionHistory = async (userInfo) => {
@@ -1853,8 +1910,7 @@ export const purchaseEpisodeType2 = async (req, res, needResponse = true) => {
       responseData.episodePurchase = await getUserEpisodePurchaseInfo(req.body); // 구매기록
       responseData.bank = await getUserBankInfo(req.body); // bank.
       responseData.userProperty = await getUserProjectProperty(req.body); // 프로젝트 프로퍼티
-      
-      
+
       if (needResponse) {
         res.status(200).json(responseData);
         return;

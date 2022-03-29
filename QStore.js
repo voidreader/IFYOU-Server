@@ -688,6 +688,7 @@ SELECT m.model_name
      , m.game_scale
      , m.model_ver
      , m.direction
+     , m.tall_grade
   FROM list_model_master m
     LEFT OUTER JOIN list_model_slave lms ON lms.model_id = m.model_id 
  WHERE m.project_id = ?
