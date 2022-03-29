@@ -106,6 +106,7 @@ const getTopContent = async (req, is_main = 0) => {
       `
     SELECT DISTINCT b.speaker code
     , ${lang} name
+    , c.sortkey
     FROM com_currency_ability a, com_ability b, list_nametag c 
     WHERE a.ability_id = b.ability_id
     AND b.speaker = c.speaker
@@ -114,9 +115,11 @@ const getTopContent = async (req, is_main = 0) => {
     UNION ALL
     SELECT code 
     , fn_get_localize_text(text_id, ?) name
+    , 100 sortkey
     FROM list_standard
     WHERE standard_class ='coinshop_menu'
-    AND code = 'common';
+    AND code = 'common'
+    ORDER BY sortkey;
     `,
       [project_id, currency_type, lang]
     );
