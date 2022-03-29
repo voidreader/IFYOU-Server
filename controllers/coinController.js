@@ -259,7 +259,9 @@ export const getCoinProductMainList = async (req, res) => {
       lang,
       lang,
       userkey,
+      project_id, 
       lang,
+      lang, 
       project_id,
       "bubble",
     ]
