@@ -56,6 +56,7 @@ import {
   resetUserEpisodeProgressType2,
   requestUserTutorialProgress,
   requestGalleryShareBonus,
+  requestGalleryLobbyOpen,
 } from "./accountController";
 import { logger } from "../logger";
 import {
@@ -1658,6 +1659,8 @@ export const clientHome = (req, res) => {
     requestGalleryShareBonus(req, res);
   else if (func === "getUserStoryProfileAndAbility")
     getUserStoryProfileAndAbility(req, res);
+  else if (func === "requestGalleryLobbyOpen")
+    requestGalleryLobbyOpen(req, res);
   //단계별 튜토리얼 처리
   else {
     //  res.status(400).send(`Wrong Func : ${func}`);
