@@ -13,6 +13,9 @@ import {
   getStatInappList,
   getStatCoinList,
 } from "./controllers/statController";
+import {
+  updateProjectViewCnt,
+} from "./controllers/coinController";
 
 dotenv.config();
 
@@ -192,6 +195,7 @@ export const scheduleStatInsert = schedule.scheduleJob(
     await getStatPropertyList(setDay);
     await getStatInappList(setDay);
     await getStatCoinList(setDay);
+    await updateProjectViewCnt();
 
     logger.info(`scheduleStatInsert End`);
   }
