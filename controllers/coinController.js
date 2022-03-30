@@ -210,64 +210,28 @@ export const getCoinProductMainList = async (req, res) => {
   //스탠딩
   let result = await DB(
     `${coinProductListQuery} ORDER BY a.price DESC, rand() LIMIT 5;`,
-    [
-      lang,
-      lang,
-      userkey, 
-      project_id, 
-      lang,
-      lang, 
-      project_id, 
-      "standing",
-    ]
+    [lang, lang, userkey, project_id, lang, lang, project_id, "standing"]
   );
   responseData.character = await getCoinProductListSort(result.row, 1);
 
   //배경
   result = await DB(
     `${coinProductListQuery} ORDER BY price DESC, rand() LIMIT 5;`,
-    [
-      lang,
-      lang,
-      userkey, 
-      project_id, 
-      lang,
-      lang, 
-      project_id, 
-      "wallpaper",
-    ]
+    [lang, lang, userkey, project_id, lang, lang, project_id, "wallpaper"]
   );
   responseData.wallpaper = await getCoinProductListSort(result.row, 1);
 
   //스티커
   result = await DB(
     `${coinProductListQuery} ORDER BY price DESC, rand() LIMIT 5;`,
-    [
-      lang,
-      lang,
-      userkey, 
-      project_id, 
-      lang,
-      lang, 
-      project_id, 
-      "sticker",
-    ]
+    [lang, lang, userkey, project_id, lang, lang, project_id, "sticker"]
   );
   responseData.sticker = await getCoinProductListSort(result.row, 1);
 
   //대사
   result = await DB(
     `${coinProductListQuery} ORDER BY price DESC, rand() LIMIT 5;`,
-    [
-      lang,
-      lang,
-      userkey,
-      project_id, 
-      lang,
-      lang, 
-      project_id,
-      "bubble",
-    ]
+    [lang, lang, userkey, project_id, lang, lang, project_id, "bubble"]
   );
   responseData.line = await getCoinProductListSort(result.row, 1);
 
@@ -326,23 +290,23 @@ export const getCoinProductSearchDetail = async (req, res) => {
   //* 검색어 조건절 걸기(캐릭터명, 상품명)
   let whereQuery = ``;
   if (search_word) {
-
-    let setSearchWord = String(search_word); 
-    if(setSearchWord.includes("'")) setSearchWord = setSearchWord.replace("'", ""); //싱글쿼터 제거 
+    let setSearchWord = String(search_word);
+    if (setSearchWord.includes("'"))
+      setSearchWord = setSearchWord.replace("'", ""); //싱글쿼터 제거
     setSearchWord = setSearchWord.split(" "); //공백 기준으로 문자열 자르기
 
-    let whereNametag = ``; 
-    let whereCoinProduct = ``; 
-    
-    // eslint-disable-next-line no-restricted-syntax
-    for(const item of setSearchWord){
-      whereNametag += ` ${lang} LIKE CONCAT('%', '${item}', '%') OR`;
-      whereCoinProduct += ` replace(name, ' ', '') LIKE CONCAT('%', '${item}', '%') OR`; 
-    }
-    whereNametag = whereNametag.slice(1, whereNametag.length-2);
-    whereCoinProduct = whereCoinProduct.slice(1, whereCoinProduct.length-2);
+    let whereNametag = ``;
+    let whereCoinProduct = ``;
 
-    whereQuery  = `
+    // eslint-disable-next-line no-restricted-syntax
+    for (const item of setSearchWord) {
+      whereNametag += ` ${lang} LIKE CONCAT('%', '${item}', '%') OR`;
+      whereCoinProduct += ` replace(name, ' ', '') LIKE CONCAT('%', '${item}', '%') OR`;
+    }
+    whereNametag = whereNametag.slice(1, whereNametag.length - 2);
+    whereCoinProduct = whereCoinProduct.slice(1, whereCoinProduct.length - 2);
+
+    whereQuery = `
     AND (
       ( ${whereNametag} ) OR 
       coin_product_id IN (
@@ -362,63 +326,39 @@ export const getCoinProductSearchDetail = async (req, res) => {
   }
 
   //스탠딩
-  result = await DB(`
+  result = await DB(
+    `
     ${coinProductListQuery} ${whereQuery}
-    ORDER BY sorting_order, a.price DESC;`, [
-    lang,
-    lang,
-    userkey, 
-    project_id, 
-    lang,
-    lang, 
-    project_id, 
-    "standing",
-  ]);
+    ORDER BY sorting_order, a.price DESC;`,
+    [lang, lang, userkey, project_id, lang, lang, project_id, "standing"]
+  );
   responseData.character = await getCoinProductListSort(result.row);
 
   //배경
-  result = await DB(`
+  result = await DB(
+    `
     ${coinProductListQuery} ${whereQuery}
-    ORDER BY sorting_order, a.price DESC;`, [
-    lang,
-    lang,
-    userkey, 
-    project_id, 
-    lang,
-    lang, 
-    project_id, 
-    "wallpaper",
-  ]);
+    ORDER BY sorting_order, a.price DESC;`,
+    [lang, lang, userkey, project_id, lang, lang, project_id, "wallpaper"]
+  );
   responseData.wallpaper = await getCoinProductListSort(result.row);
 
   //스티커
-  result = await DB(`
+  result = await DB(
+    `
     ${coinProductListQuery} ${whereQuery}
-    ORDER BY sorting_order, a.price DESC;`, [
-    lang,
-    lang,
-    userkey, 
-    project_id, 
-    lang,
-    lang, 
-    project_id, 
-    "sticker",
-  ]);
+    ORDER BY sorting_order, a.price DESC;`,
+    [lang, lang, userkey, project_id, lang, lang, project_id, "sticker"]
+  );
   responseData.sticker = await getCoinProductListSort(result.row);
 
   //대사
-  result = await DB(`
+  result = await DB(
+    `
     ${coinProductListQuery} ${whereQuery}
-    ORDER BY sorting_order, a.price DESC;`, [
-    lang,
-    lang,
-    userkey, 
-    project_id, 
-    lang,
-    lang, 
-    project_id, 
-    "bubble",
-  ]);
+    ORDER BY sorting_order, a.price DESC;`,
+    [lang, lang, userkey, project_id, lang, lang, project_id, "bubble"]
+  );
   responseData.line = await getCoinProductListSort(result.row);
 
   res.status(200).json(responseData);
@@ -492,18 +432,12 @@ export const getCoinProductTypeList = async (req, res) => {
   if (code)
     whereQuery = ` AND ( is_common > 0 OR ifnull(d.speaker, 'common') = '${code}' ) `;
 
-  const result = await DB(`
+  const result = await DB(
+    `
     ${coinProductListQuery} ${whereQuery}
-    ORDER BY sorting_order, a.price DESC;`, [
-    lang,
-    lang,
-    userkey, 
-    project_id, 
-    lang,
-    lang, 
-    project_id, 
-    currency_type,
-  ]);
+    ORDER BY sorting_order, a.price DESC;`,
+    [lang, lang, userkey, project_id, lang, lang, project_id, currency_type]
+  );
   responseData.list = await getCoinProductListSort(result.row);
 
   res.status(200).json(responseData);
@@ -512,7 +446,7 @@ export const getCoinProductTypeList = async (req, res) => {
 //! 구매
 //* 2022.01.19 코인 사용할 시에 작품id 포함해서 전달(유/무료 스타 구분에 따른 후속 수정)
 //* 작품id는 com_currency의 connected_proejct에서 전달
-//* 단일상품 : connected_proejct에서, 세트상품 : 모두 같은 작품일 경우 connected_proejct, 아닌 경우 -1 >> 세트 상품은 나중에 처리 
+//* 단일상품 : connected_proejct에서, 세트상품 : 모두 같은 작품일 경우 connected_proejct, 아닌 경우 -1 >> 세트 상품은 나중에 처리
 export const userCoinPurchase = async (req, res) => {
   const {
     body: {
@@ -564,33 +498,51 @@ export const userCoinPurchase = async (req, res) => {
     return;
   }
 
-  const { currency_list, valid_origin_price, valid_pay_price, project_id, is_unique, quantity, } = result.row[0];
+  const {
+    currency_list,
+    valid_origin_price,
+    valid_pay_price,
+    project_id,
+    is_unique,
+    quantity,
+  } = result.row[0];
 
-  //* 패킷 조작에 따른 추가 로그 생성 
+  //* 패킷 조작에 따른 추가 로그 생성
   //* 실제 가격과 재화리스트와 맞지 않으면 구매 X
   logger.info(`purchaseCoinShop [${userkey}] 
   param [${sell_price}/${pay_price}] 
   ::: [${valid_origin_price}/${valid_pay_price}] 
   ::: [${JSON.stringify(currency)}/${currency_list}]`);
 
-  if(is_unique > 0 && quantity > 0){
+  if (is_unique > 0 && quantity > 0) {
     logger.error(`userCoinPurchase Error 2`);
     responDBCoinShop(res, 80025, lang);
-    return;    
+    return;
+  }
+
+  if (pay_price < 0 || pay_price !== valid_pay_price) {
+    logger.error(
+      `purchaseCoinShop [${userkey}] wrong price [${sell_price}/${pay_price}] ::: [${valid_origin_price}/${valid_pay_price}]`
+    );
   }
 
   //* 구매 가능한지 확인
   const userCoin = await getCurrencyQuantity(userkey, "coin");
-  logger.info(`purchaseCoinShop needCoin: [${valid_pay_price}] / currentCoin: [${userCoin}] / currentCurrency: [${currency_list}]`);
-  
+  logger.info(
+    `purchaseCoinShop needCoin: [${valid_pay_price}] / currentCoin: [${userCoin}] / currentCurrency: [${currency_list}]`
+  );
+
   if (userCoin < valid_pay_price) {
-    logger.error(`userCoinPurchase Error 3-1`);
+    logger.error(`userCoinPurchase Error 3`);
     responDBCoinShop(res, 80013, lang);
     return;
   }
 
   //* 구매 처리(코인 사용)
-  const insertQuery = mysql.format(`CALL sp_insert_user_property(?, ?, 1, 'coin_purchase');`, [userkey, currency_list]);
+  const insertQuery = mysql.format(
+    `CALL sp_insert_user_property(?, ?, 1, 'coin_purchase');`,
+    [userkey, currency_list]
+  );
   const purchaseQuery = mysql.format(
     `CALL sp_use_user_property(?, 'coin', ?, 'coin_purchase', ?);`,
     [userkey, valid_pay_price, project_id]
@@ -598,7 +550,13 @@ export const userCoinPurchase = async (req, res) => {
   const userHistoryQuery = mysql.format(
     `
     INSERT INTO user_coin_purchase(userkey, coin_product_id, sell_price, pay_price, currency) VALUES(?, ?, ?, ?, ?);`,
-    [userkey, coin_product_id, valid_origin_price, valid_pay_price, currency_list]
+    [
+      userkey,
+      coin_product_id,
+      valid_origin_price,
+      valid_pay_price,
+      currency_list,
+    ]
   );
 
   const purchaseResult = await transactionDB(`
@@ -637,7 +595,7 @@ export const getCoinProductPurchaseList = async (req, res) => {
   logger.info(`getCoinProductPurchaseList`);
 
   const {
-    body: { userkey, lang = "KO", project_id = -1, },
+    body: { userkey, lang = "KO", project_id = -1 },
   } = req;
 
   const result = await DB(
@@ -694,16 +652,16 @@ export const getCoinProductPurchaseList = async (req, res) => {
   res.status(200).json(result.row);
 };
 
-//! 토탈 코인샵 
-export const requestTotalCoinShop = async (req, res) =>{
-
+//! 토탈 코인샵
+export const requestTotalCoinShop = async (req, res) => {
   const responseData = {};
 
   const {
-    body: { lang = "KO", },
+    body: { lang = "KO" },
   } = req;
-  
-  let result = await DB(`
+
+  let result = await DB(
+    `
   SELECT 
   a.promotion_no 
   , location project_id 
@@ -717,10 +675,13 @@ export const requestTotalCoinShop = async (req, res) =>{
   AND now() <= end_date 
   AND lang = ?
   ORDER BY promotion_no DESC 
-  LIMIT 3;`, [lang]);
+  LIMIT 3;`,
+    [lang]
+  );
   responseData.promotion = result.row;
 
-  result = await DB(`
+  result = await DB(
+    `
   SELECT 
   a.project_id
   , circle_image_id 
@@ -732,18 +693,18 @@ export const requestTotalCoinShop = async (req, res) =>{
   AND b.project_id = c.project_id
   AND is_deploy > 0
   AND lang = ?  
-  ORDER BY view_cnt DESC;`, [lang]);
+  ORDER BY view_cnt DESC;`,
+    [lang]
+  );
   responseData.list = result.row;
 
   res.status(200).json(responseData);
-
 };
 
 //! 작품 조회수 업데이트(episode_start)
-export const updateProjectViewCnt = async() =>{
-
+export const updateProjectViewCnt = async () => {
   let currentQuery = ``;
-  let updateQuery = ``; 
+  let updateQuery = ``;
 
   //로그 액션의 episode_start 건수 확인
   let result = await DB(`
@@ -753,18 +714,17 @@ export const updateProjectViewCnt = async() =>{
   FROM gamelog.log_action
   WHERE action_type = 'episode_start'
   GROUP BY project_id;`);
-  if(result.state && result.row.length > 0){
-
+  if (result.state && result.row.length > 0) {
     currentQuery = `CALL pier.sp_update_project_sorting_order(?, ?);`;
     // eslint-disable-next-line no-restricted-syntax
-    for(const item of result.row){
+    for (const item of result.row) {
       updateQuery += mysql.format(currentQuery, [item.project_id, item.cnt]);
     }
   }
 
-  if(updateQuery){
+  if (updateQuery) {
     result = await transactionDB(updateQuery);
-    if(!result.state){
+    if (!result.state) {
       logger.error(`updateProjectViewCnt error`);
     }
   }
