@@ -116,7 +116,7 @@ import {
   getCoinProductTypeList,
   coinProductDetail,
   getCoinProductPurchaseList,
-  getTopContent,
+  requestTotalCoinShop,
 } from "./coinController";
 
 import { getLevelList, updateUserLevelProcess } from "./levelController";
@@ -1662,6 +1662,9 @@ export const clientHome = (req, res) => {
   else if (func === "requestGalleryLobbyOpen")
     requestGalleryLobbyOpen(req, res);
   //단계별 튜토리얼 처리
+  else if (func === "requestTotalCoinShop")
+    requestTotalCoinShop(req, res); 
+  //토탈 코인 상점 화면 
   else {
     //  res.status(400).send(`Wrong Func : ${func}`);
     logger.error(`clientHome Error ${func}`);
