@@ -775,6 +775,37 @@ export const requestTotalCoinShop = async (req, res) =>{
 
 };
 
+//! 작품 조회수 업데이트(episode_start)
+export const updateProjectViewCnt = async() =>{
+
+  let currentQuery = ``;
+  let updateQuery = ``; 
+
+  //로그 액션의 episode_start 건수 확인
+  let result = await DB(`
+  SELECT 
+  CAST(JSON_EXTRACT(log_data, '$.project_id') AS UNSIGNED integer) project_id
+  , count(DISTINCT userkey) cnt
+  FROM gamelog.log_action
+  WHERE action_type = 'episode_start'
+  GROUP BY project_id;`);
+  if(result.state && result.row.length > 0){
+
+    currentQuery = `CALL pier.sp_update_project_sorting_order(?, ?);`;
+    // eslint-disable-next-line no-restricted-syntax
+    for(const item of result.row){
+      updateQuery += mysql.format(currentQuery, [item.project_id, item.cnt]);
+    }
+  }
+
+  if(updateQuery){
+    result = await transactionDB(updateQuery);
+    if(!result.state){
+      logger.error(`updateProjectViewCnt error`);
+    }
+  }
+};
+
 //// 차후에 삭제할 예정
 const getColumn = (kind, lang) => {
   let result = `   
