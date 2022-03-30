@@ -673,7 +673,7 @@ export const getCoinProductPurchaseList = async (req, res) => {
   logger.info(`getCoinProductPurchaseList`);
 
   const {
-    body: { userkey, lang = "KO" },
+    body: { userkey, lang = "KO", project_id = -1, },
   } = req;
 
   const result = await DB(
@@ -688,21 +688,22 @@ export const getCoinProductPurchaseList = async (req, res) => {
     END currency_name
     , ifnull(fn_get_currency_info(b.currency, 'type'), 'set') currency_type
     , fn_get_localize_text(ifnull(fn_get_standard_text_id('currency_type', fn_get_currency_info(b.currency, 'type')), 5123), '${lang}') currency_type_name
-    , CASE WHEN fn_get_currency_info(b.currency, 'type') = 'portrait' COLLATE utf8mb4_0900_ai_ci THEN 1 
-    WHEN fn_get_currency_info(b.currency, 'type') = 'frame' COLLATE utf8mb4_0900_ai_ci THEN 2 
-    WHEN fn_get_currency_info(b.currency, 'type') = 'wallpaper' COLLATE utf8mb4_0900_ai_ci THEN 3 
-    WHEN fn_get_currency_info(b.currency, 'type') = 'badge' COLLATE utf8mb4_0900_ai_ci THEN 4 
-    WHEN fn_get_currency_info(b.currency, 'type') = 'standing' COLLATE utf8mb4_0900_ai_ci THEN 5 
-    WHEN fn_get_currency_info(b.currency, 'type') = 'bubble' COLLATE utf8mb4_0900_ai_ci THEN 6 
-    WHEN fn_get_currency_info(b.currency, 'type') = 'sticker' COLLATE utf8mb4_0900_ai_ci THEN 7 
+    , CASE WHEN fn_get_currency_info(b.currency, 'type') = 'standing' COLLATE utf8mb4_0900_ai_ci THEN 1
+    WHEN fn_get_currency_info(b.currency, 'type') = 'wallpaper' COLLATE utf8mb4_0900_ai_ci THEN 2 
+    WHEN fn_get_currency_info(b.currency, 'type') = 'sticker' COLLATE utf8mb4_0900_ai_ci THEN 3 
+    WHEN fn_get_currency_info(b.currency, 'type') = 'bubble' COLLATE utf8mb4_0900_ai_ci THEN 4 
+    WHEN fn_get_currency_info(b.currency, 'type') = 'portrait' COLLATE utf8mb4_0900_ai_ci THEN 5 
+    WHEN fn_get_currency_info(b.currency, 'type') = 'frame' COLLATE utf8mb4_0900_ai_ci THEN 6 
+    WHEN fn_get_currency_info(b.currency, 'type') = 'badge' COLLATE utf8mb4_0900_ai_ci THEN 7 
     ELSE 0 END sortkey
     , DATE_FORMAT(coin_purchase_date, '%Y-%m-%d %T') coin_purchase_date
     FROM user_coin_purchase a, com_coin_product b 
     WHERE userkey = ?
+    AND b.currency IN ( SELECT currency FROM com_currency WHERE connected_project = ? )
     AND a.coin_product_id = b.coin_product_id 
     ORDER BY sortkey, coin_purchase_no DESC; 
     `,
-    [lang, lang, userkey]
+    [lang, lang, userkey, project_id]
   );
   // eslint-disable-next-line no-restricted-syntax
   for (const item of result.row) {
@@ -727,6 +728,51 @@ export const getCoinProductPurchaseList = async (req, res) => {
   }
 
   res.status(200).json(result.row);
+};
+
+//! 토탈 코인샵 
+export const requestTotalCoinShop = async (req, res) =>{
+
+  const responseData = {};
+
+  const {
+    body: { lang = "KO", },
+  } = req;
+  
+  let result = await DB(`
+  SELECT 
+  a.promotion_no 
+  , location project_id 
+  , design_id 
+  , fn_get_design_info(design_id, 'url') design_url
+  , fn_get_design_info(design_id, 'key') design_key
+  FROM com_promotion a, com_promotion_detail b 
+  WHERE a.promotion_no = b.promotion_no  
+  AND promotion_type ='project'
+  AND is_public > 0 
+  AND now() <= end_date 
+  AND lang = ?
+  ORDER BY promotion_no DESC 
+  LIMIT 3;`, [lang]);
+  responseData.promotion = result.row;
+
+  result = await DB(`
+  SELECT 
+  a.project_id
+  , circle_image_id 
+  , fn_get_design_info(circle_image_id, 'url') circle_image_url
+  , fn_get_design_info(circle_image_id, 'key') circle_image_key 
+  , view_cnt
+  FROM list_project_master a, list_project_detail b, list_project_sorting_order c 
+  WHERE a.project_id = b.project_id
+  AND b.project_id = c.project_id
+  AND is_deploy > 0
+  AND lang = ?  
+  ORDER BY view_cnt DESC;`, [lang]);
+  responseData.list = result.row;
+
+  res.status(200).json(responseData);
+
 };
 
 //// 차후에 삭제할 예정
