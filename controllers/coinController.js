@@ -512,7 +512,7 @@ export const getCoinProductTypeList = async (req, res) => {
 //! 구매
 //* 2022.01.19 코인 사용할 시에 작품id 포함해서 전달(유/무료 스타 구분에 따른 후속 수정)
 //* 작품id는 com_currency의 connected_proejct에서 전달
-//* 단일상품 : connected_proejct에서, 세트상품 : 모두 같은 작품일 경우 connected_proejct, 아닌 경우 -1
+//* 단일상품 : connected_proejct에서, 세트상품 : 모두 같은 작품일 경우 connected_proejct, 아닌 경우 -1 >> 세트 상품은 나중에 처리 
 export const userCoinPurchase = async (req, res) => {
   const {
     body: {
@@ -534,19 +534,29 @@ export const userCoinPurchase = async (req, res) => {
   }
 
   //* 판매 중인 상품인지 확인
-  let result = await DB(
-    `SELECT ifnull(fn_get_currency_info(currency, 'type'), 'set') currency_type
-    , CASE WHEN currency = '' THEN 
+  const result = await DB(
+    `SELECT ifnull(fn_get_currency_info(a.currency, 'type'), 'set') currency_type
+    , CASE WHEN a.currency = '' THEN 
       fn_get_currency_set(coin_product_id)
     ELSE 
-      currency 
+      a.currency 
     END currency_list
-    FROM com_coin_product 
-    WHERE coin_product_id = ?
+    , price valid_origin_price
+    , CASE WHEN NOW() <= end_date AND sale_price > 0 THEN
+      sale_price
+    ELSE
+      price
+    END valid_pay_price
+    , connected_project project_id
+    , is_unique 
+    , fn_get_user_property(?, a.currency) quantity
+    FROM com_coin_product a, com_currency b
+    WHERE a.currency = b.currency 
+    AND coin_product_id = ?
     AND is_public > 0 
     AND NOW() <= end_date;
     `,
-    [coin_product_id]
+    [userkey, coin_product_id]
   );
   if (!result.state || result.row.length === 0) {
     logger.error(`userCoinPurchase Error 1-2`);
@@ -554,94 +564,48 @@ export const userCoinPurchase = async (req, res) => {
     return;
   }
 
-  const { currency_type, currency_list } = result.row[0];
-  const currencyList = currency_list.split(",");
+  const { currency_list, valid_origin_price, valid_pay_price, project_id, is_unique, quantity, } = result.row[0];
 
-  //* 해당 상품 개수 확인
-  let productCount = 1;
-  let quantityCount = 0;
-  if (currency_type === "set") {
-    result = await DB(
-      `SELECT count(*) cnt FROM com_coin_product_set WHERE coin_product_id = ?;`,
-      [coin_product_id]
-    );
-    productCount = result.row[0].cnt;
-  }
+  //* 패킷 조작에 따른 추가 로그 생성 
+  //* 실제 가격과 재화리스트와 맞지 않으면 구매 X
+  logger.info(`purchaseCoinShop [${userkey}] 
+  param [${sell_price}/${pay_price}] 
+  ::: [${valid_origin_price}/${valid_pay_price}] 
+  ::: [${JSON.stringify(currency)}/${currency_list}]`);
 
-  //* 작품 체크
-  let projectId = -1;
-  result = await DB(
-    `SELECT connected_project FROM com_currency WHERE currency IN (?);`,
-    [currencyList]
-  );
-  if (result.state && result.row.length > 0) {
-    projectId = result.row[0].connected_project; //초기값
-    // eslint-disable-next-line no-restricted-syntax
-    for (const item of result.row) {
-      if (projectId !== item.connected_project) projectId = -1; //세트 상품 안에서 다른 작품이 있는 경우, -1로 변경
-    }
-  }
-
-  //* 유니크와 소유재화수 셋팅
-  // eslint-disable-next-line no-restricted-syntax
-  for (const item of currency) {
-    // eslint-disable-next-line no-await-in-loop
-    const currencyResult = await DB(
-      `SELECT is_unique FROM com_currency WHERE currency = ?;`,
-      [item.currency]
-    ); //유니크
-    item.is_unique = currencyResult.row[0].is_unique;
-
-    // eslint-disable-next-line no-await-in-loop
-    item.quantity = await getCurrencyQuantity(userkey, item.currency); // 재화 소유여부 한번 더 확인
-
-    if (item.is_unique > 0 && item.quantity > 0) quantityCount += item.quantity;
-  }
-
-  if (productCount <= quantityCount) {
+  if(is_unique > 0 && quantity > 0){
     logger.error(`userCoinPurchase Error 2`);
     responDBCoinShop(res, 80025, lang);
-    return;
+    return;    
   }
 
   //* 구매 가능한지 확인
   const userCoin = await getCurrencyQuantity(userkey, "coin");
-  if (userCoin < pay_price) {
-    logger.error(`userCoinPurchase Error 3`);
+  logger.info(`purchaseCoinShop needCoin: [${valid_pay_price}] / currentCoin: [${userCoin}] / currentCurrency: [${currency_list}]`);
+  
+  if (userCoin < valid_pay_price) {
+    logger.error(`userCoinPurchase Error 3-1`);
     responDBCoinShop(res, 80013, lang);
     return;
   }
 
   //* 구매 처리(코인 사용)
-  let insertQuery = ``;
-  let currencyText = ``;
-  // eslint-disable-next-line no-restricted-syntax
-  for (const item of currency) {
-    // 유니크 아닌 상품과 유니크면서 아직 보유하지 않으면 메일 전송
-    if (item.is_unique === 0 || (item.is_unique === 1 && item.quantity === 0)) {
-      insertQuery += mysql.format(
-        `CALL sp_insert_user_property(?, ?, 1, 'coin_purchase');`,
-        [userkey, item.currency]
-      );
-      currencyText += `${item.currency},`;
-    }
-  }
-  currencyText = currencyText.slice(0, -1); //세트 상품인 경우, 소유재화에 따라 코인 재화 리스트가 달라짐
+  const insertQuery = mysql.format(`CALL sp_insert_user_property(?, ?, 1, 'coin_purchase');`, [userkey, currency_list]);
   const purchaseQuery = mysql.format(
     `CALL sp_use_user_property(?, 'coin', ?, 'coin_purchase', ?);`,
-    [userkey, pay_price, projectId]
+    [userkey, valid_pay_price, project_id]
   );
   const userHistoryQuery = mysql.format(
     `
     INSERT INTO user_coin_purchase(userkey, coin_product_id, sell_price, pay_price, currency) VALUES(?, ?, ?, ?, ?);`,
-    [userkey, coin_product_id, sell_price, pay_price, currencyText]
+    [userkey, coin_product_id, valid_origin_price, valid_pay_price, currency_list]
   );
 
   const purchaseResult = await transactionDB(`
     ${purchaseQuery}
     ${insertQuery}
     ${userHistoryQuery}   
-    `);
+  `);
 
   if (!purchaseResult.state) {
     logger.error(`userCoinPurchase Error 4 ${purchaseResult.error}`);
