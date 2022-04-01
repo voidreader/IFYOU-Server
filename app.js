@@ -13,6 +13,8 @@ import routes from "./routes";
 
 import adminRouter from "./routers/adminRouter";
 
+import { scheduleMail, scheduleStatInsert } from "./schedule";
+
 const app = express();
 
 const corsOption = {
