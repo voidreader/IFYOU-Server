@@ -3448,20 +3448,27 @@ export const purchaseFreepass = async (req, res) => {
   const currentGem = await getCurrencyQuantity(userkey, "gem"); // 현재 유저의 젬 보유량
 
   let freepassPricesObject = null;
-  let fresspassSalePrice = salePrice;
+  let fresspassSalePrice = 0;
 
-  // 값이 기본값으로 들어온 경우는 서버에서 정보를 가져오도록 처리한다.
-  if (originPrice === 0) {
-    freepassPricesObject = await getCurrentProjectPassPrice({
-      userkey,
-      project_id,
-    });
+  freepassPricesObject = await getCurrentProjectPassPrice({
+    userkey,
+    project_id,
+  });
+
+  logger.info(
+    `purchaseFreepass [${userkey}] param [${originPrice}/${salePrice}] ::: [${freepassPricesObject.origin_price}/${freepassPricesObject.sale_price}]`
+  );
+
+  if (salePrice < 0 || salePrice != freepassPricesObject.salePrice) {
+    logger.error(
+      `purchaseFreepass [${userkey}] wrong price [${originPrice}/${salePrice}] ::: [${freepassPricesObject.origin_price}/${freepassPricesObject.sale_price}]`
+    );
     fresspassSalePrice = freepassPricesObject.sale_price; // 세일 가격을 서버에서 받아온다.
   } else {
     fresspassSalePrice = salePrice;
   }
 
-  console.log(
+  logger.info(
     `purchaseFreepass needGem:[${fresspassSalePrice}] / currentGem:[${currentGem}]`
   );
 
