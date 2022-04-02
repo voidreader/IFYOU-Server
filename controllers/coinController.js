@@ -11,6 +11,7 @@ const coinProductListQuery = `
 SELECT coin_product_id
 , fn_get_coin_product_name(coin_product_id, ?) coin_product_name
 , a.currency
+, b.currency_type
 , price origin_price
 , CASE WHEN NOW() <= end_date AND sale_price > 0 THEN
   sale_price
