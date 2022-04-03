@@ -692,7 +692,7 @@ SELECT m.model_name
   FROM list_model_master m
     LEFT OUTER JOIN list_model_slave lms ON lms.model_id = m.model_id 
  WHERE m.project_id = ?
- ORDER BY m.model_id , lms.model_slave_id; 
+ ORDER BY m.model_id , lms.sortkey, lms.model_slave_id; 
 `;
 
 // 프로젝트 라이브 오브젝트 파일 모두 조회
