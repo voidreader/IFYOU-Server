@@ -22,7 +22,7 @@ export const getUserStoryProfileCurrencyList = async (
   logger.info(`getUserStoryProfileCurrencyList`);
 
   const {
-    body: { userkey, project_id },
+    body: { userkey, project_id, lang = "KO" },
   } = req;
 
   const responseData = {};
@@ -55,6 +55,8 @@ export const getUserStoryProfileCurrencyList = async (
        , fn_get_design_info(d.icon_design_id, 'url') ability_icon_image_url 
        , fn_get_design_info(d.icon_design_id, 'key') ability_icon_image_key
        , c.add_value
+       , CASE WHEN b.currency_type = 'bubble' THEN fn_get_currency_bubble_text(a.currency, '${lang}') 
+              ELSE '' END bubble_text
    FROM user_property a
    INNER JOIN com_currency b ON a.currency = b.currency
    LEFT OUTER JOIN com_currency_ability c ON b.currency = c.currency
