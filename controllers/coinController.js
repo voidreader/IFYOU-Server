@@ -52,6 +52,7 @@ END code
 , fn_get_design_info(d.icon_design_id, 'key') ability_icon_image_key 
 , c.add_value
 , ifnull(e.sortkey, 100) sorting_order
+, CASE WHEN b.currency_type = 'bubble' THEN fn_get_bubble_info(a.currency, ?) ELSE '' END line
 FROM com_coin_product a
 INNER JOIN com_currency b ON a.currency = b.currency
 LEFT OUTER JOIN com_currency_ability c ON b.currency = c.currency 
@@ -211,28 +212,28 @@ export const getCoinProductMainList = async (req, res) => {
   //스탠딩
   let result = await DB(
     `${coinProductListQuery} ORDER BY a.price DESC, rand() LIMIT 5;`,
-    [lang, lang, userkey, project_id, lang, lang, project_id, "standing"]
+    [lang, lang, userkey, project_id, lang, lang, lang, project_id, "standing"]
   );
   responseData.character = await getCoinProductListSort(result.row, 1);
 
   //배경
   result = await DB(
     `${coinProductListQuery} ORDER BY price DESC, rand() LIMIT 5;`,
-    [lang, lang, userkey, project_id, lang, lang, project_id, "wallpaper"]
+    [lang, lang, userkey, project_id, lang, lang, lang, project_id, "wallpaper"]
   );
   responseData.wallpaper = await getCoinProductListSort(result.row, 1);
 
   //스티커
   result = await DB(
     `${coinProductListQuery} ORDER BY price DESC, rand() LIMIT 5;`,
-    [lang, lang, userkey, project_id, lang, lang, project_id, "sticker"]
+    [lang, lang, userkey, project_id, lang, lang, lang, project_id, "sticker"]
   );
   responseData.sticker = await getCoinProductListSort(result.row, 1);
 
   //대사
   result = await DB(
     `${coinProductListQuery} ORDER BY price DESC, rand() LIMIT 5;`,
-    [lang, lang, userkey, project_id, lang, lang, project_id, "bubble"]
+    [lang, lang, userkey, project_id, lang, lang, lang, project_id, "bubble"]
   );
   responseData.line = await getCoinProductListSort(result.row, 1);
 
@@ -331,7 +332,7 @@ export const getCoinProductSearchDetail = async (req, res) => {
     `
     ${coinProductListQuery} ${whereQuery}
     ORDER BY sorting_order, a.price DESC;`,
-    [lang, lang, userkey, project_id, lang, lang, project_id, "standing"]
+    [lang, lang, userkey, project_id, lang, lang, lang, project_id, "standing"]
   );
   responseData.character = await getCoinProductListSort(result.row);
 
@@ -340,7 +341,7 @@ export const getCoinProductSearchDetail = async (req, res) => {
     `
     ${coinProductListQuery} ${whereQuery}
     ORDER BY sorting_order, a.price DESC;`,
-    [lang, lang, userkey, project_id, lang, lang, project_id, "wallpaper"]
+    [lang, lang, userkey, project_id, lang, lang, lang, project_id, "wallpaper"]
   );
   responseData.wallpaper = await getCoinProductListSort(result.row);
 
@@ -349,7 +350,7 @@ export const getCoinProductSearchDetail = async (req, res) => {
     `
     ${coinProductListQuery} ${whereQuery}
     ORDER BY sorting_order, a.price DESC;`,
-    [lang, lang, userkey, project_id, lang, lang, project_id, "sticker"]
+    [lang, lang, userkey, project_id, lang, lang, lang, project_id, "sticker"]
   );
   responseData.sticker = await getCoinProductListSort(result.row);
 
@@ -358,7 +359,7 @@ export const getCoinProductSearchDetail = async (req, res) => {
     `
     ${coinProductListQuery} ${whereQuery}
     ORDER BY sorting_order, a.price DESC;`,
-    [lang, lang, userkey, project_id, lang, lang, project_id, "bubble"]
+    [lang, lang, userkey, project_id, lang, lang, lang, project_id, "bubble"]
   );
   responseData.line = await getCoinProductListSort(result.row);
 
@@ -437,7 +438,7 @@ export const getCoinProductTypeList = async (req, res) => {
     `
     ${coinProductListQuery} ${whereQuery}
     ORDER BY sorting_order, a.price DESC;`,
-    [lang, lang, userkey, project_id, lang, lang, project_id, currency_type]
+    [lang, lang, userkey, project_id, lang, lang, lang, project_id, currency_type]
   );
   responseData.list = await getCoinProductListSort(result.row);
 
