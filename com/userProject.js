@@ -5,6 +5,7 @@ import { respondDB } from "../respondent";
 import { getUserBankInfo } from "../controllers/bankController";
 import { createQueryResetAbility } from "../controllers/abilityController";
 import {
+  getUserProjectProgressInfo,
   getUserEpisodePurchaseInfo,
   getUserProjectProperty,
   purchaseEpisodeType2,
@@ -1015,4 +1016,54 @@ export const resetProjectProgress = async (req, res) =>{
   // 정보 업데이트 (bank, projectCurrent, sceneProgress, selectionProgress, ability, rowAbility)
   
 
+};
+
+//! 경로 누적 처리 
+export const setProjectProgressOrder = async (req, res) => {
+  
+  const {
+    body:{
+      userkey, 
+      project_id = -1, 
+      episode_id = -1, 
+      scene_id = null, 
+      selection_group = 0, 
+    }
+  } = req;
+
+  let route = 0;
+
+  if(!userkey || project_id === -1 || episode_id === -1) {
+    logger.error(`setProjectProgressOrder Error`);
+    respondDB(res, 80019);
+    return;     
+  }
+
+  //최대값 가져오기
+  let result = await DB(`
+  SELECT max(route) route 
+  FROM user_project_progress_order
+  WHERE userkey = ? 
+  AND project_id = ?
+  AND episode_id = ?; 
+  `, [userkey, project_id, episode_id]);
+  if(result.state && result.row.length > 0) route = result.row[0].route+1; 
+
+  //경로 누적 쌓기
+  result = await DB(`
+  INSERT INTO user_project_progress_order(userkey, project_id, episode_id, scene_id, selection_group, route) 
+  VALUES(?, ?, ?, ?, ?, ?);`, [userkey, project_id, episode_id, scene_id, selection_group, route]);
+  if(!result.state){
+    logger.error(`setProjectProgressOrder Error ${result.error}`);
+    respondDB(res, 80026, result.error);
+    return; 
+  }
+
+  result = await getUserProjectProgressInfo({
+    userkey, 
+    project_id,
+    episode_id,
+  });
+
+  res.status(200).json(result);
 };
