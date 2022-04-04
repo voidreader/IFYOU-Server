@@ -127,11 +127,12 @@ export const getUserStoryProfileCurrencyList = async (
 // * 유저 작품별 꾸미기 조회
 export const getUserStoryProfile = async (req, res, needResponse = true) => {
   const {
-    body: { userkey, project_id },
+    body: { userkey, project_id, lang = "KO" },
   } = req;
 
   // * 현재 작품 프로필 상태 조회
   let currentProfile = await DB(UQ_GET_USER_STORY_PROFILE, [
+    lang,
     userkey,
     project_id,
   ]);
@@ -189,6 +190,7 @@ export const getUserStoryProfile = async (req, res, needResponse = true) => {
       if (defaultResult.state) {
         // * 입력 완료 후 재조회
         currentProfile = await DB(UQ_GET_USER_STORY_PROFILE, [
+          lang,
           userkey,
           project_id,
         ]);

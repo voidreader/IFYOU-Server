@@ -691,7 +691,8 @@ SELECT a.currency
 , currency_type
 , b.model_id
 , fn_get_currency_model_name(b.currency_type, a.project_id, b.model_id) model_name
-, fn_get_currency_origin_name(b.currency_type, a.project_id, b.resource_image_id) origin_name
+, CASE WHEN b.currency_type = 'bubble' THEN fn_get_currency_bubble_text(a.currency, ?) 
+       ELSE fn_get_currency_origin_name(b.currency_type, a.project_id, b.resource_image_id) END origin_name
 FROM user_story_profile a
 , com_currency b 
 WHERE a.userkey = ?
@@ -699,7 +700,6 @@ WHERE a.userkey = ?
   AND a.currency = b.currency
 ORDER BY sorting_order;  
 `;
-
 
 //엔딩 힌트 리스트
 export const Q_SELECT_ENDING_HINT = `
