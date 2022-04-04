@@ -1384,6 +1384,12 @@ export const insertUserEpisodeStartRecord = async (req, res) => {
     return;
   }
 
+  responseData.progressOrder = await getUserProjectProgressInfo({
+    userkey, 
+    project_id, 
+    episode_id : episodeID,
+  });
+
   res.status(200).json(responseData);
 
   logAction(userkey, "insert_episode_start", req.body);
