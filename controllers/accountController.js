@@ -1384,6 +1384,12 @@ export const insertUserEpisodeStartRecord = async (req, res) => {
     return;
   }
 
+  responseData.progressOrder = await getUserProjectProgressInfo({
+    userkey, 
+    project_id, 
+    episode_id : episodeID,
+  });
+
   res.status(200).json(responseData);
 
   logAction(userkey, "insert_episode_start", req.body);
@@ -3672,4 +3678,28 @@ export const requestUserTutorialProgress = async (req, res) => {
   res.status(200).json(accountInfo);
 
   logAction(userkey, "tutorial_ver2", req.body);
+};
+
+//! 현재 에피의 경로 정보
+export const getUserProjectProgressInfo = async (userInfo) => {
+
+  const {
+    userkey, 
+    project_id, 
+    episode_id, 
+  } = userInfo;
+
+  const result = await DB(`
+  SELECT 
+  scene_id
+  , selection_group 
+  , route 
+  FROM user_project_progress_order
+  WHERE userkey = ? 
+  AND project_id = ? 
+  AND episode_id = ?
+  ORDER BY route; 
+  `, [userkey, project_id, episode_id]);
+
+  return result.row; 
 };

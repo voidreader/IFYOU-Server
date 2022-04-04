@@ -87,6 +87,7 @@ import {
   requestWaitingEpisodeWithCoin,
   requestWaitingEpisodeWithAD,
   requestRemoveCurrentAD,
+  setProjectProgressOrder,
 } from "../com/userProject";
 import {
   getAllProductList,
@@ -1665,6 +1666,9 @@ export const clientHome = (req, res) => {
   else if (func === "requestTotalCoinShop")
     requestTotalCoinShop(req, res); 
   //토탈 코인 상점 화면 
+  else if (func === "setProjectProgressOrder")
+    setProjectProgressOrder(req, res);
+  //에피 진행 순서 누적
   else {
     //  res.status(400).send(`Wrong Func : ${func}`);
     logger.error(`clientHome Error ${func}`);
