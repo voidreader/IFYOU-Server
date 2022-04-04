@@ -494,6 +494,8 @@ SELECT a.episode_id
 , fn_get_count_scene_in_history(?, a.episode_id, ?, 'played') played_scene_count     
 , fn_check_special_episode_open(?, a.episode_id) is_open
 , a.next_open_min
+, CASE WHEN ifnull(a.publish_date, '2020-01-01') > now() THEN 1 ELSE 0 END is_serial -- 
+, date_format(ifnull(a.publish_date, '2020-01-01'), '%Y-%m-%d %T') publish_date
 FROM list_episode a
 WHERE a.project_id = ?
 AND a.episode_type = 'side'

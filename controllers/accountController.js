@@ -705,6 +705,8 @@ const requestMainEpisodeList = async (userInfo) => {
   , CASE WHEN a.episode_type = 'ending' THEN fn_check_user_ending(${userInfo.userkey}, a.episode_id) 
          ELSE 0 END ending_open
   , a.next_open_min
+  , CASE WHEN ifnull(a.publish_date, '2020-01-01') > now() THEN 1 ELSE 0 END is_serial -- 
+  , date_format(ifnull(a.publish_date, '2020-01-01'), '%Y-%m-%d %T') publish_date
 FROM list_episode a
 WHERE a.project_id = ${userInfo.project_id}
 AND a.episode_type IN ('chapter', 'ending')
@@ -1385,9 +1387,9 @@ export const insertUserEpisodeStartRecord = async (req, res) => {
   }
 
   responseData.progressOrder = await getUserProjectProgressInfo({
-    userkey, 
-    project_id, 
-    episode_id : episodeID,
+    userkey,
+    project_id,
+    episode_id: episodeID,
   });
 
   res.status(200).json(responseData);
@@ -3682,14 +3684,10 @@ export const requestUserTutorialProgress = async (req, res) => {
 
 //! 현재 에피의 경로 정보
 export const getUserProjectProgressInfo = async (userInfo) => {
+  const { userkey, project_id, episode_id } = userInfo;
 
-  const {
-    userkey, 
-    project_id, 
-    episode_id, 
-  } = userInfo;
-
-  const result = await DB(`
+  const result = await DB(
+    `
   SELECT 
   scene_id
   , selection_group 
@@ -3699,7 +3697,9 @@ export const getUserProjectProgressInfo = async (userInfo) => {
   AND project_id = ? 
   AND episode_id = ?
   ORDER BY route; 
-  `, [userkey, project_id, episode_id]);
+  `,
+    [userkey, project_id, episode_id]
+  );
 
-  return result.row; 
+  return result.row;
 };
