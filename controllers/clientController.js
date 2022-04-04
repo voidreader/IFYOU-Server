@@ -765,6 +765,7 @@ const getIfYouProjectList = async (req, res) => {
   , fn_get_episode_progress_value(${userkey}, a.project_id) project_progress
   , fn_check_exists_project_play_record(${userkey}, a.project_id) is_playing
   , b.original
+  , ifnull(a.serial_day, -1) serial_day
   FROM list_project_master a
   LEFT OUTER JOIN list_project_detail b ON b.project_id = a.project_id AND b.lang ='${lang}'
   WHERE a.is_public > 0
@@ -1663,9 +1664,8 @@ export const clientHome = (req, res) => {
   else if (func === "requestGalleryLobbyOpen")
     requestGalleryLobbyOpen(req, res);
   //단계별 튜토리얼 처리
-  else if (func === "requestTotalCoinShop")
-    requestTotalCoinShop(req, res); 
-  //토탈 코인 상점 화면 
+  else if (func === "requestTotalCoinShop") requestTotalCoinShop(req, res);
+  //토탈 코인 상점 화면
   else if (func === "setProjectProgressOrder")
     setProjectProgressOrder(req, res);
   //에피 진행 순서 누적
