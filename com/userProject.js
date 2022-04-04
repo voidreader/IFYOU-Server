@@ -1028,10 +1028,9 @@ export const setProjectProgressOrder = async (req, res) => {
       episode_id = -1, 
       scene_id = null, 
       selection_group = 0, 
+      route = 0,
     }
   } = req;
-
-  let route = 0;
 
   if(!userkey || project_id === -1 || episode_id === -1) {
     logger.error(`setProjectProgressOrder Error`);
@@ -1039,18 +1038,8 @@ export const setProjectProgressOrder = async (req, res) => {
     return;     
   }
 
-  //최대값 가져오기
-  let result = await DB(`
-  SELECT max(route) route 
-  FROM user_project_progress_order
-  WHERE userkey = ? 
-  AND project_id = ?
-  AND episode_id = ?; 
-  `, [userkey, project_id, episode_id]);
-  if(result.state && result.row.length > 0) route = result.row[0].route+1; 
-
   //경로 누적 쌓기
-  result = await DB(`
+  let result = await DB(`
   INSERT INTO user_project_progress_order(userkey, project_id, episode_id, scene_id, selection_group, route) 
   VALUES(?, ?, ?, ?, ?, ?);`, [userkey, project_id, episode_id, scene_id, selection_group, route]);
   if(!result.state){
