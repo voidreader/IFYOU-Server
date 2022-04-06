@@ -773,7 +773,7 @@ const getIfYouProjectList = async (req, res) => {
   LEFT OUTER JOIN list_project_detail b ON b.project_id = a.project_id AND b.lang ='${lang}'
   WHERE a.is_public > 0
   AND a.service_package LIKE CONCAT('%', ?, '%')
-  AND locate('${lang}', a.exception_lang) IS NULL 
+  AND (locate('${lang}', a.exception_lang) IS NULL OR locate('${lang}', a.exception_lang) < 1)
     ${onlyDeploy ? postfixQuery : ""}
   `;
   // * 위에 베타서버용 추가 쿼리 관련 로직 추가되었음 2022.03.22

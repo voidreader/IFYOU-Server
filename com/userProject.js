@@ -808,7 +808,7 @@ export const requestWaitingEpisodeWithCoin = async (req, res) => {
   req.body.episodeID = episodeID;
   req.body.purchaseType = "Permanent";
   req.body.currency = "coin";
-  req.body.currencyQuantity = 0; // 0으로 구매해야한다.
+  req.body.currencyQuantity = 0; // 0으로 구매해야한다.(purchaseEpisodeType2 사용해야되서 쓴다)
 
   // 코인으로 기다리면 무료를 해제했을때는 Permanent로 처리한다.
   const responseData = {};
@@ -948,18 +948,17 @@ export const requestRemoveCurrentAD = async (req, res) => {
 };
 
 //! 프로그레스바 처리
-export const resetProjectProgress = async (req, res) =>{
-
+export const resetProjectProgress = async (req, res) => {
   const {
-    body:{
-      userkey, 
-      project_id, 
-      episode_id, 
-      scene_id = null, 
-      script_no = 0, 
-      current_selection_group = -1, 
-      reset_selection_group = -1, 
-    }
+    body: {
+      userkey,
+      project_id,
+      episode_id,
+      scene_id = null,
+      script_no = 0,
+      current_selection_group = -1,
+      reset_selection_group = -1,
+    },
   } = req;
 
   let result;
@@ -967,89 +966,96 @@ export const resetProjectProgress = async (req, res) =>{
   let resetQuery = ``;
   let quantity = 0;
   let origin_script_no = 0;
-  
-  if(parseInt(current_selection_group, 10) < 0 || parseInt(reset_selection_group, 10) < 0){
-    logger.error(`resetProjectProgress [${userkey}] wrong selection [${current_selection_group}/${reset_selection_group}]`);
+
+  if (
+    parseInt(current_selection_group, 10) < 0 ||
+    parseInt(reset_selection_group, 10) < 0
+  ) {
+    logger.error(
+      `resetProjectProgress [${userkey}] wrong selection [${current_selection_group}/${reset_selection_group}]`
+    );
     respondDB(res, 80019);
     return;
   }
 
-  if(reset_selection_group === 0) quantity = 200;
-  else quantity = (current_selection_group-reset_selection_group)*50;
+  if (reset_selection_group === 0) quantity = 200;
+  else quantity = (current_selection_group - reset_selection_group) * 50;
 
-  //코인 차감 
+  //코인 차감
   const userCoin = await getCurrencyQuantity(userkey, "coin");
-  if(userCoin < quantity){
+  if (userCoin < quantity) {
     logger.error(`resetProjectProgress Error`);
     respondDB(res, 80013);
     return;
   }
-  currentQuery= `CALL pier.sp_use_user_property(?, 'coin', ?, 'project_progress', ?);`;
+  currentQuery = `CALL pier.sp_use_user_property(?, 'coin', ?, 'project_progress', ?);`;
   resetQuery += mysql.format(currentQuery, [userkey, quantity, project_id]);
 
-  //현재 script_no 가져오기 
-  result = await DB(`SELECT script_no FROM user_project_current WHERE userkey = ? AND project_id = ? AND is_special = 0;`, [userkey, project_id]);
-  if(result.state && result.row.length > 0) origin_script_no = result.row[0].script_no; 
-  
-  //리셋 처리(user_scene_progress, user_selection_progress, user_selection_current) 
-  currentQuery = `CALL pier.sp_reset_user_project_progress(?, ?, ?, ?, ?, ?, ?, ?, ?);`; 
+  //현재 script_no 가져오기
+  result = await DB(
+    `SELECT script_no FROM user_project_current WHERE userkey = ? AND project_id = ? AND is_special = 0;`,
+    [userkey, project_id]
+  );
+  if (result.state && result.row.length > 0)
+    origin_script_no = result.row[0].script_no;
+
+  //리셋 처리(user_scene_progress, user_selection_progress, user_selection_current)
+  currentQuery = `CALL pier.sp_reset_user_project_progress(?, ?, ?, ?, ?, ?, ?, ?, ?);`;
   resetQuery += mysql.format(currentQuery, [
-    userkey
-    , project_id
-    , episode_id
-    , scene_id
-    , script_no
-    , origin_script_no
-    , current_selection_group
-    , reset_selection_group
-    , quantity
+    userkey,
+    project_id,
+    episode_id,
+    scene_id,
+    script_no,
+    origin_script_no,
+    current_selection_group,
+    reset_selection_group,
+    quantity,
   ]);
 
   result = await transactionDB(resetQuery);
-  if(!result.state){
+  if (!result.state) {
     logger.error(`resetProjectProgress Error ${result.error}`);
     respondDB(res, 80026, result.error);
-    return;    
   }
 
-
   // 정보 업데이트 (bank, projectCurrent, sceneProgress, selectionProgress, ability, rowAbility)
-  
-
 };
 
-//! 경로 누적 처리 
+//! 경로 누적 처리
 export const setProjectProgressOrder = async (req, res) => {
-  
   const {
-    body:{
-      userkey, 
-      project_id = -1, 
-      episode_id = -1, 
-      scene_id = null, 
-      selection_group = 0, 
+    body: {
+      userkey,
+      project_id = -1,
+      episode_id = -1,
+      scene_id = null,
+      selection_group = 0,
       route = 0,
-    }
+    },
   } = req;
 
-  if(!userkey || project_id === -1 || episode_id === -1) {
+  if (!userkey || project_id === -1 || episode_id === -1) {
     logger.error(`setProjectProgressOrder Error`);
     respondDB(res, 80019);
-    return;     
+    return;
   }
 
   //경로 누적 쌓기
-  let result = await DB(`
+  let result = await DB(
+    `
   INSERT INTO user_project_progress_order(userkey, project_id, episode_id, scene_id, selection_group, route) 
-  VALUES(?, ?, ?, ?, ?, ?);`, [userkey, project_id, episode_id, scene_id, selection_group, route]);
-  if(!result.state){
+  VALUES(?, ?, ?, ?, ?, ?);`,
+    [userkey, project_id, episode_id, scene_id, selection_group, route]
+  );
+  if (!result.state) {
     logger.error(`setProjectProgressOrder Error ${result.error}`);
     respondDB(res, 80026, result.error);
-    return; 
+    return;
   }
 
   result = await getUserProjectProgressInfo({
-    userkey, 
+    userkey,
     project_id,
     episode_id,
   });
