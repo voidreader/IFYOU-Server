@@ -68,7 +68,10 @@ import {
   getServerMasterInfo,
   getPlatformEvents,
 } from "./serverController";
-import { updateUserVoiceHistory } from "./soundController";
+import {
+  updateUserVoiceCheck,
+  updateUserVoiceHistory,
+} from "./soundController";
 import {
   getUserUnreadMailList,
   requestReceiveAllMail,
@@ -770,8 +773,8 @@ const getIfYouProjectList = async (req, res) => {
   LEFT OUTER JOIN list_project_detail b ON b.project_id = a.project_id AND b.lang ='${lang}'
   WHERE a.is_public > 0
   AND a.service_package LIKE CONCAT('%', ?, '%')
-  AND (a.service_country IS NULL OR a.service_country = ?)
-  ${onlyDeploy ? postfixQuery : ""}
+  AND locate('${lang}', a.exception_lang) IS NULL 
+    ${onlyDeploy ? postfixQuery : ""}
   `;
   // * 위에 베타서버용 추가 쿼리 관련 로직 추가되었음 2022.03.22
 
@@ -1668,6 +1671,7 @@ export const clientHome = (req, res) => {
   //토탈 코인 상점 화면
   else if (func === "setProjectProgressOrder")
     setProjectProgressOrder(req, res);
+  else if (func === "updateUserVoiceCheck") updateUserVoiceCheck(req, res);
   //에피 진행 순서 누적
   else {
     //  res.status(400).send(`Wrong Func : ${func}`);
