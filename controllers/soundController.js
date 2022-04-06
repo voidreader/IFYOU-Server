@@ -1,5 +1,4 @@
 import mysql from "mysql2/promise";
-
 import { DB } from "../mysqldb";
 
 import {
@@ -10,7 +9,7 @@ import {
   adminLogInsert,
 } from "../respondent";
 import { logger } from "../logger";
-import { RecordPrviousS3Object, uploadZipResources } from "../com/com";
+
 ////////////////////////////////////////////////////////////////////////////////
 
 // ! 유저 관련 처리 /////////////////////////////////////////////////////////////////
@@ -185,4 +184,26 @@ export const getProjectBGMs = async (userInfo) => {
   );
 
   return result.row;
+};
+
+// * 유저 오픈된 보이스의 확인 처리 (갤러리에서 호출)
+export const updateUserVoiceCheck = async (req, res) => {
+  const {
+    body: { userkey, sound_id },
+  } = req;
+
+  const result = await DB(`
+  UPDATE user_voice   
+   SET is_replay = 1
+ WHERE userkey = ${userkey}
+   AND sound_id = ${sound_id};
+  `);
+
+  if (!result.state) {
+    logger.error(`updateUserVoiceCheck Error ${result.error}`);
+    respondDB(res, 80026, result.error);
+    return;
+  }
+
+  res.status(200).json(req.body);
 };
