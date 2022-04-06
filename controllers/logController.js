@@ -8,6 +8,8 @@ export const reportRequestError = (req, res) => {
     body: { userkey, rawData, message },
   } = req;
 
+  logger.error(`reportRequestError : ${req.body}`);
+
   logDB(
     `INSERT INTO gamelog.log_request_error (userkey, raw_data, message) VALUES (?,?,?);`,
     [userkey, rawData, message]
