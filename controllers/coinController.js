@@ -438,7 +438,17 @@ export const getCoinProductTypeList = async (req, res) => {
     `
     ${coinProductListQuery} ${whereQuery}
     ORDER BY sorting_order, a.price DESC;`,
-    [lang, lang, userkey, project_id, lang, lang, lang, project_id, currency_type]
+    [
+      lang,
+      lang,
+      userkey,
+      project_id,
+      lang,
+      lang,
+      lang,
+      project_id,
+      currency_type,
+    ]
   );
   responseData.list = await getCoinProductListSort(result.row);
 
@@ -662,6 +672,13 @@ export const requestTotalCoinShop = async (req, res) => {
     body: { lang = "KO" },
   } = req;
 
+  let whereListQuery = ``;
+  let wherePromotionQuery = ``;
+  if (lang === "JA") {
+    whereListQuery = ` AND a.project_id <> 64 `;
+    wherePromotionQuery = ` AND location <> 64 `;
+  }
+
   let result = await DB(
     `
   SELECT 
@@ -676,6 +693,7 @@ export const requestTotalCoinShop = async (req, res) => {
   AND is_public > 0 
   AND now() <= end_date 
   AND lang = ?
+  ${wherePromotionQuery}
   ORDER BY promotion_no DESC 
   LIMIT 3;`,
     [lang]
@@ -694,7 +712,8 @@ export const requestTotalCoinShop = async (req, res) => {
   WHERE a.project_id = b.project_id
   AND b.project_id = c.project_id
   AND is_deploy > 0
-  AND lang = ?  
+  AND lang = ?
+  ${whereListQuery}  
   ORDER BY view_cnt DESC;`,
     [lang]
   );
