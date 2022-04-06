@@ -163,6 +163,8 @@ const checkPremium = async (userkey, achievement_id) => {
     
     let resultQuery = ``;
     let result = ``;
+    let totalCount = 0;
+    let countCheck = false;
 
     //업적 정보 가져오기
     const achievementInfo = await getAchievementInfo(achievement_id); 
@@ -171,30 +173,101 @@ const checkPremium = async (userkey, achievement_id) => {
         gain_point,
     } = achievementInfo;
     
-    let dataCheck = false; //데이터 유무
-
-    //업적 데이터 있는지 확인
     result = await DB(`
-    SELECT currenet_result 
-    FROM user_achievement 
+    SELECT *
+    FROM gamelog.log_property
     WHERE userkey = ? 
-    AND achievement_id = ?
-    ORDER BY achievement_no DESC
-    LIMIT 1;
-    ;`, [userkey, achievement_id]);
-    if(result.state && result.row.length > 0) {
-        dataCheck = true;
-    }
-    
-    //프리미엄 구매 처리 
-    if(!dataCheck){ 
-        resultQuery = mysql.format(`INSERT INTO user_achievement(userkey, achievement_id) VALUES(?, ?);`, [userkey, achievement_id]);
-    }else{
+    AND log_type ='get'
+    AND currency like 'Free%';
+    `, [userkey]);
+    if(result.state) totalCount = result.row.length;
 
+    if(totalCount >= achievement_point) countCheck=true;
+
+    if(countCheck){
+        result = await DB(`SELECT * FROM user_achievement WHERE userkey = ? AND achievement_id = ? AND is_clear = 0;`, [userkey, achievement_id]);
+        if(result.state){
+            if(result.row.length === 0)
+                resultQuery = mysql.format(`INSERT INTO user_achievement(userkey, achievement_id, gain_point, is_clear) VALUES(?, ?, ?, 1);`, [userkey, achievement_id, gain_point]);
+            else
+                resultQuery = mysql.format(`UPDATE user_achievement SET gain_point = ?, is_clear = 1 WHERE userkey = ? AND achievement_id = ?;`, [gain_point, userkey, achievement_id]); 
+        }
     }
 
     return resultQuery;    
 }
+
+//! 리셋
+const checkReset = async (userkey, achievement_id, project_id, episode_id) =>{
+    
+    let resultQuery = ``;
+    let result = ``;
+    let achievementInfo = ``;
+    let achievement_point = 0; 
+    let gain_point = 0;
+
+    
+    if(achievement_id === 16){
+
+        //업적 정보 가져오기
+        achievementInfo = await getAchievementInfo(achievement_id); 
+        achievement_point = achievementInfo.achievement_point;
+        gain_point = achievementInfo.gain_point;
+
+        //에
+        result = await DB(`
+        SELECT episode_id 
+        FROM list_episode 
+        WHERE project_id = ?
+        ORDER BY sortkey
+        LIMIT 1;
+        `, [project_id]);
+
+
+
+    }
+};
+
+//! 스탠딩 구매 횟수 
+export const checkStanding = async (userkey, achievement_id) => {
+    
+    let resultQuery = ``;
+    let result = ``;
+    let achieveCount = 0;
+    let totalCount = 0;
+ 
+    //업적 정보 가져오기
+    const achievementInfo = await getAchievementInfo(achievement_id); 
+    const {
+        achievement_point, 
+        gain_point,
+    } = achievementInfo;
+    
+    //업적 클리어 건수
+    result = await DB(`SELECT * FROM user_achievement WHERE userkey = ? AND achievement_id = ? AND is_clear = 1;`, [userkey, achievement_id]);
+    achieveCount = result.row.length;
+    
+    //스탠딩 구매 건수
+    result = await DB(`
+    SELECT * FROM user_coin_purchase 
+    WHERE userkey = ? 
+    AND currency IN (SELECT currency FROM com_currency WHERE currency_type = 'standing' AND is_use = 1);
+    `, [userkey]);
+    totalCount = result.row.length;
+
+    //조건 확인
+    if(totalCount === (achieveCount*achievement_point)) {
+        result = await DB(`SELECT * FROM user_achievement WHERE userkey = ? AND achievement_id = ? AND is_clear = 0;`, [userkey, achievement_id]);
+        if(result.state){
+            if(result.row.length === 0)
+                resultQuery = mysql.format(`INSERT INTO user_achievement(userkey, achievement_id, gain_point, is_clear) VALUES(?, ?, ?, 1);`, [userkey, achievement_id, gain_point]);
+            else
+                resultQuery = mysql.format(`UPDATE user_achievement SET gain_point = ?, is_clear = 1 WHERE userkey = ? AND achievement_id = ?;`, [gain_point, userkey, achievement_id]); 
+        }
+    } 
+
+    return resultQuery;
+};
 
 //! 업적 메인 함수 
 export const requestAchievementMain = async(req, res) =>{
@@ -203,6 +276,8 @@ export const requestAchievementMain = async(req, res) =>{
         body:{
             userkey = -1, 
             achievement_id = -1,
+            project_id = -1, 
+            episode_id = -1, 
         }
     } = req;
 
@@ -235,27 +310,27 @@ export const requestAchievementMain = async(req, res) =>{
         }
         if(validCheck) query = await checkCoinshop(userkey, achievement_id);
     }else if(achievement_id === 4){ //첫 라이브 일러스트 발견
-
+        query = await checkFirstLiveIllust(userkey, achievement_id);
     }else if(achievement_id === 5 || achievement_id === 20){ //과금 선택지 구매(5회, 레벨)
-
+        query = await checkPurchaseSelection(userkey, achievement_id);
     }else if(achievement_id === 6 || achievement_id === 14){ //기다무 시간 단축(싱글, 레벨, 튜토리얼 제외)
-
+        query = await checkWaitingCoin(userkey, achievement_id);
     }else if(achievement_id === 8){ //올 클리어
-
+        query = await checkAllClear(userkey, achievement_id);
     }else if(achievement_id === 9){ //히든 엔딩 도달 횟수
-
+        query = await checkHiddenEndingCount(userkey, achievement_id);
     }else if(achievement_id === 10 || achievement_id === 11){ //코인/스타 누적 소모
-
+        query = await checkCurrencyUse(userkey, achievement_id);
     }else if(achievement_id === 12){ //에피소드 클리어
-
+        query = await checkEpisodeClear(userkey, achievement_id);
     }else if(achievement_id === 13){ //선택지 고른 횟수
-
+        query = await checkSelectionCount(userkey, achievement_id);
     }else if(achievement_id === 15){ //프리미엄 패스 구매
         query = await checkPremium(userkey, achievement_id);
     }else if(achievement_id === 16 || achievement_id === 17){ //리셋(처음부터, 그냥 리셋)
-
+        query = await checkReset(userkey, achievement_id, project_id, episode_id);
     }else if(achievement_id === 21){ //스탠딩 구매 횟수
-
+        query = await checkStanding(userkey, achievement_id);
     }
 
     if(query){
