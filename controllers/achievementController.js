@@ -1366,39 +1366,61 @@ export const requestAchievementMain = async (req, res) => {
 //! 계정 등급 
 export const requestUserGradeInfo = async (req, res) => {
 
-    const {
-        body:{
-            userkey, 
-            lang = "KO", 
-        }
-    } = req;
+  const {
+    body:{
+        userkey, 
+        lang = "KO", 
+    }
+  } = req;
 
-    const responseData = {};
-    let result = ``;
+  const responseData = {};
+  let result = ``;
 
-    //계정 등급 및 혜택 
-    result = await DB(`
-    SELECT 
-    grade 
-    , grade_state
-    , store_sale add_star
-    , store_limit add_star_limit
-    , waiting_sale 
-    , preview 
-    , c.name
-    , fn_get_design_info(grade_icon_id, 'url') grade_icon_url
-    , fn_get_design_info(grade_icon_id, 'key') grade_icon_key
-    FROM table_account a, com_grade b, com_grade_lang c 
-    WHERE userkey = ?
-    AND a.grade = b.grade
-    AND b.grade_id = c. grade_id
-    AND c.lang = ?; 
-    `, [userkey, lang]);
+  //계정 등급 및 혜택 
+  result = await DB(`
+  SELECT 
+  grade
+  , fn_get_design_info(grade_icon_id, 'url') grade_icon_url
+  , fn_get_design_info(grade_icon_id, 'key') grade_icon_key
+  , c.name
+  , current_achievement
+  , keep_point
+  , upgrade_point 
+  , abs(TIMESTAMPDIFF(DAY, (SELECT end_date FROM com_grade_season), now())) remain_day
+  , store_sale add_star
+  , store_limit add_star_limit
+  , waiting_sale 
+  , preview 
+  FROM table_account a, com_grade b, com_grade_lang c 
+  WHERE userkey = ?
+  AND a.grade = b.grade
+  AND b.grade_id = c.grade_id
+  AND c.lang = ?; 
+  `, [userkey, lang]);
+  responseData.grade = result.row; 
 
+  //초심자 업적
+  result = await DB(`
+  SELECT 
+  a.achievement_id 
+  , achievement_icon_id
+  , fn_get_design_info(achievement_icon_id, 'url') achievement_icon_url 
+  , fn_get_design_info(achievement_icon_id, 'key') achievement_icon_key
+  , CASE WHEN current_result > 0 THEN c.current_result ELSE 0 END current_point
+  , a.achievement_point
+  , b.name 
+  , b.surmmary 
+  , a.gain_point 
+  FROM com_achievement a
+  INNER JOIN com_achievement_lang b ON a.achievement_id = b.achievement_id AND lang = 'KO'
+  LEFT OUTER JOIN user_achievement c ON b.achievement_id = c.achievement_id AND userkey =343
+  AND achievement_kind = 'beginner'
+  ORDER BY a.achievement_id;
+  `, [userkey, lang]);
 
-    //초심자 업적
+  //이프유 업적
 
-    //이프유 업적
+  res.status(200).json(responseData);
 
 };
 
