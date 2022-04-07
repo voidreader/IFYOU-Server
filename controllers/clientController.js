@@ -800,6 +800,7 @@ const getIfYouProjectList = async (req, res) => {
  WHERE a.userkey = ${userkey}
    AND a.is_special = 0
    AND lpm.project_id = a.project_id 
+   AND (locate('${lang}', lpm.exception_lang) IS NULL OR locate('${lang}', lpm.exception_lang) < 1)
  ORDER BY a.update_date DESC
  LIMIT 1;  
   `);
