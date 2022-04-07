@@ -54,6 +54,7 @@ const checkLogin = async (userkey, achievement_id) => {
 
     let resultQuery = ``;
     let result = ``;
+    let totalCount = 0;
 
     //업적 정보 가져오기
     const achievementInfo = await getAchievementInfo(achievement_id); 
@@ -62,50 +63,25 @@ const checkLogin = async (userkey, achievement_id) => {
         gain_point,
     } = achievementInfo[0];
 
-    //날짜 셋팅
-    const now = new Date();
-    const year = now.getFullYear();
-    const month = String(now.getMonth() + 1).padStart(2, "0");
-    const day = String(now.getDate()).padStart(2, "0");
-    let achievement_date = `${year}-${month}-${day}`;
+    //시즌 시작했을 때, 출석 체크 초기화
+    result = await DB(`
+    SELECT *
+    FROM user_attendance
+    WHERE userkey = ? 
+    AND (SELECT start_date FROM com_grade_season) <= action_date;
+    `, [userkey]);
+    if(result.state) totalCount = result.row.length;
 
-    let dataCheck = false; //데이터 유무
-
-    //업적 데이터 있는지 확인
-    result = await DB(`SELECT date(achievement_date) achievement_date FROM user_achievement WHERE userkey = ? AND achievement_id = ? AND is_clear = 0;`, [userkey, achievement_id]);
-    if(result.state && result.row.length > 0) {
-        achievement_date = result.row[0].achievement_date;
-        dataCheck = true;
-    }
-
-    //출석 체크 처리 
-    if(!dataCheck){ 
-        resultQuery = mysql.format(`INSERT INTO user_achievement(userkey, achievement_id) VALUES(?, ?);`, [userkey, achievement_id]);
-    }else{
-
-        //출석 건수 확인
-        result = await DB(`
-        SELECT DISTINCT date(action_date) login_date
-        FROM gamelog.log_action
-        WHERE userkey = ? 
-        AND action_type = 'login'
-        AND action_date BETWEEN '${achievement_date} 00:00:00' AND now();
-        `, [userkey]);
-        if(result.state && result.row.length >= achievement_point) {
-            resultQuery = mysql.format(`
-            UPDATE user_achievement 
-            SET gain_point = ?
-            , is_clear = 1 
-            , clear_date = now()
-            WHERE userkey = ? 
-            AND achievement_id = ?
-            AND is_clear = 0;`, [
-                gain_point
-                , userkey
-                , achievement_id
-            ]);
-        }
-
+    if(totalCount >= achievement_point){
+        //클리어 여부 확인
+        result = await DB(`SELECT * FROM user_achievement WHERE userkey = ? AND achievement_id = ? AND is_clear = 0;`, [userkey, achievement_id]);
+        if(result.state){
+            if(result.row.length === 0){
+                resultQuery = mysql.format(`INSERT INTO user_achievement(userkey, achievement_id, gain_point, is_clear, clear_date, current_result) VALUES(?, ?, ?, 1, now(), ?);`, [userkey, achievement_id, gain_point, totalCount]);
+            }else if(result.row[0].is_clear === 0){
+                resultQuery = mysql.format(`UPDATE user_achievement SET gain_point = ?, is_clear = 1, clear_date = now(), current_result = ? WHERE userkey = ? AND achievement_id = ?;`, [gain_point, totalCount, userkey, achievement_id]);
+            }
+        }        
     }
 
     return resultQuery;
@@ -691,9 +667,8 @@ const checkEpisodeClear = async (userkey, achievement_id, episode_id) => {
     SELECT * 
     FROM gamelog.log_action
     WHERE userkey = ?
-    AND action_type = 'episode_clear'
-    AND CAST(JSON_EXTRACT(log_data, '$.episodeID') AS UNSIGNED integer) = ?;
-    ;`, [userkey, episode_id]);
+    AND action_type = 'episode_clear';
+    ;`, [userkey]);
     if(result.state) totalCount = result.row.length;
 
     //레벨별 달성 확인
@@ -862,9 +837,8 @@ const checkPremium = async (userkey, achievement_id, project_id) => {
 
     result = await DB(`
     SELECT *
-    FROM gamelog.log_property
+    FROM user_property
     WHERE userkey = ? 
-    AND log_type ='get'
     AND currency = 'Free${project_id}';
     `, [userkey]);
     if(result.state) totalCount = result.row.length;
@@ -1116,7 +1090,7 @@ export const requestAchievementMain = async(req, res) =>{
     console.log(query);
 
     if(query){
-        result = await DB(query); 
+        result = await transactionDB(query); 
         if(!result.state){
             logger.error(`requestAchievementMain Error ${result.error}`);
             respondDB(res, 80026, result.error);
