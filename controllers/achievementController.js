@@ -1362,3 +1362,53 @@ export const requestAchievementMain = async (req, res) => {
 
   res.status(200).json(responseData);
 };
+
+//! 계정 등급 
+export const requestUserGradeInfo = async (req, res) => {
+
+    const {
+        body:{
+            userkey, 
+            lang = "KO", 
+        }
+    } = req;
+
+    const responseData = {};
+    let result = ``;
+
+    //계정 등급 및 혜택 
+    result = await DB(`
+    SELECT 
+    grade 
+    , grade_state
+    , store_sale add_star
+    , store_limit add_star_limit
+    , waiting_sale 
+    , preview 
+    , c.name
+    , fn_get_design_info(grade_icon_id, 'url') grade_icon_url
+    , fn_get_design_info(grade_icon_id, 'key') grade_icon_key
+    FROM table_account a, com_grade b, com_grade_lang c 
+    WHERE userkey = ?
+    AND a.grade = b.grade
+    AND b.grade_id = c. grade_id
+    AND c.lang = ?; 
+    `, [userkey, lang]);
+
+
+    //초심자 업적
+
+    //이프유 업적
+
+};
+
+//! 업적 처리 
+export const updateUserAchievement = async (req, res) => {
+
+    const {
+        body:{
+            userkey, 
+            achievement_id = -1, 
+        }
+    } = req;
+};
