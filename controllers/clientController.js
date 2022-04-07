@@ -792,20 +792,23 @@ const getIfYouProjectList = async (req, res) => {
     item.genre = await getProjectGenre(item.project_id, lang);
   }
 
-  const randomPick = await DB(`${query} ORDER BY RAND() LIMIT 4;`, [
-    build,
-    country,
-  ]);
+  // * 가장 마지막에 플레이한 프로젝트 가져오기
+  const latestProject = await DB(`
+  SELECT a.project_id 
+  FROM user_project_current a
+     , list_project_master lpm
+ WHERE a.userkey = ${userkey}
+   AND a.is_special = 0
+   AND lpm.project_id = a.project_id 
+ ORDER BY a.update_date DESC
+ LIMIT 1;  
+  `);
 
   const responseData = {};
   responseData.all = result.row;
-  responseData.recommend = [];
-
-  randomPick.row.forEach((item) => {
-    responseData.recommend.push(item.project_id);
-  });
-
+  responseData.recommend = []; // 사용하지 않도록 변경
   responseData.like = await getUserProjectLikeList(userkey); //좋아요 리스트
+  responseData.latest = latestProject.row;
 
   res.status(200).json(responseData);
 }; // ? end of getIfYouProjectList
