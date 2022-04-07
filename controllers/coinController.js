@@ -675,8 +675,8 @@ export const requestTotalCoinShop = async (req, res) => {
   let whereListQuery = ``;
   let wherePromotionQuery = ``;
   if (lang === "JA") {
-    whereListQuery = ` AND a.project_id <> 64 `;
-    wherePromotionQuery = ` AND location <> 64 `;
+    whereListQuery = ` AND a.project_id NOT IN (57, 60, 64, 72) `;
+    wherePromotionQuery = ` AND location NOT IN (57, 60, 64, 72) `;
   } else if (lang === "KO") {
     whereListQuery = ` AND a.project_id NOT IN (57, 60) `;
     wherePromotionQuery = ` AND location NOT IN (57, 60) `;
