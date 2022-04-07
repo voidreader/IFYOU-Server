@@ -136,6 +136,9 @@ import {
   updateUserSelectionCurrent,
   purchaseSelection,
 } from "./selectionController";
+import {
+  requestAchievementMain,
+} from "./achievementController";
 
 dotenv.config();
 
@@ -1673,6 +1676,8 @@ export const clientHome = (req, res) => {
     setProjectProgressOrder(req, res);
   else if (func === "updateUserVoiceCheck") updateUserVoiceCheck(req, res);
   //에피 진행 순서 누적
+  else if (func === "requestAchievementMain") requestAchievementMain(req, res);
+  //업적 누적
   else {
     //  res.status(400).send(`Wrong Func : ${func}`);
     logger.error(`clientHome Error ${func}`);
