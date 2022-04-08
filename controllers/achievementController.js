@@ -193,16 +193,7 @@ const requestUserGradeInfo = async (userkey, lang) => {
     `
   SELECT 
   a.grade
-  , CASE WHEN a.grade_experience >= upgrade_point THEN 
-    fn_get_grade_info(a.grade, a.grade_experience)-1
-  ELSE 
-    a.grade-1
-  END before_grade
-  , CASE WHEN a.grade_experience >= upgrade_point THEN 
-    fn_get_grade_info(a.grade, a.grade_experience) 
-  ELSE 
-    a.grade+1
-  END next_grade
+  , a.next_grade
   , c.name
   , CASE WHEN a.grade_experience >= upgrade_point THEN 
     fn_get_grade_name_info(fn_get_grade_info(a.grade, a.grade_experience)-1, '${lang}') 
@@ -225,7 +216,7 @@ const requestUserGradeInfo = async (userkey, lang) => {
   , preview 
   FROM table_account a, com_grade b, com_grade_lang c 
   WHERE userkey = ?
-  AND a.grade = b.grade
+  AND a.next_grade = b.grade
   AND b.grade_id = c.grade_id
   AND c.lang = ?; 
   `,
@@ -463,16 +454,20 @@ export const updateUserAchievement = async (req, res) => {
   //경험치 정보
   result = await DB(
     `
-  SELECT grade_experience
+  SELECT a.grade, grade_experience
   FROM table_account a, com_grade b   
   WHERE a.grade = b.grade  
   AND userkey = ?;`,
     [userkey]
   );
+
   responseData.experience_info = {
     grade_experience: result.row[0].grade_experience, //기존 경험치
     get_experience: experience, //획득한 경험치
+    total_exp: experience + result.row[0].grade_experience,
   };
+
+  const currentGrade = result.row[0].grade; // * 현재 등급
 
   //경험치 업데이트
   currentQuery = `
@@ -488,6 +483,32 @@ export const updateUserAchievement = async (req, res) => {
       logger.error(`updateUserAchievement Error ${result.error}`);
       respondDB(res, 80026, result.error);
       return;
+    }
+  }
+
+  // 경험치 업데이를 하고, 현재 grade의 max 포인트랑 비교를 해서 지금 현재의
+  // 경험치가 max 보다 이상이면 등급업을 시켜줘야한다.
+  const maxExpResult = await DB(`
+    SELECT a.upgrade_point 
+    FROM com_grade a
+  WHERE a.grade = ${currentGrade};
+  `);
+
+  const maxExp = maxExpResult.row[0].upgrade_point; // max exp
+  const currentExp = responseData.experience_info.total_exp; // 현재 상태의 exp
+
+  // 현재 경험치가 맥스 이상이되었음. => 등급업.
+  if (currentExp >= maxExp) {
+    // * 등급업!
+    const upgradeResult = await DB(`
+    update table_account
+       SET next_grade = next_grade + 1
+         , grade_experience = grade_experience - ${maxExp}
+     WHERE userkey = ${userkey};
+    `);
+
+    if (!upgradeResult.state) {
+      logger.error(upgradeResult.error);
     }
   }
 
