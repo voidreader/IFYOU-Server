@@ -545,6 +545,7 @@ export const getAllProductList = async (req, res) => {
     , DATE_FORMAT(from_date, '%Y-%m-%d %T') from_date
     , DATE_FORMAT(to_date, '%Y-%m-%d %T') to_date
     , max_count
+    , case when to_date = '9999-12-31' THEN 0 ELSE 1 END is_event
     FROM list_product_master a WHERE is_public = 1 AND sysdate() BETWEEN from_date AND to_date;`,
     []
   );
