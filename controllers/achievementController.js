@@ -193,8 +193,6 @@ const requestUserGradeInfo = async (userkey, lang) => {
     `
   SELECT 
   a.grade
-  , fn_get_grade_name_info(a.grade, a.grade_experience, '${lang}', 'before') before_grade_name
-  , fn_get_grade_name_info(a.grade, a.grade_experience, '${lang}', 'after') after_grade_name
   , c.name
   , grade_experience
   , keep_point
