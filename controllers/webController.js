@@ -54,7 +54,8 @@ export const getIFyouWebMainPageInfo = async (req, res) => {
   responseData.project = projects.row; // 작품
 
   const noticeResult = await DB(`
-  SELECT cnd.title 
+  SELECT cn.notice_no
+    , cnd.title 
     , ifnull(cnd.contents, '') contents
     , fn_get_design_info(cnd.design_id, 'url') banner_url
     , fn_get_design_info(cnd.detail_design_id, 'url') detail_url
