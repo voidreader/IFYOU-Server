@@ -193,13 +193,34 @@ const requestUserGradeInfo = async (userkey, lang) => {
     `
   SELECT 
   a.grade
+  , CASE WHEN a.grade_experience >= upgrade_point THEN 
+    fn_get_grade_info(a.grade, a.grade_experience)-1
+  ELSE 
+    a.grade-1
+  END before_grade
+  , CASE WHEN a.grade_experience >= upgrade_point THEN 
+    fn_get_grade_info(a.grade, a.grade_experience) 
+  ELSE 
+    a.grade+1
+  END next_grade
   , c.name
+  , CASE WHEN a.grade_experience >= upgrade_point THEN 
+    fn_get_grade_name_info(fn_get_grade_info(a.grade, a.grade_experience)-1, '${lang}') 
+  ELSE 
+    fn_get_grade_name_info(a.grade-1, '${lang}') 
+  END before_grade_name
+  , CASE WHEN a.grade_experience >= upgrade_point THEN 
+    fn_get_grade_name_info(fn_get_grade_info(a.grade, a.grade_experience), '${lang}') 
+  ELSE 
+    fn_get_grade_name_info(a.grade+1, '${lang}') 
+  END next_grade_name
   , grade_experience
   , keep_point
   , upgrade_point 
   , abs(TIMESTAMPDIFF(DAY, (SELECT end_date FROM com_grade_season), now())) remain_day
   , store_sale add_star
   , store_limit add_star_limit
+  , fn_get_user_star_benefit_count(?, a.grade) add_star_use
   , waiting_sale 
   , preview 
   FROM table_account a, com_grade b, com_grade_lang c 
@@ -208,7 +229,7 @@ const requestUserGradeInfo = async (userkey, lang) => {
   AND b.grade_id = c.grade_id
   AND c.lang = ?; 
   `,
-    [userkey, lang]
+    [userkey, userkey, lang]
   );
   responseData.grade = result.row;
 
