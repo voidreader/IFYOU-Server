@@ -57,6 +57,7 @@ import {
   requestUserTutorialProgress,
   requestGalleryShareBonus,
   requestGalleryLobbyOpen,
+  updateUserIntroDone,
 } from "./accountController";
 import { logger } from "../logger";
 import {
@@ -136,9 +137,7 @@ import {
   updateUserSelectionCurrent,
   purchaseSelection,
 } from "./selectionController";
-import {
-  requestAchievementMain,
-} from "./achievementController";
+import { requestAchievementMain } from "./achievementController";
 
 dotenv.config();
 
@@ -1677,10 +1676,11 @@ export const clientHome = (req, res) => {
   else if (func === "requestTotalCoinShop") requestTotalCoinShop(req, res);
   //토탈 코인 상점 화면
   else if (func === "setProjectProgressOrder")
+    //에피 진행 순서 누적
     setProjectProgressOrder(req, res);
   else if (func === "updateUserVoiceCheck") updateUserVoiceCheck(req, res);
-  //에피 진행 순서 누적
   else if (func === "requestAchievementMain") requestAchievementMain(req, res);
+  else if (func === "updateUserIntroDone") updateUserIntroDone(req, res);
   //업적 누적
   else {
     //  res.status(400).send(`Wrong Func : ${func}`);
