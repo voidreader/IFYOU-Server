@@ -183,16 +183,14 @@ export const requestAchievementMain = async (req, res) => {
   res.status(200).json(responseData);
 };
 
-
-//! 등급, 업적 정보 리스트 
+//! 등급, 업적 정보 리스트
 const requestUserGradeInfo = async (userkey, lang) => {
-
   const responseData = {};
   let result = ``;
 
   //계정 등급 및 혜택
   result = await DB(
-  `
+    `
   SELECT 
   a.grade
   , fn_get_grade_name_info(a.grade, a.grade_experience, '${lang}', 'before') before_grade_name
@@ -218,7 +216,7 @@ const requestUserGradeInfo = async (userkey, lang) => {
 
   //초심자 업적
   result = await DB(
-  `
+    `
   SELECT 
   b.achievement_id
   , c.name 
@@ -233,7 +231,7 @@ const requestUserGradeInfo = async (userkey, lang) => {
   FROM user_achievement a RIGHT JOIN com_achievement b ON a.achievement_id = b.achievement_id AND userkey = ? 
   INNER JOIN com_achievement_lang c ON b.achievement_id = c.achievement_id AND lang = ?
   WHERE b.achievement_id < 7 
-  AND a.is_clear = 0;
+  AND ifnull(a.is_clear, 0) = 0;
   `,
     [userkey, lang]
   );
@@ -292,14 +290,10 @@ ORDER BY a.achievement_id
   return responseData;
 };
 
-//! 계정정보 리스트 
-export const requestAchievementList = async (req, res) =>{
-
+//! 계정정보 리스트
+export const requestAchievementList = async (req, res) => {
   const {
-    body: {
-      userkey, 
-      lang = "KO", 
-    }
+    body: { userkey, lang = "KO" },
   } = req;
 
   const result = await requestUserGradeInfo(userkey, lang);
@@ -307,30 +301,34 @@ export const requestAchievementList = async (req, res) =>{
   res.status(200).json(result);
 };
 
-//! 업적 정보 가져오기 
+//! 업적 정보 가져오기
 const getAchievementInfo = async (achievement_id, achivement_level = 0) => {
+  let result = ``;
 
-
-  let result = ``; 
-
-  if(achivement_level === 0){
-    result = await DB(`
+  if (achivement_level === 0) {
+    result = await DB(
+      `
     SELECT 
     achievement_point
     , gain_point
     , achievement_type
     FROM com_achievement
     WHERE achievement_id = ?;
-    `, [achievement_id]);
-  }else{
-    result = await DB(`
+    `,
+      [achievement_id]
+    );
+  } else {
+    result = await DB(
+      `
     SELECT 
     achievement_point
     , gain_point
     FROM com_achievement_level
     WHERE achievement_id = ? 
     AND achievement_level = ?;
-    `, [achievement_id, achivement_level]);
+    `,
+      [achievement_id, achivement_level]
+    );
   }
 
   return result.row;
@@ -338,9 +336,8 @@ const getAchievementInfo = async (achievement_id, achivement_level = 0) => {
 
 //! 업적 처리(한개씩 처리 > 연달아서 처리 X)
 export const updateUserAchievement = async (req, res) => {
-  
   const {
-    body: { userkey, achievement_id = -1, lang = "KO", },
+    body: { userkey, achievement_id = -1, lang = "KO" },
   } = req;
 
   const responseData = {};
@@ -348,12 +345,13 @@ export const updateUserAchievement = async (req, res) => {
   let achievementInfo = ``;
   let level = 1;
   let experience = 0;
-  let total = 0; 
+  let total = 0;
   let result = ``;
-  let currentQuery = ``; 
+  let currentQuery = ``;
   let updateQuery = ``;
 
-  result = await DB(`
+  result = await DB(
+    `
   SELECT 
   achievement_no
   , current_result 
@@ -363,110 +361,115 @@ export const updateUserAchievement = async (req, res) => {
   AND achievement_id = ? 
   AND is_clear = 0 
   ORDER BY achievement_no DESC 
-  LIMIT 1;`, [userkey, achievement_id]);
-  if(result.state && result.row.length > 0){
+  LIMIT 1;`,
+    [userkey, achievement_id]
+  );
+  if (result.state && result.row.length > 0) {
+    currentQuery = `UPDATE user_achievement SET gain_point = ?, is_clear = 1, clear_date = now() WHERE achievement_no = ?;`;
 
-    currentQuery = `UPDATE user_achievement SET gain_point = ?, is_clear = 1, clear_date = now() WHERE achievement_no = ?;`; 
+    const { achievement_no, current_result, achievement_level } = result.row[0];
 
-    const { achievement_no, current_result, achievement_level, } = result.row[0];
-
-    if( //싱글, 반복 
-      achievement_id === 1 || 
+    if (
+      //싱글, 반복
+      achievement_id === 1 ||
       achievement_id === 2 ||
       achievement_id === 3 ||
       achievement_id === 4 ||
       achievement_id === 5 ||
-      achievement_id === 6 || 
+      achievement_id === 6 ||
       achievement_id === 7 ||
-      achievement_id === 8 || 
-      achievement_id === 15 || 
-      achievement_id === 16 || 
-      achievement_id === 21   
-    ){
-      
-      achievementInfo = await getAchievementInfo(achievement_id); //업적 정보 
-      const {
-        achievement_point
-        , gain_point
-        , achievement_type
-      } = achievementInfo[0]; 
+      achievement_id === 8 ||
+      achievement_id === 15 ||
+      achievement_id === 16 ||
+      achievement_id === 21
+    ) {
+      achievementInfo = await getAchievementInfo(achievement_id); //업적 정보
+      const { achievement_point, gain_point, achievement_type } =
+        achievementInfo[0];
 
-      if( current_result >= achievement_point ){
-        
-        //클리어 처리 
-        updateQuery = mysql.format(currentQuery, [gain_point, achievement_no]); 
-    
-        if(achievement_type === 'repeat'){  //반복
-          
+      if (current_result >= achievement_point) {
+        //클리어 처리
+        updateQuery = mysql.format(currentQuery, [gain_point, achievement_no]);
+
+        if (achievement_type === "repeat") {
+          //반복
+
           //업적 새로 생성
-          total = current_result - achievement_point; 
-          currentQuery = `INSERT INTO user_achievement(userkey, achievement_id, current_result) VALUES(?, ?, ?);`; 
-          updateQuery += mysql.format(currentQuery, [userkey, achievement_id, total]);
+          total = current_result - achievement_point;
+          currentQuery = `INSERT INTO user_achievement(userkey, achievement_id, current_result) VALUES(?, ?, ?);`;
+          updateQuery += mysql.format(currentQuery, [
+            userkey,
+            achievement_id,
+            total,
+          ]);
         }
 
         experience = gain_point;
-
       }
+    } else {
+      //레벨
 
-    }else{ //레벨
+      achievementInfo = await getAchievementInfo(
+        achievement_id,
+        achievement_level
+      ); //업적 정보
+      const { achievement_point, gain_point } = achievementInfo[0];
 
-      achievementInfo = await getAchievementInfo(achievement_id, achievement_level); //업적 정보 
-      const {
-        achievement_point
-        , gain_point
-      } = achievementInfo[0]; 
-
-      if( current_result >= achievement_point ){
-        
-        //클리어 처리 
+      if (current_result >= achievement_point) {
+        //클리어 처리
         updateQuery = mysql.format(currentQuery, [gain_point, achievement_no]);
 
         //업적 새로 생성
-        total = current_result - achievement_point; 
+        total = current_result - achievement_point;
         level = achievement_level + 1;
         currentQuery = `INSERT INTO user_achievement(userkey, achievement_id, achievement_level, current_result) VALUES(?, ?, ?, ?);`;
-        updateQuery += mysql.format(currentQuery, [userkey, achievement_id, level, total]);
+        updateQuery += mysql.format(currentQuery, [
+          userkey,
+          achievement_id,
+          level,
+          total,
+        ]);
 
         experience = gain_point;
       }
-
     }
-  
   }
 
-  if(experience === 0){
+  if (experience === 0) {
     logger.error(`updateUserAchievement Error`);
     respondDB(res, 80019);
     return;
   }
 
   //경험치 정보
-  result = await DB(`
+  result = await DB(
+    `
   SELECT grade_experience
   FROM table_account a, com_grade b   
   WHERE a.grade = b.grade  
-  AND userkey = ?;`, [userkey]);
+  AND userkey = ?;`,
+    [userkey]
+  );
   responseData.experience_info = {
     grade_experience: result.row[0].grade_experience, //기존 경험치
-    get_experience: experience,  //획득한 경험치
+    get_experience: experience, //획득한 경험치
   };
 
-  //경험치 업데이트 
+  //경험치 업데이트
   currentQuery = `
   UPDATE table_account 
   SET grade_experience = grade_experience + ?
   WHERE userkey = ?;`;
-  updateQuery += mysql.format(currentQuery, [experience, userkey]); 
+  updateQuery += mysql.format(currentQuery, [experience, userkey]);
 
-  if(updateQuery){
+  if (updateQuery) {
     result = await transactionDB(updateQuery);
 
-    if(!result.state){
+    if (!result.state) {
       logger.error(`updateUserAchievement Error ${result.error}`);
       respondDB(res, 80026, result.error);
       return;
     }
-
   }
 
   responseData.list = await requestUserGradeInfo(userkey, lang);
@@ -475,7 +478,7 @@ export const updateUserAchievement = async (req, res) => {
 
   logAction(userkey, "clear_achievement", {
     userkey,
-    achievement_id, 
+    achievement_id,
     experience,
   });
 };
