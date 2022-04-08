@@ -69,7 +69,11 @@ export const getIFyouWebMainPageInfo = async (req, res) => {
     `);
 
   const text = await DB(`
-  SELECT cl.id, cl.KO, cl.EN, cl.JA
+  SELECT cl.id
+       , CASE WHEN '${lang}' = 'KO' THEN cl.KO
+              WHEN '${lang}' = 'EN' THEN cl.EN
+              WHEN '${lang}' = 'JA' THEN cl.JA 
+              ELSE cl.EN END value
  FROM com_localize cl 
 WHERE cl.id BETWEEN 6400 AND 6414 
   OR cl.id IN (5051, 5001, 6179, 6181);
