@@ -1374,10 +1374,35 @@ export const requestUserGradeInfo = async (req, res) => {
    LEFT OUTER JOIN user_achievement ua ON a.achievement_id = ua.achievement_id AND ua.userkey = ${userkey} AND ua.achievement_level = fn_get_user_achievement_max_level(ua.userkey, a.achievement_id)
 WHERE a.achievement_kind <> 'beginner'
   AND a.achievement_type = 'level'
+  ORDER BY a.achievement_id
 ;
   `
   );
   responseData.level = result.row;
+
+  // IFYOU 업적 - Repeat
+  result = await DB(`
+  SELECT a.achievement_id 
+  , a.achievement_type 
+  , a.gain_point experience -- exp
+  , a.achievement_point  achievement_point
+  , fn_get_achievement_info(a.achievement_id, '${lang}', 'name') name
+  , 0 current_level
+  , ifnull(ua.current_result, 0) current_point
+  , ifnull(ua.is_clear, 0) is_clear
+  , a.achievement_icon_id 
+  , fn_get_design_info(achievement_icon_id, 'url') achievement_icon_url 
+  , fn_get_design_info(achievement_icon_id, 'key') achievement_icon_key
+  , fn_get_achievement_info(a.achievement_id, '${lang}', 'summary') summary 
+FROM com_achievement a
+ LEFT OUTER JOIN user_achievement ua ON a.achievement_id = ua.achievement_id AND ua.userkey = ${userkey} AND ua.achievement_no = fn_get_user_achievement_max_no(ua.userkey, a.achievement_id)
+WHERE a.achievement_kind <> 'beginner'
+AND a.achievement_type = 'repeat'
+ORDER BY a.achievement_id 
+;
+  `);
+
+  responseData.repeat = result.row;
 
   res.status(200).json(responseData);
 };
