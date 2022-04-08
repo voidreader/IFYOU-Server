@@ -196,7 +196,7 @@ export const requestUserGradeInfo = async (req, res) => {
   result = await DB(
     `
   SELECT 
-  grade
+  a.grade
   , fn_get_design_info(grade_icon_id, 'url') grade_icon_url
   , fn_get_design_info(grade_icon_id, 'key') grade_icon_key
   , c.name
