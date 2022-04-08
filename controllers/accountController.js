@@ -47,9 +47,6 @@ import {
   UQ_SELECT_USER_MAIN_EPISODE,
   UQ_INSERT_USER_TIMEDEAL,
   Q_SELECT_PROJECT_ALL_MINICUT,
-  Q_SELECT_USER_GALLERY_IMAGES,
-  UQ_SAVE_USER_PROFILE,
-  UQ_SEND_MAIL_NEWBIE,
   Q_SELECT_PROJECT_RESET_COIN_PRICE,
   Q_SELECT_EPISODE_LOADING,
   Q_SELECT_MISSION_ALL,
@@ -102,6 +99,21 @@ import {
 import { getUserSelectionPurchaseInfo } from "./selectionController";
 
 dotenv.config();
+
+// * 유저 인트로 수행여부 업데이트
+export const updateUserIntroDone = async (req, res) => {
+  const {
+    body: { userkey },
+  } = req;
+
+  const result = await DB(`
+  update table_account
+     SET intro_done = 1
+    WHERE userkey = ${userkey};
+  `);
+
+  res.status(200).json(req.body);
+};
 
 // 캐릭터 탈퇴일자 업데이트
 export const updateWithdrawDate = (req, res) => {
