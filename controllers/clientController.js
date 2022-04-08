@@ -142,7 +142,7 @@ import {
   requestAchievementList,
   updateUserAchievement,
 } from "./achievementController";
-import { getIFyouWebMainPageInfo } from "./webController";
+import { getIFyouWebMainPageInfo, receiveInquiry } from "./webController";
 
 dotenv.config();
 
@@ -1691,9 +1691,10 @@ export const clientHome = (req, res) => {
   else if (func === "getIFyouWebMainPageInfo")
     getIFyouWebMainPageInfo(req, res);
   else if (func === "requestUserGradeInfo") requestAchievementList(req, res);
-  //등급 및 업적 리스트 
+  //등급 및 업적 리스트
   else if (func === "updateUserAchievement") updateUserAchievement(req, res);
-  //업적 클리어 
+  else if (func === "receiveInquiry") receiveInquiry(req, res);
+  //업적 클리어
   else {
     //  res.status(400).send(`Wrong Func : ${func}`);
     logger.error(`clientHome Error ${func}`);
