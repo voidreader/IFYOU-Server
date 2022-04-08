@@ -1070,7 +1070,8 @@ const UnlockUserAllGalleryImage = async (req, res) => {
     FROM list_illust a
    WHERE a.project_id = ${project_id}
      AND a.is_public = 1
-     AND a.appear_episode > 0;
+     AND a.appear_episode > 0
+     AND a.live_pair_id > 0;
   
   INSERT INTO user_illust (userkey, project_id, illust_id, illust_type) 
   SELECT ${userkey}, a.project_id, a.live_illust_id, 'live2d'
@@ -1080,12 +1081,13 @@ const UnlockUserAllGalleryImage = async (req, res) => {
      AND a.appear_episode > 0;  
 
   INSERT INTO user_minicut (userkey, minicut_id, minicut_type, project_id)
-  SELECT ${userkey}, a.minicut_id , 'image', a.project_id 
+  SELECT ${userkey}, a.minicut_id , 'minicut', a.project_id 
     FROM list_minicut a
   WHERE a.project_id = ${project_id}
     AND a.appear_episode > 0
     AND a.is_public = 1;
-  
+    
+ 
   
   INSERT INTO user_minicut (userkey, minicut_id, minicut_type, project_id)
   SELECT ${userkey}, a.live_object_id, 'live2d', a.project_id 
