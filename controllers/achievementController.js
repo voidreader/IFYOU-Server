@@ -4,16 +4,16 @@ import { DB, logAction, transactionDB } from "../mysqldb";
 import { logger } from "../logger";
 import { respondDB } from "../respondent";
 
-//! 레벨 업적 쿼리 
+//! 레벨 업적 쿼리
 const getLevelQuery = async (userkey, achievement_id) => {
-
   let resultQuery = ``;
   let result = ``;
   let totalCount = 1;
   let level = 1;
 
-  //최신 레벨 가져오기 
-  result = await DB(`
+  //최신 레벨 가져오기
+  result = await DB(
+    `
   SELECT 
   a.achievement_level 
   , current_result 
@@ -23,26 +23,29 @@ const getLevelQuery = async (userkey, achievement_id) => {
   AND userkey = ?
   AND a.achievement_id = ?
   AND a.achievement_level = fn_get_user_achievement_max_level(a.userkey, a.achievement_id)
-  ;`, [userkey, achievement_id]);
-  if(result.state && result.row.length > 0) {
-      
-    const { achievement_level, current_result, } = result.row[0];
-      
-    totalCount = current_result + 1;  //현재값+1
-    level = achievement_level;      //현재레벨
+  ;`,
+    [userkey, achievement_id]
+  );
+  if (result.state && result.row.length > 0) {
+    const { achievement_level, current_result } = result.row[0];
+
+    totalCount = current_result + 1; //현재값+1
+    level = achievement_level; //현재레벨
 
     //현재값 업데이트
-    resultQuery = mysql.format(`
+    resultQuery = mysql.format(
+      `
     UPDATE user_achievement 
     SET current_result = ? 
     WHERE userkey = ? 
     AND achievement_id = ? 
-    AND achievement_level = ?;`, [ totalCount, userkey, achievement_id, level ]);      
-
-  }else{
-      
+    AND achievement_level = ?;`,
+      [totalCount, userkey, achievement_id, level]
+    );
+  } else {
     //첫 스타트
-    resultQuery = mysql.format(`
+    resultQuery = mysql.format(
+      `
     INSERT INTO user_achievement(
       userkey
       , achievement_id
@@ -53,22 +56,23 @@ const getLevelQuery = async (userkey, achievement_id) => {
       , ?
       , ?
       , ?
-    );`, [ userkey, achievement_id, level, totalCount]);
-
+    );`,
+      [userkey, achievement_id, level, totalCount]
+    );
   }
 
   return resultQuery;
 };
 
-//! 싱글/반복 업적 쿼리 
-const getAchievementQuery = async ( userkey, achievement_id ) => {
-  
+//! 싱글/반복 업적 쿼리
+const getAchievementQuery = async (userkey, achievement_id) => {
   let resultQuery = ``;
   let result = ``;
   let totalCount = 1;
 
-  //최신 레벨 가져오기 
-  result = await DB(`
+  //최신 레벨 가져오기
+  result = await DB(
+    `
   SELECT 
   a.achievement_no
   , current_result 
@@ -77,23 +81,26 @@ const getAchievementQuery = async ( userkey, achievement_id ) => {
   AND userkey = ?
   AND a.achievement_id = ?
   ORDER BY a.achievement_no DESC
-  LIMIT 1;`, [userkey, achievement_id]);
-  if(result.state && result.row.length > 0) {
-      
-    const { achievement_no, current_result, } = result.row[0];
-      
-    totalCount = current_result + 1;  //현재값+1
+  LIMIT 1;`,
+    [userkey, achievement_id]
+  );
+  if (result.state && result.row.length > 0) {
+    const { achievement_no, current_result } = result.row[0];
+
+    totalCount = current_result + 1; //현재값+1
 
     //현재값 업데이트
-    resultQuery = mysql.format(`
+    resultQuery = mysql.format(
+      `
     UPDATE user_achievement 
     SET current_result = ? 
-    WHERE achievement_no = ?;`, [ totalCount, achievement_no ]);      
-
-  }else{
-      
+    WHERE achievement_no = ?;`,
+      [totalCount, achievement_no]
+    );
+  } else {
     //첫 스타트
-    resultQuery = mysql.format(`
+    resultQuery = mysql.format(
+      `
     INSERT INTO user_achievement(
       userkey
       , achievement_id
@@ -102,9 +109,9 @@ const getAchievementQuery = async ( userkey, achievement_id ) => {
       ?
       , ?
       , ?
-      , ?
-    );`, [ userkey, achievement_id, totalCount]);
-
+    );`,
+      [userkey, achievement_id, totalCount]
+    );
   }
 
   return resultQuery;
@@ -113,10 +120,7 @@ const getAchievementQuery = async ( userkey, achievement_id ) => {
 //! 업적 메인 함수
 export const requestAchievementMain = async (req, res) => {
   const {
-    body: {
-      userkey = -1,
-      achievement_id = -1,
-    },
+    body: { userkey = -1, achievement_id = -1 },
   } = req;
 
   if (userkey === -1 || achievement_id === -1) {
@@ -131,30 +135,32 @@ export const requestAchievementMain = async (req, res) => {
   let query = ``;
   let result = ``;
 
-  if ( // 레벨
-    achievement_id === 9 || 
-    achievement_id === 10 || 
-    achievement_id === 11 || 
-    achievement_id === 12 || 
-    achievement_id === 13 || 
-    achievement_id === 14 || 
-    achievement_id === 17 || 
-    achievement_id === 19 || 
-    achievement_id === 20 
+  if (
+    // 레벨
+    achievement_id === 9 ||
+    achievement_id === 10 ||
+    achievement_id === 11 ||
+    achievement_id === 12 ||
+    achievement_id === 13 ||
+    achievement_id === 14 ||
+    achievement_id === 17 ||
+    achievement_id === 19 ||
+    achievement_id === 20
   ) {
     query = await getLevelQuery(userkey, achievement_id);
-  }else if (  // 반복
-    achievement_id === 1 || 
-    achievement_id === 2 || 
-    achievement_id === 3 || 
-    achievement_id === 4 || 
-    achievement_id === 5 || 
+  } else if (
+    // 반복
+    achievement_id === 1 ||
+    achievement_id === 2 ||
+    achievement_id === 3 ||
+    achievement_id === 4 ||
+    achievement_id === 5 ||
     achievement_id === 6 ||
-    achievement_id === 7 || 
-    achievement_id === 15 || 
-    achievement_id === 16 || 
-    achievement_id === 21 
-  ){
+    achievement_id === 7 ||
+    achievement_id === 15 ||
+    achievement_id === 16 ||
+    achievement_id === 21
+  ) {
     query = await getAchievementQuery(userkey, achievement_id);
   }
 
@@ -175,7 +181,6 @@ export const requestAchievementMain = async (req, res) => {
   };
 
   res.status(200).json(responseData);
-  
 };
 
 //! 계정 등급
@@ -294,4 +299,3 @@ export const updateUserAchievement = async (req, res) => {
     body: { userkey, achievement_id = -1 },
   } = req;
 };
-
