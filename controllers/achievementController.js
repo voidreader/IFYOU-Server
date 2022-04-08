@@ -26,7 +26,7 @@ const getAchievementInfo = async (achievement_id) => {
 const checkAccountLink = async (userkey, achievement_id) => {
   let resultQuery = ``;
 
-  let result = await DB(
+  const result = await DB(
     `SELECT * FROM table_account WHERE userkey = ? AND account_link='link';`,
     [userkey]
   );
@@ -35,24 +35,12 @@ const checkAccountLink = async (userkey, achievement_id) => {
     const achievementInfo = await getAchievementInfo(achievement_id);
     const { gain_point } = achievementInfo[0];
 
-    //클리어 여부 확인
-    result = await DB(
-      `SELECT * FROM user_achievement WHERE userkey = ? AND achievement_id = ?;`,
-      [userkey, achievement_id]
+    //업적 누적
+    resultQuery = mysql.format(
+      `INSERT INTO user_achievement(userkey, achievement_id, gain_point, current_result, state, clear_date) VALUES(?, ?, ?, ?, 1, now());`,
+      [userkey, achievement_id, gain_point, result.row.length]
     );
-    if (result.state) {
-      if (result.row.length === 0) {
-        resultQuery = mysql.format(
-          `INSERT INTO user_achievement(userkey, achievement_id, gain_point, is_clear, clear_date) VALUES(?, ?, ?, 1, now());`,
-          [userkey, achievement_id, gain_point]
-        );
-      } else if (result.row[0].is_clear === 0) {
-        resultQuery = mysql.format(
-          `UPDATE user_achievement SET gain_point = ?, is_clear = 1, clear_date = now() WHERE userkey = ? AND achievement_id = ?;`,
-          [gain_point, userkey, achievement_id]
-        );
-      }
-    }
+
   }
 
   return resultQuery;
@@ -60,6 +48,7 @@ const checkAccountLink = async (userkey, achievement_id) => {
 
 //! 누적 출석일
 const checkLogin = async (userkey, achievement_id) => {
+  
   let resultQuery = ``;
   let result = ``;
   let totalCount = 0;
@@ -80,154 +69,97 @@ const checkLogin = async (userkey, achievement_id) => {
   );
   if (result.state) totalCount = result.row.length;
 
-  if (totalCount >= achievement_point) {
-    //클리어 여부 확인
-    result = await DB(
-      `SELECT * FROM user_achievement WHERE userkey = ? AND achievement_id = ? AND is_clear = 0;`,
-      [userkey, achievement_id]
-    );
-    if (result.state) {
-      if (result.row.length === 0) {
-        resultQuery = mysql.format(
-          `INSERT INTO user_achievement(userkey, achievement_id, gain_point, is_clear, clear_date, current_result) VALUES(?, ?, ?, 1, now(), ?);`,
-          [userkey, achievement_id, gain_point, totalCount]
-        );
-      } else if (result.row[0].is_clear === 0) {
-        resultQuery = mysql.format(
-          `UPDATE user_achievement SET gain_point = ?, is_clear = 1, clear_date = now(), current_result = ? WHERE userkey = ? AND achievement_id = ?;`,
-          [gain_point, totalCount, userkey, achievement_id]
-        );
-      }
-    }
-  }
+  result = await DB(`SELECT * FROM user_achievement WHERE userkey = ? AND achievement_id = ?;`, [userkey, achievement_id]);
+
 
   return resultQuery;
 };
 
 //! 코인샵 구매
 const checkCoinshop = async (userkey, achievement_id) => {
+  
   let resultQuery = ``;
   let result = ``;
   let totalCount = 0;
 
-  //코인샵 구매 건수
-  result = await DB(
-    `
-    SELECT * 
-    FROM user_coin_purchase a, com_currency b
-    WHERE a.currency = b.currency
-    AND userkey = ?
-    AND is_use > 0
-    AND b.currency_type in ('bubble', 'standing', 'sticker', 'wallpaper')
-    ;`,
-    [userkey]
-  );
-  if (result.state) totalCount = result.row.length;
-
-  if (achievement_id === 3) {
+  if (achievement_id === 3) { 
     //비기너
-
+    
     //업적 정보 가져오기
     const achievementInfo = await getAchievementInfo(achievement_id);
     const { achievement_point, gain_point } = achievementInfo[0];
 
-    if (totalCount >= achievement_point) {
-      result = await DB(
-        `SELECT * FROM user_achievement WHERE userkey = ? AND achievement_id = ?;`,
-        [userkey, achievement_id]
+    result = await DB(
+      `SELECT current_result FROM user_achievement WHERE userkey = ? AND achievement_id = ?;`,
+      [userkey, achievement_id]
+    );
+    if(result.state) totalCount = result.row[0].current_result + 1;
+
+    if(totalCount === 1) 
+      resultQuery = mysql.format(
+        `INSERT INTO user_achievement(userkey, achievement_id, current_result) VALUES(?, ?, ?);`,
+        [userkey, achievement_id, totalCount]
       );
-      if (result.state) {
-        if (result.row.length === 0) {
-          resultQuery = mysql.format(
-            `INSERT INTO user_achievement(userkey, achievement_id, gain_point, is_clear, clear_date, current_result) VALUES(?, ?, ?, 1, now(), ?);`,
-            [userkey, achievement_id, gain_point, totalCount]
-          );
-        } else {
-          resultQuery = mysql.format(
-            `UPDATE user_achievement SET gain_point = ?, is_clear = 1, clear_date = now(), current_result = ? WHERE userkey = ? AND achievement_id = ?;`,
-            [gain_point, totalCount, userkey, achievement_id]
-          );
-        }
-      }
-    }
+    else if(totalCount === achievement_point)
+      resultQuery = mysql.format(
+        `UPDATE user_achievement SET gain_point = ?, current_result = ?, state = 1, clear_date = now() WHERE userkey = ? AND achievement_id = ?;`,
+        [gain_point, totalCount, userkey, achievement_id]
+      );    
+    else   
+      resultQuery = mysql.format(
+        `UPDATE user_achievement SET current_result = ? WHERE userkey = ? AND achievement_id = ?;`,
+        [totalCount, userkey, achievement_id]
+      );    
+
   } else {
     //이프유
 
-    result = await DB(
-      `
-        SELECT 
-        achievement_level
-        , gain_point 
-        FROM com_achievement_level  
-        WHERE achievement_id = ? 
-        AND achievement_level NOT IN (SELECT achievement_level FROM user_achievement WHERE userkey = ? AND achievement_id = ?)
-        AND achievement_point <= ?;
-        `,
-      [achievement_id, userkey, achievement_id, totalCount]
-    );
-    if (result.state) {
-      // eslint-disable-next-line no-restricted-syntax
-      for (const item of result.row) {
-        // eslint-disable-next-line no-await-in-loop
-        result = await DB(
-          `SELECT * FROM user_achievement WHERE userkey = ? AND achievement_id = ? AND achievement_level = ?;`,
-          [userkey, achievement_id, item.achievement_level]
-        );
-        if (result.state) {
-          if (result.row.length === 0) {
-            resultQuery += mysql.format(
-              `
-                        INSERT INTO user_achievement(
-                            userkey
-                            , achievement_id
-                            , gain_point
-                            , achievement_level
-                            , is_clear
-                            , clear_date
-                            , current_result
-                        ) VALUES(
-                            ?
-                            , ?
-                            , ?
-                            , ?
-                            , 1
-                            , now()
-                            , ?
-                        );`,
-              [
-                userkey,
-                achievement_id,
-                item.gain_point,
-                item.achievement_level,
-                totalCount,
-              ]
-            );
-          } else {
-            resultQuery += mysql.format(
-              `
-                        UPDATE user_achievement 
-                        SET gain_point = ?
-                        , achievement_level = ?
-                        , is_clear = 1
-                        , clear_date = now()
-                        , current_result = ? 
-                        WHERE userkey = ? 
-                        AND achievement_id = ?
-                        AND achievement_level = ?;`,
-              [
-                item.gain_point,
-                item.achievement_level,
-                totalCount,
-                userkey,
-                achievement_id,
-                item.achievement_level,
-              ]
-            );
-          }
-        }
-      }
+    let level = 1;
+
+    result = await DB(`SELECT 
+    ifnull(current_result, 0) current_result
+    , ifnull(level, 1) level 
+    , state
+    FROM user_achievement 
+    WHERE userkey = ? 
+    AND achievement_id = ?
+    ORDER BY achievement_no DESC
+    LIMIT 1;`, [userkey, achievement_id]);
+    if(result.state) {
+      totalCount = result.row[0].current_result + 1;
+      level = result.row[0].level; 
+      if(result.row[0].state === 1) level += 1; //클리어 했으면 레벨업
     }
+
+    result = await DB(`
+    SELECT achievement_level
+    , gain_point
+    FROM com_achievement_level
+    WHERE achievement_id = ? 
+    AND achievement_level >= ?
+    AND achievement_point <= ?;
+    `, [achievement_id, level, totalCount]);
+    if(result.state && result.row.length > 0){
+
+      resultQuery = mysql.format(`
+      UPDATE user_achievement 
+      SET current_result = ?
+      , state = 1
+      , clear_date = now() 
+      WHERE userkey = ? 
+      AND achievement_id = ? 
+      AND achievement_level =?;`, [totalCount, userkey, achievement_id, level]);
+
+    }else{
+      result = await DB(`SELECT * FROM user_achievement WHERE userkey = ? AND achievement_id = ? AND achievement_level`, []);
+    }
+       
   }
+
+
+
+
+
 
   return resultQuery;
 };
@@ -1293,7 +1225,7 @@ export const requestAchievementMain = async (req, res) => {
     achievement_id === 6
   ) {
     result = await DB(
-      `SELECT * FROM user_achievement WHERE userkey = ? AND achievement_id = ? AND is_clear = 1;`,
+      `SELECT * FROM user_achievement WHERE userkey = ? AND achievement_id = ?;`,
       [userkey, achievement_id]
     );
     if (result.state && result.row.length > 0) validCheck = false;
@@ -1361,4 +1293,90 @@ export const requestAchievementMain = async (req, res) => {
   };
 
   res.status(200).json(responseData);
+};
+
+//! 계정 등급 
+export const requestUserGradeInfo = async (req, res) => {
+
+  const {
+    body:{
+        userkey, 
+        lang = "KO", 
+    }
+  } = req;
+
+  const responseData = {};
+  let result = ``;
+
+  //계정 등급 및 혜택 
+  result = await DB(`
+  SELECT 
+  grade
+  , fn_get_design_info(grade_icon_id, 'url') grade_icon_url
+  , fn_get_design_info(grade_icon_id, 'key') grade_icon_key
+  , c.name
+  , current_achievement
+  , keep_point
+  , upgrade_point 
+  , abs(TIMESTAMPDIFF(DAY, (SELECT end_date FROM com_grade_season), now())) remain_day
+  , store_sale add_star
+  , store_limit add_star_limit
+  , waiting_sale 
+  , preview 
+  FROM table_account a, com_grade b, com_grade_lang c 
+  WHERE userkey = ?
+  AND a.grade = b.grade
+  AND b.grade_id = c.grade_id
+  AND c.lang = ?; 
+  `, [userkey, lang]);
+  responseData.grade = result.row; 
+
+  //초심자 업적
+  result = await DB(`
+  SELECT 
+  b.achievement_id
+  , c.name 
+  , achievement_icon_id
+  , fn_get_design_info(achievement_icon_id, 'url') achievement_icon_url 
+  , fn_get_design_info(achievement_icon_id, 'key') achievement_icon_key
+  , CASE WHEN current_result > 0 THEN a.current_result ELSE 0 END current_point 
+  , b.achievement_point
+  , c.surmmary 
+  , b.gain_point experience
+  FROM user_achievement a RIGHT JOIN com_achievement b ON a.achievement_id = b.achievement_id AND userkey = ? 
+  INNER JOIN com_achievement_lang c ON b.achievement_id = c.achievement_id AND lang = ?
+  WHERE b.achievement_id < 7 ;
+  `, [userkey, lang]);
+  responseData.single = result.row; 
+
+  //이프유 업적
+  result = await DB(`
+  SELECT 
+  b.achievement_id
+  , c.name 
+  , achievement_icon_id
+  , fn_get_design_info(achievement_icon_id, 'url') achievement_icon_url 
+  , fn_get_design_info(achievement_icon_id, 'key') achievement_icon_key
+  , CASE WHEN current_result > 0 THEN a.current_result ELSE 0 END current_point 
+  , b.achievement_point
+  , c.surmmary 
+  , b.gain_point experience
+  FROM user_achievement a RIGHT JOIN com_achievement b ON a.achievement_id = b.achievement_id AND userkey = ? 
+  INNER JOIN com_achievement_lang c ON b.achievement_id = c.achievement_id AND lang = ?
+  WHERE b.achievement_id > 6 ;
+  `, [userkey, lang]);
+
+  res.status(200).json(responseData);
+
+};
+
+//! 업적 처리 
+export const updateUserAchievement = async (req, res) => {
+
+    const {
+        body:{
+            userkey, 
+            achievement_id = -1, 
+        }
+    } = req;
 };
