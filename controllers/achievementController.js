@@ -194,33 +194,35 @@ const requestUserGradeInfo = async (userkey, lang) => {
   SELECT 
   a.grade
   , a.next_grade
-  , c.name
-  , CASE WHEN a.grade_experience >= upgrade_point THEN 
+  , c2.name -- 
+  , CASE WHEN a.grade_experience >= b.upgrade_point THEN 
     fn_get_grade_name_info(fn_get_grade_info(a.grade, a.grade_experience)-1, '${lang}') 
   ELSE 
     fn_get_grade_name_info(a.grade-1, '${lang}') 
   END before_grade_name
-  , CASE WHEN a.grade_experience >= upgrade_point THEN 
+  , CASE WHEN a.grade_experience >= b.upgrade_point THEN 
     fn_get_grade_name_info(fn_get_grade_info(a.grade, a.grade_experience), '${lang}') 
   ELSE 
     fn_get_grade_name_info(a.grade+1, '${lang}') 
   END next_grade_name
   , grade_experience
-  , keep_point
-  , upgrade_point 
+  , b2.keep_point -- 
+  , b.upgrade_point 
   , abs(TIMESTAMPDIFF(DAY, (SELECT end_date FROM com_grade_season), now())) remain_day
-  , store_sale add_star
-  , store_limit add_star_limit
-  , fn_get_user_star_benefit_count(?, a.grade) add_star_use
-  , waiting_sale 
-  , preview 
-  FROM table_account a, com_grade b, com_grade_lang c 
-  WHERE userkey = ?
+  , b.store_sale add_star
+  , b.store_limit add_star_limit
+  , fn_get_user_star_benefit_count(66, a.grade) add_star_use
+  , b.waiting_sale 
+  , b.preview 
+  FROM table_account a, com_grade b, com_grade_lang c, com_grade b2, com_grade_lang c2 
+  WHERE userkey = ${userkey}
   AND a.next_grade = b.grade
   AND b.grade_id = c.grade_id
-  AND c.lang = ?; 
-  `,
-    [userkey, userkey, lang]
+  AND a.grade = b2.grade
+  AND b2.grade_id = c2.grade_id 
+  AND c.lang = '${lang}'
+  AND c2.lang = c.lang; 
+  `
   );
   responseData.grade = result.row;
 
