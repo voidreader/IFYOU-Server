@@ -1343,7 +1343,7 @@ export const requestUserGradeInfo = async (req, res) => {
   , fn_get_design_info(achievement_icon_id, 'key') achievement_icon_key
   , CASE WHEN current_result > 0 THEN a.current_result ELSE 0 END current_point 
   , b.achievement_point
-  , c.surmmary 
+  , c.surmmary summary
   , b.gain_point experience
   , ifnull(a.is_clear, 0) is_clear
   FROM user_achievement a RIGHT JOIN com_achievement b ON a.achievement_id = b.achievement_id AND userkey = ? 
