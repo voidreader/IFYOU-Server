@@ -138,6 +138,7 @@ import {
   purchaseSelection,
 } from "./selectionController";
 import { requestAchievementMain } from "./achievementController";
+import { getIFyouWebMainPageInfo } from "./webController";
 
 dotenv.config();
 
@@ -1681,6 +1682,8 @@ export const clientHome = (req, res) => {
   else if (func === "updateUserVoiceCheck") updateUserVoiceCheck(req, res);
   else if (func === "requestAchievementMain") requestAchievementMain(req, res);
   else if (func === "updateUserIntroDone") updateUserIntroDone(req, res);
+  else if (func === "getIFyouWebMainPageInfo")
+    getIFyouWebMainPageInfo(req, res);
   //업적 누적
   else {
     //  res.status(400).send(`Wrong Func : ${func}`);
