@@ -84,3 +84,24 @@ WHERE cl.id BETWEEN 6400 AND 6414
 
   res.status(200).json(responseData);
 };
+
+export const receiveInquiry = async (req, res) => {
+  const {
+    body: { client, company, tel, email, contents },
+  } = req;
+
+  const result = await DB(
+    `
+  INSERT INTO user_inquiry (client, company, tel, email, contents) 
+  VALUES (?, ?, ?, ?, ?);
+  `,
+    [client, company, tel, email, contents]
+  );
+
+  if (!result.state) {
+    res.status(400);
+    return;
+  }
+
+  res.status(200).json(result.state);
+};
