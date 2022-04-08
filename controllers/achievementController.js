@@ -175,4 +175,123 @@ export const requestAchievementMain = async (req, res) => {
   };
 
   res.status(200).json(responseData);
+  
 };
+
+//! 계정 등급
+export const requestUserGradeInfo = async (req, res) => {
+  const {
+    body: { userkey, lang = "KO" },
+  } = req;
+
+  const responseData = {};
+  let result = ``;
+
+  //계정 등급 및 혜택
+  result = await DB(
+    `
+  SELECT 
+  grade
+  , fn_get_design_info(grade_icon_id, 'url') grade_icon_url
+  , fn_get_design_info(grade_icon_id, 'key') grade_icon_key
+  , c.name
+  , current_achievement
+  , keep_point
+  , upgrade_point 
+  , abs(TIMESTAMPDIFF(DAY, (SELECT end_date FROM com_grade_season), now())) remain_day
+  , store_sale add_star
+  , store_limit add_star_limit
+  , waiting_sale 
+  , preview 
+  FROM table_account a, com_grade b, com_grade_lang c 
+  WHERE userkey = ?
+  AND a.grade = b.grade
+  AND b.grade_id = c.grade_id
+  AND c.lang = ?; 
+  `,
+    [userkey, lang]
+  );
+  responseData.grade = result.row;
+
+  //초심자 업적
+  result = await DB(
+    `
+  SELECT 
+  b.achievement_id
+  , c.name 
+  , achievement_icon_id
+  , fn_get_design_info(achievement_icon_id, 'url') achievement_icon_url 
+  , fn_get_design_info(achievement_icon_id, 'key') achievement_icon_key
+  , CASE WHEN current_result > 0 THEN a.current_result ELSE 0 END current_point 
+  , b.achievement_point
+  , c.surmmary summary
+  , b.gain_point experience
+  , ifnull(a.is_clear, 0) is_clear
+  FROM user_achievement a RIGHT JOIN com_achievement b ON a.achievement_id = b.achievement_id AND userkey = ? 
+  INNER JOIN com_achievement_lang c ON b.achievement_id = c.achievement_id AND lang = ?
+  WHERE b.achievement_id < 7 ;
+  `,
+    [userkey, lang]
+  );
+  responseData.single = result.row;
+
+  //이프유 업적 - Level
+  result = await DB(
+    `
+    SELECT a.achievement_id 
+    , a.achievement_type 
+    , fn_get_achievement_level_info(a.achievement_id, ifnull(ua.achievement_level, 1), 'gain_point') experience -- exp
+    , fn_get_achievement_level_info(a.achievement_id, ifnull(ua.achievement_level, 1), 'achievement_point') achievement_point
+    , fn_get_achievement_info(a.achievement_id, '${lang}', 'name') name
+    , CASE WHEN a.achievement_type = 'repeat' THEN 0
+           ELSE ifnull(ua.achievement_level, 1) END current_level -- 레벨 
+    , ifnull(ua.current_result, 0) current_point
+    , ifnull(ua.is_clear, 0) is_clear
+    , a.achievement_icon_id 
+    , fn_get_design_info(achievement_icon_id, 'url') achievement_icon_url 
+    , fn_get_design_info(achievement_icon_id, 'key') achievement_icon_key
+    , fn_get_achievement_info(a.achievement_id, '${lang}', 'summary') summary 
+ FROM com_achievement a
+   LEFT OUTER JOIN user_achievement ua ON a.achievement_id = ua.achievement_id AND ua.userkey = ${userkey} AND ua.achievement_level = fn_get_user_achievement_max_level(ua.userkey, a.achievement_id)
+WHERE a.achievement_kind <> 'beginner'
+  AND a.achievement_type = 'level'
+  ORDER BY a.achievement_id
+;
+  `
+  );
+  responseData.level = result.row;
+
+  // IFYOU 업적 - Repeat
+  result = await DB(`
+  SELECT a.achievement_id 
+  , a.achievement_type 
+  , a.gain_point experience -- exp
+  , a.achievement_point  achievement_point
+  , fn_get_achievement_info(a.achievement_id, '${lang}', 'name') name
+  , 0 current_level
+  , ifnull(ua.current_result, 0) current_point
+  , ifnull(ua.is_clear, 0) is_clear
+  , a.achievement_icon_id 
+  , fn_get_design_info(achievement_icon_id, 'url') achievement_icon_url 
+  , fn_get_design_info(achievement_icon_id, 'key') achievement_icon_key
+  , fn_get_achievement_info(a.achievement_id, '${lang}', 'summary') summary 
+FROM com_achievement a
+ LEFT OUTER JOIN user_achievement ua ON a.achievement_id = ua.achievement_id AND ua.userkey = ${userkey} AND ua.achievement_no = fn_get_user_achievement_max_no(ua.userkey, a.achievement_id)
+WHERE a.achievement_kind <> 'beginner'
+AND a.achievement_type = 'repeat'
+ORDER BY a.achievement_id 
+;
+  `);
+
+  responseData.repeat = result.row;
+
+  res.status(200).json(responseData);
+};
+
+//! 업적 처리
+export const updateUserAchievement = async (req, res) => {
+  const {
+    body: { userkey, achievement_id = -1 },
+  } = req;
+};
+

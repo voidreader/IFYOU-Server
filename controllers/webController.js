@@ -3,6 +3,28 @@ import { response } from "express";
 import { DB, logAction, transactionDB } from "../mysqldb";
 import { logger } from "../logger";
 
+// * 프로젝트의 장르 조회하기
+const getProjectGenre = async (project_id, lang) => {
+  const result = await DB(`
+    SELECT lpg.genre_code
+         , fn_get_localize_text(ls.text_id, '${lang}') genre_name
+      FROM list_project_genre lpg
+        , list_standard ls
+      WHERE ls.standard_class = 'genre'
+      AND ls.code  = lpg.genre_code
+      AND lpg.project_id = ${project_id}
+      ORDER BY lpg.sortkey;  
+    `);
+
+  const responseData = [];
+
+  result.row.forEach((item) => {
+    responseData.push(item.genre_name);
+  });
+
+  return responseData;
+};
+
 // * 이프유 웹 메인페이지의 정보 요청
 export const getIFyouWebMainPageInfo = async (req, res) => {
   const {
@@ -25,10 +47,15 @@ export const getIFyouWebMainPageInfo = async (req, res) => {
   AND a.is_deploy > 0  
   `);
 
+  for await (const item of projects.row) {
+    item.genre = await getProjectGenre(item.project_id, lang);
+  }
+
   responseData.project = projects.row; // 작품
 
   const noticeResult = await DB(`
-  SELECT cnd.title 
+  SELECT cn.notice_no
+    , cnd.title 
     , ifnull(cnd.contents, '') contents
     , fn_get_design_info(cnd.design_id, 'url') banner_url
     , fn_get_design_info(cnd.detail_design_id, 'url') detail_url
@@ -42,7 +69,11 @@ export const getIFyouWebMainPageInfo = async (req, res) => {
     `);
 
   const text = await DB(`
-  SELECT cl.id, cl.KO, cl.EN, cl.JA
+  SELECT cl.id
+       , CASE WHEN '${lang}' = 'KO' THEN cl.KO
+              WHEN '${lang}' = 'EN' THEN cl.EN
+              WHEN '${lang}' = 'JA' THEN cl.JA 
+              ELSE cl.EN END value
  FROM com_localize cl 
 WHERE cl.id BETWEEN 6400 AND 6414 
   OR cl.id IN (5051, 5001, 6179, 6181);
