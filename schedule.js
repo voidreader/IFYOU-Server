@@ -16,6 +16,9 @@ import {
 import {
   updateProjectViewCnt,
 } from "./controllers/coinController";
+import {
+  calculateGradeMonth, 
+} from "./controllers/gradeController";
 
 dotenv.config();
 
