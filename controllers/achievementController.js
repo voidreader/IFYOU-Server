@@ -5,7 +5,7 @@ import { logger } from "../logger";
 import { respondDB } from "../respondent";
 
 //! 레벨 업적 쿼리
-const getLevelQuery = async (userkey, achievement_id) => {
+export const getLevelQuery = async (userkey, achievement_id) => {
   let resultQuery = ``;
   let result = ``;
   let totalCount = 1;
@@ -65,7 +65,7 @@ const getLevelQuery = async (userkey, achievement_id) => {
 };
 
 //! 싱글/반복 업적 쿼리
-const getAchievementQuery = async (userkey, achievement_id) => {
+export const getAchievementQuery = async (userkey, achievement_id) => {
   let resultQuery = ``;
   let result = ``;
   let totalCount = 1;
@@ -120,7 +120,7 @@ const getAchievementQuery = async (userkey, achievement_id) => {
 //! 업적 메인 함수
 export const requestAchievementMain = async (req, res) => {
   const {
-    body: { userkey = -1, achievement_id = -1 },
+    body: { userkey = -1, achievement_id = -1, project_id = -1, },
   } = req;
 
   if (userkey === -1 || achievement_id === -1) {
@@ -149,7 +149,7 @@ export const requestAchievementMain = async (req, res) => {
   ) {
     query = await getLevelQuery(userkey, achievement_id);
   } else if (
-    // 반복
+    // 싱글/반복
     achievement_id === 1 ||
     achievement_id === 2 ||
     achievement_id === 3 ||
@@ -162,6 +162,11 @@ export const requestAchievementMain = async (req, res) => {
     achievement_id === 21
   ) {
     query = await getAchievementQuery(userkey, achievement_id);
+  }else {
+    //올 클리어(반복)
+    result = await DB(`SELECT * FROM user_all_clear WHERE userkey = ? AND project_id = ?;`, [userkey, project_id]);
+    if(result.state && result.row.length > 0) validCheck = false;
+    if(validCheck) query = await getAchievementQuery(userkey, achievement_id);
   }
 
   //console.log(query);
@@ -179,8 +184,9 @@ export const requestAchievementMain = async (req, res) => {
     achievement_id,
     is_success: !validCheck ? 0 : 1, // 업적누적 성공/실패여부
   };
-
+  
   res.status(200).json(responseData);
+
 };
 
 //! 등급, 업적 정보 리스트
@@ -211,7 +217,7 @@ const requestUserGradeInfo = async (userkey, lang) => {
   , abs(TIMESTAMPDIFF(DAY, (SELECT end_date FROM com_grade_season), now())) remain_day
   , b.store_sale add_star
   , b.store_limit add_star_limit
-  , fn_get_user_star_benefit_count(66, a.grade) add_star_use
+  , fn_get_user_star_benefit_count(${userkey}, a.grade) add_star_use
   , b.waiting_sale 
   , b.preview 
   FROM table_account a, com_grade b, com_grade_lang c, com_grade b2, com_grade_lang c2 
