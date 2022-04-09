@@ -5,6 +5,7 @@ import { logger } from "../logger";
 import { respondDB, responDBCoinShop } from "../respondent";
 import { getUserBankInfo } from "./bankController";
 import { getCurrencyQuantity } from "./accountController";
+import { getLevelQuery, getAchievementQuery,  } from "./achievementController";
 import { getEqualConditionQuery, getInConditionQuery } from "../com/com";
 
 const coinProductListQuery = `
@@ -496,6 +497,7 @@ export const userCoinPurchase = async (req, res) => {
     , connected_project project_id
     , is_unique 
     , fn_get_user_property(?, a.currency) quantity
+    , b.currency_type
     FROM com_coin_product a, com_currency b
     WHERE a.currency = b.currency 
     AND coin_product_id = ?
@@ -517,6 +519,7 @@ export const userCoinPurchase = async (req, res) => {
     project_id,
     is_unique,
     quantity,
+    currency_type,
   } = result.row[0];
 
   //* 패킷 조작에 따른 추가 로그 생성
@@ -571,10 +574,22 @@ export const userCoinPurchase = async (req, res) => {
     ]
   );
 
+  let achievementQuery = ``; 
+
+  //비기너 코인샵 구매 업적
+  achievementQuery = await getAchievementQuery(userkey, 3);
+
+  //코인샵 구매 
+  achievementQuery += await getAchievementQuery(userkey, 21);
+      
+  //스탠딩 구매 업적
+  if(currency_type === "standing") achievementQuery += await getLevelQuery(userkey, 19);
+
   const purchaseResult = await transactionDB(`
     ${purchaseQuery}
     ${insertQuery}
     ${userHistoryQuery}   
+    ${achievementQuery}
   `);
 
   if (!purchaseResult.state) {
@@ -595,11 +610,13 @@ export const userCoinPurchase = async (req, res) => {
   responseData.bank = await getUserBankInfo(req.body);
 
   res.status(200).json(responseData);
+
   logAction(userkey, "coin_purchase", {
     userkey,
     coin_product_id,
     coin_purchase_no: maxNo,
   });
+
 };
 
 //! 구매 내역 리스트
