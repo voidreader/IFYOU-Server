@@ -13,7 +13,7 @@ import routes from "./routes";
 
 import adminRouter from "./routers/adminRouter";
 
-import { scheduleMail, scheduleStatInsert } from "./schedule";
+import { scheduleMail, scheduleStatInsert, scheduleGrade, } from "./schedule";
 
 const app = express();
 
