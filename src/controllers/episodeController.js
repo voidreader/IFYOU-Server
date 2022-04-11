@@ -1,16 +1,5 @@
 import mysql from "mysql2/promise";
-import routes from "../routes";
 import { DB, logAdmin, transactionDB } from "../mysqldb";
-
-import { logger } from "../logger";
-
-import {
-  respondRedirect,
-  respondDB,
-  adminLogInsert,
-  respondAdminSuccess,
-  respondError,
-} from "../respondent";
 
 // 최초 에피소드가 등록된 갤러리 이미지 리스트 가져오기
 export const getConnectedGalleryImages = async (project_id) => {

@@ -1,6 +1,6 @@
 import mysql from "mysql2/promise";
 import { response } from "express";
-import routes from "../routes";
+
 import { DB, transactionDB } from "../mysqldb";
 import {
   Q_SCRIPT_CHARACTER_EXPRESSION_DROPDOWN,
