@@ -120,7 +120,7 @@ export const getAchievementQuery = async (userkey, achievement_id) => {
 //! 업적 메인 함수
 export const requestAchievementMain = async (req, res) => {
   const {
-    body: { userkey = -1, achievement_id = -1, project_id = -1, },
+    body: { userkey = -1, achievement_id = -1, project_id = -1 },
   } = req;
 
   if (userkey === -1 || achievement_id === -1) {
@@ -162,11 +162,14 @@ export const requestAchievementMain = async (req, res) => {
     achievement_id === 21
   ) {
     query = await getAchievementQuery(userkey, achievement_id);
-  }else {
+  } else {
     //올 클리어(반복)
-    result = await DB(`SELECT * FROM user_all_clear WHERE userkey = ? AND project_id = ?;`, [userkey, project_id]);
-    if(result.state && result.row.length > 0) validCheck = false;
-    if(validCheck) query = await getAchievementQuery(userkey, achievement_id);
+    result = await DB(
+      `SELECT * FROM user_all_clear WHERE userkey = ? AND project_id = ?;`,
+      [userkey, project_id]
+    );
+    if (result.state && result.row.length > 0) validCheck = false;
+    if (validCheck) query = await getAchievementQuery(userkey, achievement_id);
   }
 
   //console.log(query);
@@ -184,9 +187,8 @@ export const requestAchievementMain = async (req, res) => {
     achievement_id,
     is_success: !validCheck ? 0 : 1, // 업적누적 성공/실패여부
   };
-  
-  res.status(200).json(responseData);
 
+  res.status(200).json(responseData);
 };
 
 //! 등급, 업적 정보 리스트

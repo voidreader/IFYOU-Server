@@ -2,18 +2,14 @@ import mysql from "mysql2/promise";
 import { response } from "express";
 import { DB, transactionDB } from "../mysqldb";
 import { logger } from "../logger";
-import { 
-  respondDB, 
-  adminLogInsert,
-  respondAdminSuccess,
-} from "../respondent";
+import { respondDB, adminLogInsert, respondAdminSuccess } from "../respondent";
 import routes from "../routes";
-import { 
+import {
   getLikeConditionQuery,
   getPagenationQuery,
-  getInConditionQuery, 
-  getEqualConditionQuery, 
-  getDateConditionQuery
+  getInConditionQuery,
+  getEqualConditionQuery,
+  getDateConditionQuery,
 } from "../com/com";
 
 //! 로그인 조회
@@ -227,12 +223,12 @@ export const adminLog = async (req, res) => {
     body: { user_id, kind, content, values = "" },
   } = req;
 
-  let setContent = `${content}`; 
-  if(values){
-    const setValues = JSON.stringify(values);   //json 형태인 값들은 String 처리 
+  let setContent = `${content}`;
+  if (values) {
+    const setValues = JSON.stringify(values); //json 형태인 값들은 String 처리
     setContent = `${setContent} >>> ${setValues}`;
   }
-  
+
   await DB(
     `INSERT INTO admin_history(user_id, kind, content) VALUES(?, ?, ?);`,
     [user_id, kind, setContent]
@@ -261,7 +257,9 @@ export const adminList = async (req, res) => {
     JOIN admin_auth aa2 
     ON aa.user_id = aa2.user_id
     ORDER BY aa.create_date DESC
-    ;`,[]);
+    ;`,
+    []
+  );
 
   if (!result.state) {
     logger.error(`adminList Error ${result.error}`);
@@ -274,7 +272,6 @@ export const adminList = async (req, res) => {
 
 //! 관리자 상세
 export const adminDetail = async (req, res) => {
-
   logger.info(`adminDetail`);
 
   const {
@@ -305,8 +302,16 @@ export const adminDetail = async (req, res) => {
     return;
   }
 
-  const { userName, userEmail, userOrganization, userMaster, userPlatform, userPlatform_name, userManagement, userManagement_name } =
-    infoResult.row[0];
+  const {
+    userName,
+    userEmail,
+    userOrganization,
+    userMaster,
+    userPlatform,
+    userPlatform_name,
+    userManagement,
+    userManagement_name,
+  } = infoResult.row[0];
 
   const userInfo = {
     userId: id,
@@ -317,7 +322,7 @@ export const adminDetail = async (req, res) => {
     userPlatform,
     userPlatform_name,
     userManagement,
-    userManagement_name
+    userManagement_name,
   };
 
   logger.info(`adminDetail done!!!`);
@@ -328,11 +333,16 @@ export const adminDetail = async (req, res) => {
 export const adminUpdate = async (req, res) => {
   const {
     params: { id },
-    body: { userName = "", userOrganization = "", userMaster = 0, userPlatform = "", userManagement = "" },
+    body: {
+      userName = "",
+      userOrganization = "",
+      userMaster = 0,
+      userPlatform = "",
+      userManagement = "",
+    },
   } = req;
 
   logger.info(`adminUpdate`);
-
 
   //! 회원정보와 마스터 권한 수정
   const updateResult = await transactionDB(
@@ -340,7 +350,15 @@ export const adminUpdate = async (req, res) => {
     UPDATE admin_account SET user_name = ?, organization = ? WHERE user_id = ?; 
     UPDATE admin_auth SET master_auth = ?, platform_auth = ?, management_auth = ? WHERE user_id = ?; 
     `,
-    [userName, userOrganization, id, userMaster, userPlatform, userManagement, id]
+    [
+      userName,
+      userOrganization,
+      id,
+      userMaster,
+      userPlatform,
+      userManagement,
+      id,
+    ]
   );
 
   if (!updateResult.state) {
@@ -351,7 +369,7 @@ export const adminUpdate = async (req, res) => {
 
   logger.info(`adminUpdate done!!!`);
 
-  adminLogInsert(req, "admin_update"); 
+  adminLogInsert(req, "admin_update");
 
   res.redirect(routes.adminDetail(id));
 };
@@ -387,7 +405,6 @@ export const projectAuthList = async (req, res) => {
 
 //! 작품 권한 추가/수정
 export const projectAuthAllUpdate = async (req, res) => {
-  
   logger.info(`projectAuthAllUpdate`);
 
   const {
@@ -396,14 +413,13 @@ export const projectAuthAllUpdate = async (req, res) => {
   } = req;
 
   console.log(req.body);
-  
-  //* 중복 체크 
+
+  //* 중복 체크
   if (rows.length > 0) {
     let projectCheck = true;
     const projectArray = [];
 
     rows.forEach((item) => {
-
       if (!projectArray.includes(item.project_id)) {
         projectArray.push(item.project_id);
       } else {
@@ -415,57 +431,56 @@ export const projectAuthAllUpdate = async (req, res) => {
       logger.error("projectAuthAllUpdate Error 1");
       respondDB(res, 80066);
       return;
-    }     
+    }
 
-    let updateQuery = ``; 
-    let index = 0; 
+    let updateQuery = ``;
+    let index = 0;
     rows.forEach((item) => {
-
       const queryParams = [];
-  
-      const currentQuery = `CALL pier.sp_update_project_auth(?, ?, ?);`; 
 
-      queryParams.push(id); 
-      queryParams.push(item.project_id); 
-      queryParams.push(item.auth_kind); 
+      const currentQuery = `CALL pier.sp_update_project_auth(?, ?, ?);`;
+
+      queryParams.push(id);
+      queryParams.push(item.project_id);
+      queryParams.push(item.auth_kind);
 
       updateQuery += mysql.format(currentQuery, queryParams);
       if (index === 0) console.log(updateQuery);
 
-      if(!item.project_id || !item.auth_kind){
-        projectCheck = false; 
+      if (!item.project_id || !item.auth_kind) {
+        projectCheck = false;
       }
-  
-      index += 1;
 
+      index += 1;
     });
 
     //console.log(updateQuery);
 
-    if(!projectCheck){
+    if (!projectCheck) {
       logger.error(`projectAuthAllUpdate Error 2`);
       respondDB(res, 80067);
-      return; 
+      return;
     }
 
-    const result = await transactionDB(`${updateQuery}
+    const result = await transactionDB(
+      `${updateQuery}
     UPDATE admin_auth SET project_auth = 1 WHERE user_id = ?;
-    `, [id]); 
+    `,
+      [id]
+    );
 
-    if(!result.state){
+    if (!result.state) {
       logger.error("projectAuthAllUpdate Error 3");
       respondDB(res, 80026);
-      return;      
-    }    
-
-  } 
+      return;
+    }
+  }
 
   logger.info(`projectAuthAllUpdate done!!!`);
 
   adminLogInsert(req, "project_auth_update");
   res.redirect(routes.projectAuthList(id));
 };
-
 
 //! 작품 권한 삭제
 export const projectAuthDelete = async (req, res) => {
@@ -601,7 +616,6 @@ export const mainLoadingInsert = async (req, res) => {
 
   logger.info(`mainLoadingInsert done!!!`);
   respondAdminSuccess(req, res, null, "main_loading_insert", mainLoadingList);
-
 };
 
 //! 로딩 이미지 상세
@@ -684,7 +698,6 @@ export const mainLoadingUpdate = async (req, res) => {
   logger.info(`mainLoadingUpdate done!!!`);
 
   respondAdminSuccess(req, res, null, "main_loading_update", mainLoadingList);
-
 };
 
 //! 로딩 이미지 삭제
@@ -796,7 +809,6 @@ export const comLocallizingUpdate = async (req, res) => {
   logger.info(`comLocallizingUpdate Update done!!`);
   adminLogInsert(req, "locallizing_update_all");
   res.redirect(routes.comLocallizingList("admin"));
-
 };
 
 //* 다국어 로컬 라이징 끝
@@ -809,73 +821,109 @@ export const getReservationList = async (searchInfo) => {
       search_type = "",
       search_word = null,
       search_mail_type = "",
-      search_send_to = "", 
+      search_send_to = "",
       search_start_date = "",
       search_end_date = "",
       search_currency = "",
-      search_state = "", 
+      search_state = "",
       page = -1,
-      page_size = 20
+      page_size = 20,
     },
   } = searchInfo;
 
   let whereQuery = ``;
   let pageQuery = ``;
 
-
-  // 메일 NO, UID 검색 
-  if(search_type && search_word){
-    if(search_type === "uid"){
-      whereQuery += getInConditionQuery('reservation_no', `SELECT DISTINCT reservation_no FROM user_mail WHERE userkey IN (${search_word}) AND reservation_no <> -1`, false);
-    }else{
+  // 메일 NO, UID 검색
+  if (search_type && search_word) {
+    if (search_type === "uid") {
+      whereQuery += getInConditionQuery(
+        "reservation_no",
+        `SELECT DISTINCT reservation_no FROM user_mail WHERE userkey IN (${search_word}) AND reservation_no <> -1`,
+        false
+      );
+    } else {
       whereQuery += getInConditionQuery(search_type, search_word, false);
-    }  
+    }
   }
 
-  // 메일 타입 검색 
-  if(search_mail_type){
-    whereQuery += getEqualConditionQuery("mail_type", search_mail_type, true, false);
+  // 메일 타입 검색
+  if (search_mail_type) {
+    whereQuery += getEqualConditionQuery(
+      "mail_type",
+      search_mail_type,
+      true,
+      false
+    );
   }
 
-  // 받을 대상 검색 
-  if(search_send_to){
-    if(search_send_to === "all"){
+  // 받을 대상 검색
+  if (search_send_to) {
+    if (search_send_to === "all") {
       whereQuery += getEqualConditionQuery("send_to", "-1", true, false);
-    }else if(search_send_to === "some"){
+    } else if (search_send_to === "some") {
       whereQuery += getEqualConditionQuery("send_to", "-1", false, false);
     }
   }
 
-  // 기간 검색 
-  if(search_start_date && search_end_date){
-    whereQuery += getDateConditionQuery("send_date", search_start_date, search_end_date, false);
+  // 기간 검색
+  if (search_start_date && search_end_date) {
+    whereQuery += getDateConditionQuery(
+      "send_date",
+      search_start_date,
+      search_end_date,
+      false
+    );
   }
 
-  // 재화 검색 
-  if(search_currency){
-    let OrQuery = ``; 
-    if(search_currency.includes("gem")){
-      OrQuery += getLikeConditionQuery("currency", 'gem', false, false, OrQuery.length > 0 ? 'OR' : ' AND (');
-    } 
+  // 재화 검색
+  if (search_currency) {
+    let OrQuery = ``;
+    if (search_currency.includes("gem")) {
+      OrQuery += getLikeConditionQuery(
+        "currency",
+        "gem",
+        false,
+        false,
+        OrQuery.length > 0 ? "OR" : " AND ("
+      );
+    }
 
-    if(search_currency.includes("coin")){
-      OrQuery += getLikeConditionQuery("currency", 'coin', false, false, OrQuery.length > 0 ? 'OR' : ' AND (');
-    } 
+    if (search_currency.includes("coin")) {
+      OrQuery += getLikeConditionQuery(
+        "currency",
+        "coin",
+        false,
+        false,
+        OrQuery.length > 0 ? "OR" : " AND ("
+      );
+    }
 
-    if(search_currency.includes("OneTime")){
-      OrQuery += getLikeConditionQuery("currency", 'OneTime', false, false, OrQuery.length > 0 ? 'OR' : ' AND (');
-    } 
-    OrQuery += `)`; 
+    if (search_currency.includes("OneTime")) {
+      OrQuery += getLikeConditionQuery(
+        "currency",
+        "OneTime",
+        false,
+        false,
+        OrQuery.length > 0 ? "OR" : " AND ("
+      );
+    }
+    OrQuery += `)`;
 
-    whereQuery += OrQuery; 
+    whereQuery += OrQuery;
   }
 
-  if(search_state){
-    whereQuery += getEqualConditionQuery("is_complete", search_state, true, false);
+  if (search_state) {
+    whereQuery += getEqualConditionQuery(
+      "is_complete",
+      search_state,
+      true,
+      false
+    );
   }
 
   // 페이징 처리
-  pageQuery = getPagenationQuery(page, page_size); 
+  pageQuery = getPagenationQuery(page, page_size);
 
   console.log(whereQuery);
   //console.log(pageQuery);
@@ -904,19 +952,20 @@ export const getReservationList = async (searchInfo) => {
 };
 
 //! 메일 수신 목록
-export const getReceiveList = async (reservation_no) =>{
-
-  const result = await DB(`  
+export const getReceiveList = async (reservation_no) => {
+  const result = await DB(
+    `  
   SELECT fn_get_userkey_info(userkey) userkey
   , DATE_FORMAT(receive_date, '%Y-%m-%d %T') receive_date
   , CASE WHEN is_receive = 0 THEN "X" 
   ELSE "O" 
   END state 
   FROM user_mail 
-  WHERE reservation_no = ?;`,[reservation_no]);
+  WHERE reservation_no = ?;`,
+    [reservation_no]
+  );
 
   return result.row;
-
 };
 
 //! 메일 리스트
@@ -930,14 +979,13 @@ export const mailReservationList = async (req, res) => {
 
 //! 메일 상세
 export const mailReservationDetail = async (req, res) => {
-  
   logger.info(`mailReservationDetail`);
 
   const {
     params: { id },
   } = req;
 
-  const responseData = {}; 
+  const responseData = {};
   const result = await DB(
     `SELECT reservation_no
     , content
@@ -965,7 +1013,7 @@ export const mailReservationDetail = async (req, res) => {
 export const mailReceiveList = async (req, res) => {
   logger.info(`mailReceiveList`);
 
-  const result = await getReceiveList(req.params.id); 
+  const result = await getReceiveList(req.params.id);
 
   res.status(200).json(result);
 };
@@ -1014,7 +1062,7 @@ export const mailReservationInsert = async (req, res) => {
       quantity,
       send_date,
       expire_date,
-      user_id
+      user_id,
     ]
   );
 
@@ -1024,8 +1072,13 @@ export const mailReservationInsert = async (req, res) => {
     return;
   }
 
-  respondAdminSuccess(req, res, null, "reservation_insert", mailReservationList);
-
+  respondAdminSuccess(
+    req,
+    res,
+    null,
+    "reservation_insert",
+    mailReservationList
+  );
 };
 
 //! 메일 수정
@@ -1099,8 +1152,13 @@ export const mailReservationUpdate = async (req, res) => {
     return;
   }
 
-  respondAdminSuccess(req, res, null, "reservation_update", mailReservationList);
-
+  respondAdminSuccess(
+    req,
+    res,
+    null,
+    "reservation_update",
+    mailReservationList
+  );
 };
 
 //! 메일 삭제
@@ -1130,8 +1188,13 @@ export const mailReservationDelete = async (req, res) => {
     return;
   }
 
-  respondAdminSuccess(req, res, null, "reservation_delete", mailReservationList);
-
+  respondAdminSuccess(
+    req,
+    res,
+    null,
+    "reservation_delete",
+    mailReservationList
+  );
 };
 
 //! 메일 취소
@@ -1272,9 +1335,7 @@ export const updateOrInsertNoticeMaster = async (req, res) => {
     return;
   }
 
-
   respondAdminSuccess(req, res, null, "notice_update", getAdminNoticeList);
-
 };
 
 // 공지사항 및 이벤트 디테일 업데이트 or 입력
@@ -1293,7 +1354,8 @@ export const updateOrInsertNoticeDetail = async (req, res) => {
   rows.forEach((item) => {
     notice_no = item.notice_no;
 
-    if(item.detail_design_id === 0 || !item.detail_design_id) detail_design_id = -1;
+    if (item.detail_design_id === 0 || !item.detail_design_id)
+      detail_design_id = -1;
     else detail_design_id = item.detail_design_id;
 
     finalQuery += mysql.format(singleQuery, [
@@ -1307,7 +1369,6 @@ export const updateOrInsertNoticeDetail = async (req, res) => {
     ]);
   });
 
-
   const result = await DB(finalQuery, []);
 
   if (!result.state) {
@@ -1318,6 +1379,11 @@ export const updateOrInsertNoticeDetail = async (req, res) => {
 
   req.body.notice_no = notice_no;
 
-  respondAdminSuccess(req, res, null, "notice_detail_update", getAdminNoticeDetail);
-
+  respondAdminSuccess(
+    req,
+    res,
+    null,
+    "notice_detail_update",
+    getAdminNoticeDetail
+  );
 };

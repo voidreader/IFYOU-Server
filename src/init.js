@@ -1,4 +1,3 @@
-import "./models/ModelStory";
 import "./mysqldb";
 
 // import "./mongodb";
