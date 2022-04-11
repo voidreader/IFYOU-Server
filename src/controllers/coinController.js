@@ -54,7 +54,11 @@ END code
 , c.add_value
 , ifnull(e.sortkey, 100) sorting_order
 , CASE WHEN b.currency_type = 'bubble' THEN fn_get_bubble_info(a.currency, ?) ELSE '' END line
-, CASE WHEN fn_get_ability_cnt(connected_project, ?, d.speaker) >= fn_get_ability_max_value(connected_project, d.speaker) THEN 1 ELSE 0 END is_max
+, CASE WHEN d.speaker IS NOT NULL THEN 
+	CASE WHEN fn_get_ability_cnt(connected_project, ?, d.speaker) >= fn_get_ability_max_value(connected_project, d.speaker) THEN 1 ELSE 0 END
+ELSE 
+	0
+END is_max
 FROM com_coin_product a
 INNER JOIN com_currency b ON a.currency = b.currency
 LEFT OUTER JOIN com_currency_ability c ON b.currency = c.currency 
