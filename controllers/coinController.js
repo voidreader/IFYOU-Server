@@ -162,7 +162,7 @@ const getCoinProductListSort = async (result, is_main = 0) => {
       delete item.ability_icon_image_url;
       delete item.ability_icon_image_key;
       delete item.add_value;
- 
+
       //배열에 추가
       coinProductArr.push(item.coin_product_id);
       resultArray.push(item);
@@ -212,28 +212,72 @@ export const getCoinProductMainList = async (req, res) => {
   //스탠딩
   let result = await DB(
     `${coinProductListQuery} ORDER BY a.price DESC, rand() LIMIT 5;`,
-    [lang, lang, userkey, project_id, lang, lang, lang, userkey, project_id, "standing"]
+    [
+      lang,
+      lang,
+      userkey,
+      project_id,
+      lang,
+      lang,
+      lang,
+      userkey,
+      project_id,
+      "standing",
+    ]
   );
   responseData.character = await getCoinProductListSort(result.row, 1);
 
   //배경
   result = await DB(
     `${coinProductListQuery} ORDER BY price DESC, rand() LIMIT 5;`,
-    [lang, lang, userkey, project_id, lang, lang, lang, userkey, project_id, "wallpaper"]
+    [
+      lang,
+      lang,
+      userkey,
+      project_id,
+      lang,
+      lang,
+      lang,
+      userkey,
+      project_id,
+      "wallpaper",
+    ]
   );
   responseData.wallpaper = await getCoinProductListSort(result.row, 1);
 
   //스티커
   result = await DB(
     `${coinProductListQuery} ORDER BY price DESC, rand() LIMIT 5;`,
-    [lang, lang, userkey, project_id, lang, lang, lang, userkey, project_id, "sticker"]
+    [
+      lang,
+      lang,
+      userkey,
+      project_id,
+      lang,
+      lang,
+      lang,
+      userkey,
+      project_id,
+      "sticker",
+    ]
   );
   responseData.sticker = await getCoinProductListSort(result.row, 1);
 
   //대사
   result = await DB(
     `${coinProductListQuery} ORDER BY price DESC, rand() LIMIT 5;`,
-    [lang, lang, userkey, project_id, lang, lang, lang, userkey, project_id, "bubble"]
+    [
+      lang,
+      lang,
+      userkey,
+      project_id,
+      lang,
+      lang,
+      lang,
+      userkey,
+      project_id,
+      "bubble",
+    ]
   );
   responseData.line = await getCoinProductListSort(result.row, 1);
 
@@ -332,7 +376,18 @@ export const getCoinProductSearchDetail = async (req, res) => {
     `
     ${coinProductListQuery} ${whereQuery}
     ORDER BY sorting_order, a.price DESC;`,
-    [lang, lang, userkey, project_id, lang, lang, lang, userkey, project_id, "standing"]
+    [
+      lang,
+      lang,
+      userkey,
+      project_id,
+      lang,
+      lang,
+      lang,
+      userkey,
+      project_id,
+      "standing",
+    ]
   );
   responseData.character = await getCoinProductListSort(result.row);
 
@@ -341,7 +396,18 @@ export const getCoinProductSearchDetail = async (req, res) => {
     `
     ${coinProductListQuery} ${whereQuery}
     ORDER BY sorting_order, a.price DESC;`,
-    [lang, lang, userkey, project_id, lang, lang, lang, userkey, project_id, "wallpaper"]
+    [
+      lang,
+      lang,
+      userkey,
+      project_id,
+      lang,
+      lang,
+      lang,
+      userkey,
+      project_id,
+      "wallpaper",
+    ]
   );
   responseData.wallpaper = await getCoinProductListSort(result.row);
 
@@ -350,7 +416,18 @@ export const getCoinProductSearchDetail = async (req, res) => {
     `
     ${coinProductListQuery} ${whereQuery}
     ORDER BY sorting_order, a.price DESC;`,
-    [lang, lang, userkey, project_id, lang, lang, lang, userkey, project_id, "sticker"]
+    [
+      lang,
+      lang,
+      userkey,
+      project_id,
+      lang,
+      lang,
+      lang,
+      userkey,
+      project_id,
+      "sticker",
+    ]
   );
   responseData.sticker = await getCoinProductListSort(result.row);
 
@@ -359,7 +436,18 @@ export const getCoinProductSearchDetail = async (req, res) => {
     `
     ${coinProductListQuery} ${whereQuery}
     ORDER BY sorting_order, a.price DESC;`,
-    [lang, lang, userkey, project_id, lang, lang, lang, userkey, project_id, "bubble"]
+    [
+      lang,
+      lang,
+      userkey,
+      project_id,
+      lang,
+      lang,
+      lang,
+      userkey,
+      project_id,
+      "bubble",
+    ]
   );
   responseData.line = await getCoinProductListSort(result.row);
 
@@ -691,10 +779,12 @@ export const requestTotalCoinShop = async (req, res) => {
 
   let whereListQuery = ``;
   let wherePromotionQuery = ``;
-  if (lang === "JA") { //일본어 버전만 고래별 노출 제외 
+  if (lang === "JA") {
+    //일본어 버전만 고래별 노출 제외
     whereListQuery = ` AND a.project_id NOT IN (64) `;
     wherePromotionQuery = ` AND location NOT IN (64) `;
-  } else if (lang === "KO") {  //한국어 버전만 백망되, 허니블러드 노출 제외
+  } else if (lang === "KO") {
+    //한국어 버전만 백망되, 허니블러드 노출 제외
     whereListQuery = ` AND a.project_id NOT IN (57, 60) `;
     wherePromotionQuery = ` AND location NOT IN (57, 60) `;
   }
@@ -711,6 +801,7 @@ export const requestTotalCoinShop = async (req, res) => {
   WHERE a.promotion_no = b.promotion_no  
   AND promotion_type ='project'
   AND is_public > 0 
+  AND now() >= start_date
   AND now() <= end_date 
   AND lang = ?
   ${wherePromotionQuery}
