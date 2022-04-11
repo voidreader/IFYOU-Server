@@ -1,6 +1,6 @@
 // 미션 컨트롤
 import mysql from "mysql2/promise";
-import routes from "../routes";
+
 import { DB, transactionDB } from "../mysqldb";
 import {
   respond,

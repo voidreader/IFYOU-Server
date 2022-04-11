@@ -112,8 +112,8 @@ export const uploadZipResources = async (
 
   const promises = [];
   const origins = []; // zip 파일내의 오리지널 파일 정보
-  let i = 1; 
-  
+  let i = 1;
+
   // eslint-disable-next-line no-restricted-syntax
   for await (const e of zip) {
     const entry = e;
@@ -177,7 +177,7 @@ export const uploadZipResources = async (
     } else {
       entry.autodrain(); // file 이 아니면 stream을 dispose. ..파일이 아닌게 올 수 도 있나..?
     }
-    i+=1;
+    i += 1;
   } // end of for await
 
   // 모든 파일 업로드 후 DB 처리
