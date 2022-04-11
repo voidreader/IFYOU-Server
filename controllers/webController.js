@@ -75,7 +75,7 @@ export const getIFyouWebMainPageInfo = async (req, res) => {
               WHEN '${lang}' = 'JA' THEN cl.JA 
               ELSE cl.EN END value
  FROM com_localize cl 
-WHERE cl.id BETWEEN 6400 AND 6414 
+WHERE cl.id BETWEEN 6400 AND 6425 
   OR cl.id IN (5051, 5001, 6179, 6181);
   `);
 
