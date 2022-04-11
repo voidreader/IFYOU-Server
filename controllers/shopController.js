@@ -714,6 +714,7 @@ export const userPurchase = async (req, res) => {
   responseData.bank = await getUserBankInfo(req.body);
 
   responseData.userPurchaseHistory = await getUserPurchaseList(req, res, false);
+  responseData.product_id = product_id; // 제품 ID 추가
 
   res.status(200).json(responseData);
   logAction(userkey, "purchase_complete", { product_id, receipt, paymentSeq });
