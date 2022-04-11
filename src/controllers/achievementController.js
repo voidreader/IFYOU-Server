@@ -251,7 +251,8 @@ const requestUserGradeInfo = async (userkey, lang) => {
   FROM user_achievement a RIGHT JOIN com_achievement b ON a.achievement_id = b.achievement_id AND userkey = ? 
   INNER JOIN com_achievement_lang c ON b.achievement_id = c.achievement_id AND lang = ?
   WHERE b.achievement_id < 7 
-  AND ifnull(a.is_clear, 0) = 0;
+  AND ifnull(a.is_clear, 0) = 0
+  AND is_use > 0;
   `,
     [userkey, lang]
   );
@@ -277,6 +278,7 @@ const requestUserGradeInfo = async (userkey, lang) => {
    LEFT OUTER JOIN user_achievement ua ON a.achievement_id = ua.achievement_id AND ua.userkey = ${userkey} AND ua.achievement_level = fn_get_user_achievement_max_level(ua.userkey, a.achievement_id)
 WHERE a.achievement_kind <> 'beginner'
   AND a.achievement_type = 'level'
+  AND is_use > 0
   ORDER BY a.achievement_id
 ;
   `
@@ -301,6 +303,7 @@ FROM com_achievement a
  LEFT OUTER JOIN user_achievement ua ON a.achievement_id = ua.achievement_id AND ua.userkey = ${userkey} AND ua.achievement_no = fn_get_user_achievement_max_no(ua.userkey, a.achievement_id)
 WHERE a.achievement_kind <> 'beginner'
 AND a.achievement_type = 'repeat'
+AND is_use > 0
 ORDER BY a.achievement_id 
 ;
   `);
