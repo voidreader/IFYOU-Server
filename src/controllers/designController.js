@@ -1,15 +1,5 @@
 import mysql from "mysql2/promise";
 import { DB } from "../mysqldb";
-import {
-  respond,
-  respondRedirect,
-  respondDB,
-  respondError,
-  respondAdminSuccess,
-  adminLogInsert,
-} from "../respondent";
-import { logger } from "../logger";
-import { DeleteS3Object, RecordPrviousS3Object } from "../com/com";
 
 // 프리패스 뱃지 정보
 export const getProjectFreepassBadge = async ({ project_id }) => {
