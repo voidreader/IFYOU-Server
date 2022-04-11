@@ -369,6 +369,7 @@ export const scheduleStatInsert = schedule.scheduleJob(
 const gradeRule = new schedule.RecurrenceRule();
 gradeRule.tz = 'ETC/UTC'; 
 gradeRule.hour = 6;
+gradeRule.minute = [0, 10, 20, 30, 40, 50];
 
 export const scheduleGrade = schedule.scheduleJob(gradeRule, async () => {
 
