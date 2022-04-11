@@ -5,7 +5,7 @@ import { logger } from "../logger";
 import { respondDB, responDBCoinShop } from "../respondent";
 import { getUserBankInfo } from "./bankController";
 import { getCurrencyQuantity } from "./accountController";
-import { getLevelQuery, getAchievementQuery,  } from "./achievementController";
+import { getLevelQuery, getAchievementQuery } from "./achievementController";
 import { getEqualConditionQuery, getInConditionQuery } from "../com/com";
 
 const coinProductListQuery = `
@@ -574,16 +574,17 @@ export const userCoinPurchase = async (req, res) => {
     ]
   );
 
-  let achievementQuery = ``; 
+  let achievementQuery = ``;
 
   //비기너 코인샵 구매 업적
   achievementQuery = await getAchievementQuery(userkey, 3);
 
-  //코인샵 구매 
+  //코인샵 구매
   achievementQuery += await getAchievementQuery(userkey, 21);
-      
+
   //스탠딩 구매 업적
-  if(currency_type === "standing") achievementQuery += await getLevelQuery(userkey, 19);
+  if (currency_type === "standing")
+    achievementQuery += await getLevelQuery(userkey, 19);
 
   const purchaseResult = await transactionDB(`
     ${purchaseQuery}
@@ -616,7 +617,6 @@ export const userCoinPurchase = async (req, res) => {
     coin_product_id,
     coin_purchase_no: maxNo,
   });
-
 };
 
 //! 구매 내역 리스트
@@ -692,8 +692,8 @@ export const requestTotalCoinShop = async (req, res) => {
   let whereListQuery = ``;
   let wherePromotionQuery = ``;
   if (lang === "JA") {
-    whereListQuery = ` AND a.project_id NOT IN (57, 60, 64, 72) `;
-    wherePromotionQuery = ` AND location NOT IN (57, 60, 64, 72) `;
+    whereListQuery = ` AND a.project_id NOT IN (64) `;
+    wherePromotionQuery = ` AND location NOT IN (64) `;
   } else if (lang === "KO") {
     whereListQuery = ` AND a.project_id NOT IN (57, 60) `;
     wherePromotionQuery = ` AND location NOT IN (57, 60) `;
