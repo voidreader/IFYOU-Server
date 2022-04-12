@@ -3479,7 +3479,11 @@ export const purchaseFreepass = async (req, res) => {
     `purchaseFreepass [${userkey}] param [${originPrice}/${salePrice}] ::: [${freepassPricesObject.origin_price}/${freepassPricesObject.sale_price}]`
   );
 
-  if (salePrice < 0 || salePrice != freepassPricesObject.salePrice) {
+  // salePrice가 0보다 작거나 계산된 값보다 50% 미만으로 작을때는 재계산값으로 대체
+  if (
+    salePrice < 0 ||
+    salePrice < parseFloat(freepassPricesObject.salePrice) * 0.5
+  ) {
     logger.error(
       `purchaseFreepass [${userkey}] wrong price [${originPrice}/${salePrice}] ::: [${freepassPricesObject.origin_price}/${freepassPricesObject.sale_price}]`
     );
