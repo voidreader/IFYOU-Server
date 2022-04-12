@@ -186,6 +186,7 @@ export const calculateGradeMonth = async () =>{
     , grade_experience
     , keep_point
     , upgrade_point 
+    , fn_check_grade_exists(userkey, '${start_date}', '${end_date}') user_grade_exists
     FROM table_account a, com_grade b
     WHERE a.grade = b.grade
     AND createtime < '${end_date}'
@@ -200,11 +201,11 @@ export const calculateGradeMonth = async () =>{
             , grade
             , keep_point 
             , upgrade_point
+            , user_grade_exists
           } = item;
           let { next_grade, grade_experience, } = item;
           let grade_state = 0;   //등급 상태 
-          let user_grade_exists = 0;
-          
+      
           if( next_grade > grade) { //시즌 중에 승급이 됐다면
             grade_state = 2;
           }else if(grade_experience < keep_point){ //강등 
@@ -223,14 +224,6 @@ export const calculateGradeMonth = async () =>{
           if(next_grade < 0) next_grade = 1; //브론즈로 고정 
           if(next_grade > 5) next_grade = 5; //이프유로 고정
           if(grade_experience < 0) grade_experience = 0; //경험치가 마이너스가 되는 경우 0으로 초기화
-
-          // eslint-disable-next-line no-await-in-loop
-          result = await DB(`
-          SELECT 
-          fn_check_grade_exists(?, '${start_date}', '${end_date}') user_grade_exists
-          FROM DUAL;
-          `, [userkey]);
-          if(result.state && result.row.length > 0) user_grade_exists = result.row[0].user_grade_exists;
   
           //처리되지 않은 것만 업데이트
           if(user_grade_exists < 1) {
@@ -262,45 +255,30 @@ export const calculateGradeMonth = async () =>{
             , ?
             );`;
             updateQuery += mysql.format(currentQuery, [ userkey, grade, next_grade, grade_experience, start_date, end_date ]); 
+  
           }
         }       
     }
 
+
+    currentQuery = `
+    UPDATE com_grade_season 
+    SET start_date = ?
+    , end_date = ?
+    , next_start_date = ?
+    , next_end_date = ?;`;
+    updateQuery += mysql.format(currentQuery, [ next_start_date, next_end_date, season_start_date, season_end_date ]);
+    
     //유저 등급 업데이트 
     if(updateQuery){
       result = await transactionDB(updateQuery);
-
       if(!result.state){
-        logger.error(`calculateGradeMonth Error 1 ${result.error}`);
+        logger.error(`calculateGradeMonth Error ${result.error}`);  //실패
+      }else{
+        logger.info("calculateGradeMonth End");  //성공
       }
     }
 
-
-    // 모든 유저 정산 처리 되는지 확인(시즌 이후의 가입자 제외)
-    let history_check = 0;
-    result = await DB(`
-    SELECT 
-    fn_check_grade_history_total('${start_date}', '${end_date}') history_check
-    FROM DUAL;`);
-    if(result.state && result.row.length > 0) history_check = result.row[0].history_check;
-
-    //새 시즌 업데이트
-    if(history_check === 1){
-      
-      currentQuery = `
-      UPDATE com_grade_season 
-      SET start_date = ?
-      , end_date = ?
-      , next_start_date = ?
-      , next_end_date = ?;`;
-
-      result = await DB(currentQuery, [next_start_date, next_end_date, season_start_date, season_end_date]); 
-      if(!result.state){
-        logger.error(`calculateGradeMonth Error 2 ${result.error}`);
-      } else{
-        logger.info("calculateGradeMonth End");
-      }     
-    }
   } //? if end 
 
 };
@@ -366,8 +344,8 @@ export const scheduleStatInsert = schedule.scheduleJob(
 //! 6~7시(UTC 기준) 한시간 동안 등급 정산
 const gradeRule = new schedule.RecurrenceRule();
 gradeRule.tz = 'ETC/UTC'; 
-gradeRule.hour = 6;
-gradeRule.minute = [0, 10, 20, 30, 40, 50];
+gradeRule.hour = 7;
+gradeRule.minute = 0;
 
 export const scheduleGrade = schedule.scheduleJob(gradeRule, async () => {
 
