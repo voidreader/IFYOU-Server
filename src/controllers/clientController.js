@@ -104,7 +104,11 @@ import { getUserPropertyHistory, reportRequestError } from "./logController";
 import { useCoupon } from "./couponController";
 import { getUserBankInfo, getUserBankInfoWithResponse } from "./bankController";
 
-import { getProjectEpisodeProgressCount, setStatList } from "./statController";
+import {
+  collectProjectRetention,
+  getProjectEpisodeProgressCount,
+  setStatList,
+} from "./statController";
 import {
   getUserStoryProfileCurrencyList,
   saveUserStoryProfile,
@@ -1695,6 +1699,8 @@ export const clientHome = (req, res) => {
   //등급 및 업적 리스트
   else if (func === "updateUserAchievement") updateUserAchievement(req, res);
   else if (func === "receiveInquiry") receiveInquiry(req, res);
+  else if (func === "collectProjectRetention")
+    collectProjectRetention(req, res);
   //업적 클리어
   else {
     //  res.status(400).send(`Wrong Func : ${func}`);
