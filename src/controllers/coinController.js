@@ -200,6 +200,13 @@ const getCoinProductListSort = async (result, is_main = 0) => {
   return responseData;
 };
 
+//! 계정정보 연결 확인
+const checkAccountLink = async (userkey) =>{
+  const result = await DB(`SELECT account_link FROM table_account WHERE userkey = ?;`, [userkey]);
+
+  return result.row;
+};
+
 //! 메인 상품 목록
 export const getCoinProductMainList = async (req, res) => {
   logger.info(`getCoinProductMainList`);
@@ -212,6 +219,9 @@ export const getCoinProductMainList = async (req, res) => {
 
   //탑 컨텐츠
   responseData.top_content = await getTopContent(req, 1);
+
+  //계정 연동 정보 
+  responseData.account_link = await checkAccountLink(userkey);
 
   //스탠딩
   let result = await DB(
@@ -375,6 +385,9 @@ export const getCoinProductSearchDetail = async (req, res) => {
     return;
   }
 
+  //계정 연동 정보 
+  responseData.account_link = await checkAccountLink(userkey);
+
   //스탠딩
   result = await DB(
     `
@@ -521,6 +534,9 @@ export const getCoinProductTypeList = async (req, res) => {
 
   //탑 컨텐츠
   responseData.top_content = await getTopContent(req);
+
+  //계정 연동 정보 
+  responseData.account_link = await checkAccountLink(userkey);
 
   //조건절 추가
   if (code)
