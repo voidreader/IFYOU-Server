@@ -161,8 +161,23 @@ export const requestAchievementMain = async (req, res) => {
     achievement_id === 16 ||
     achievement_id === 21
   ) {
-    query = await getAchievementQuery(userkey, achievement_id);
+
+    //비기너는 끝났으면 업적 누적 처리 X
+    if(
+      achievement_id === 1  || 
+      achievement_id === 2  || 
+      achievement_id === 3  || 
+      achievement_id === 4  || 
+      achievement_id === 5  || 
+      achievement_id === 6 
+    ){
+      result = await DB(`SELECT * FROM user_achievement WHERE userkey = ? AND achievement_id = ? AND is_clear = 1;`, [userkey, achievement_id]);
+      if(result.state && result.row.length > 0) validCheck = false;
+    }
+
+    if (validCheck) query = await getAchievementQuery(userkey, achievement_id);
   } else {
+
     //올 클리어(반복)
     result = await DB(
       `SELECT * FROM user_all_clear WHERE userkey = ? AND project_id = ?;`,
@@ -198,30 +213,20 @@ const requestUserGradeInfo = async (userkey, lang) => {
 
   //계정 등급 및 혜택
   result = await DB(
-    `
+  `
   SELECT 
   a.grade
   , a.next_grade
   , c2.name -- 
-  , CASE WHEN a.grade_experience >= b.upgrade_point THEN 
-    fn_get_grade_name_info(fn_get_grade_info(a.grade, a.grade_experience)-1, '${lang}') 
-  ELSE 
-    fn_get_grade_name_info(a.grade-1, '${lang}') 
-  END before_grade_name
-  , CASE WHEN a.grade_experience >= b.upgrade_point THEN 
-    fn_get_grade_name_info(fn_get_grade_info(a.grade, a.grade_experience), '${lang}') 
-  ELSE 
-    fn_get_grade_name_info(a.grade+1, '${lang}') 
-  END next_grade_name
   , grade_experience
   , b2.keep_point -- 
   , b.upgrade_point 
   , abs(TIMESTAMPDIFF(DAY, (SELECT end_date FROM com_grade_season), now())) remain_day
-  , b.store_sale add_star
-  , b.store_limit add_star_limit
+  , b2.store_sale add_star
+  , b2.store_limit add_star_limit
   , fn_get_user_star_benefit_count(${userkey}, a.grade) add_star_use
-  , b.waiting_sale 
-  , b.preview 
+  , b2.waiting_sale 
+  , b2.preview 
   FROM table_account a, com_grade b, com_grade_lang c, com_grade b2, com_grade_lang c2 
   WHERE userkey = ${userkey}
   AND a.next_grade = b.grade
@@ -467,7 +472,7 @@ export const updateUserAchievement = async (req, res) => {
   //경험치 정보
   result = await DB(
     `
-  SELECT a.grade, grade_experience
+  SELECT a.grade, next_grade, grade_experience
   FROM table_account a, com_grade b   
   WHERE a.grade = b.grade  
   AND userkey = ?;`,
@@ -480,7 +485,8 @@ export const updateUserAchievement = async (req, res) => {
     total_exp: experience + result.row[0].grade_experience,
   };
 
-  const currentGrade = result.row[0].grade; // * 현재 등급
+  let currentGrade = result.row[0].grade; // * 현재 등급
+  if(result.row[0].next_grade > result.row[0].grade) currentGrade = result.row[0].next_grade; //*시즌 중에 승급을 했으면, 현재 그레이드는 next_grade로 변경 
 
   //경험치 업데이트
   currentQuery = `
