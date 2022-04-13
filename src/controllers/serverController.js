@@ -165,10 +165,16 @@ export const getPlatformEvents = async (req, res) => {
       build = "pier.make.story",
       country = "KR",
       lang = "KO",
+      os = 0,
     },
   } = req;
 
   const responseData = {};
+  let userOS = "all";
+
+  // 안드로이드 ,아이폰 분류 처리
+  if (os === 0) userOS = "Android";
+  else userOS = "iOS";
 
   // * 프로모션 정보
   const promotionMaster = await DB(`
@@ -181,6 +187,7 @@ export const getPlatformEvents = async (req, res) => {
   FROM com_promotion
   WHERE is_public > 0 
   AND NOW() BETWEEN start_date AND end_date 
+  AND (os = 'all' OR os = '${userOS}')
   ORDER BY sortkey; 
   `); // ? 프로모션 끝
 
@@ -196,6 +203,7 @@ export const getPlatformEvents = async (req, res) => {
   WHERE a.promotion_no = b.promotion_no 
   AND is_public > 0 
   AND NOW() BETWEEN start_date AND end_date
+  AND (os = 'all' OR os = '${userOS}')
   ORDER BY sortkey;  
   `,
     []
@@ -219,6 +227,7 @@ export const getPlatformEvents = async (req, res) => {
     FROM com_notice cn  
   WHERE now() BETWEEN cn.start_date AND cn.end_date
     AND cn.is_public = 1
+    AND (os = 'all' OR os = '${userOS}')
   ORDER BY cn.sortkey;
   `);
 
@@ -235,6 +244,7 @@ export const getPlatformEvents = async (req, res) => {
   FROM com_notice cn
     , com_notice_detail b
   WHERE now() BETWEEN cn.start_date AND cn.end_date
+  AND (cn.os = 'all' OR cn.os = '${userOS}')
   AND cn.is_public = 1
   AND b.notice_no = cn.notice_no 
   ORDER BY cn.sortkey
