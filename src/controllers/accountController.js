@@ -2123,10 +2123,15 @@ export const registerClientAccount = async (req, res) => {
 // ! #클라이언트 로그인 처리
 export const loginClient = async (req, res) => {
   const {
-    body: { deviceid, gamebaseid = null },
+    body: { deviceid, gamebaseid = null, os },
   } = req;
 
   let result = null;
+
+  let userOS = "";
+  // 안드로이드 ,아이폰 분류 처리
+  if (os === 0) userOS = "Android";
+  else userOS = "iOS";
 
   if (gamebaseid != null) {
     // 게임베이스로 로그인
@@ -2200,6 +2205,7 @@ export const loginClient = async (req, res) => {
     const userUpdateResult = await DB(Q_UPDATE_CLIENT_ACCOUNT_WITH_GAMEBASE, [
       country,
       valid,
+      userOS,
       userInfo.userkey,
     ]);
 

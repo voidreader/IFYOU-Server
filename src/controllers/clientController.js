@@ -734,7 +734,7 @@ const getIfYouProjectList = async (req, res) => {
     body: {
       userkey = 0,
       build = "pier.make.story",
-      country = "KR",
+      country = "US",
       lang = "KO",
     },
   } = req;
@@ -786,6 +786,7 @@ const getIfYouProjectList = async (req, res) => {
   WHERE a.is_public > 0
   AND a.service_package LIKE CONCAT('%', ?, '%')
   AND (locate('${lang}', a.exception_lang) IS NULL OR locate('${lang}', a.exception_lang) < 1)
+  AND (locate('${country}', a.exception_country) IS NULL OR locate('${country}', a.exception_country) < 1)
     ${onlyDeploy ? postfixQuery : ""}
   `;
   // * 위에 베타서버용 추가 쿼리 관련 로직 추가되었음 2022.03.22
