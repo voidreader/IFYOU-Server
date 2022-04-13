@@ -61,7 +61,7 @@ export const getUserStoryProfileCurrencyList = async (
    INNER JOIN com_currency b ON a.currency = b.currency
    LEFT OUTER JOIN com_currency_ability c ON b.currency = c.currency
    LEFT OUTER JOIN com_ability d ON c.ability_id = d.ability_id
-    WHERE b.connected_project = ${project_id} 
+    WHERE (b.connected_project = ${project_id} OR b.connected_project = -1 )
     AND userkey = ${userkey}
     AND NOW() < expire_date 
     AND currency_type NOT in('consumable', 'nonconsumable', 'ticker', 'badge', 'ticket')
