@@ -794,7 +794,7 @@ export const requestTotalCoinShop = async (req, res) => {
   const responseData = {};
 
   const {
-    body: { lang = "KO" },
+    body: { userkey, lang = "KO" },
   } = req;
 
   let whereListQuery = ``;
@@ -818,16 +818,17 @@ export const requestTotalCoinShop = async (req, res) => {
   , fn_get_design_info(design_id, 'url') design_url
   , fn_get_design_info(design_id, 'key') design_key
   FROM com_promotion a, com_promotion_detail b 
-  WHERE a.promotion_no = b.promotion_no  
+  WHERE a.promotion_no = b.promotion_no
   AND promotion_type ='project'
   AND is_public > 0 
   AND now() >= start_date
   AND now() <= end_date 
   AND lang = ?
+  AND a.os IN ('all', (SELECT os FROM table_account WHERE userkey = ?))
   ${wherePromotionQuery}
-  ORDER BY promotion_no DESC 
+  ORDER BY sortkey, a.promotion_no DESC 
   LIMIT 3;`,
-    [lang]
+  [lang, userkey]
   );
   responseData.promotion = result.row;
 
@@ -838,7 +839,7 @@ export const requestTotalCoinShop = async (req, res) => {
   , circle_image_id 
   , fn_get_design_info(circle_image_id, 'url') circle_image_url
   , fn_get_design_info(circle_image_id, 'key') circle_image_key 
-  , view_cnt
+  , ifnull(view_cnt, 0) view_cnt
   FROM list_project_master a
   INNER JOIN list_project_detail b ON a.project_id = b.project_id
   LEFT OUTER JOIN list_project_sorting_order c ON b.project_id = c.project_id
