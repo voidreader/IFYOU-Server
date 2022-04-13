@@ -651,7 +651,7 @@ export const getUserPurchaseList = async (req, res, isResponse = true) => {
 
 //! 상품 구매 및 구매 확정 메일 보내기
 export const userPurchase = async (req, res) => {
-  const {
+  let {
     body: {
       userkey = 0,
       product_id = "",
@@ -660,10 +660,21 @@ export const userPurchase = async (req, res) => {
       currency = "KRW", // 화폐
       paymentSeq = "", // 게임베이스 거래 식별자 1
       purchaseToken = "", // 게임베이스 거래 식별자 2
+      os = 0,
     },
   } = req;
 
   logger.info(`userPurchase ${userkey}/${product_id}/${receipt}`);
+
+  // * 사전예약 때문에 추가 처리
+  if (os === 0 && product_id === null && receipt === null && paymentSeq) {
+    product_id = "pre_reward_pack";
+    receipt = "pre_reward_pack";
+
+    logger.info(
+      `### pre reward userPurchase ${userkey}/${product_id}/${receipt}`
+    );
+  }
 
   //* 유효성 체크
   if (!product_id || userkey === 0) {
