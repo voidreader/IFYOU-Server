@@ -10,12 +10,12 @@ export const reportRequestError = (req, res) => {
 
   logger.error(`reportRequestError : ${JSON.stringify(req.body)}`);
 
+  res.status(200).send("");
+
   logDB(
     `INSERT INTO gamelog.log_request_error (userkey, raw_data, message) VALUES (?,?,?);`,
     [userkey, rawData, message]
   );
-
-  res.status(200).send("");
 };
 
 export const getUserPropertyHistory = async (req, res) => {
