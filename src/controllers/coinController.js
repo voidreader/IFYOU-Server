@@ -201,8 +201,11 @@ const getCoinProductListSort = async (result, is_main = 0) => {
 };
 
 //! 계정정보 연결 확인
-const checkAccountLink = async (userkey) =>{
-  const result = await DB(`SELECT account_link FROM table_account WHERE userkey = ?;`, [userkey]);
+const checkAccountLink = async (userkey) => {
+  const result = await DB(
+    `SELECT account_link FROM table_account WHERE userkey = ?;`,
+    [userkey]
+  );
 
   return result.row;
 };
@@ -220,8 +223,8 @@ export const getCoinProductMainList = async (req, res) => {
   //탑 컨텐츠
   responseData.top_content = await getTopContent(req, 1);
 
-  //계정 연동 정보 
-  responseData.account_link = await checkAccountLink(userkey);
+  //계정 연동 정보
+  //responseData.account_link = await checkAccountLink(userkey);
 
   //스탠딩
   let result = await DB(
@@ -385,8 +388,8 @@ export const getCoinProductSearchDetail = async (req, res) => {
     return;
   }
 
-  //계정 연동 정보 
-  responseData.account_link = await checkAccountLink(userkey);
+  //계정 연동 정보
+  //responseData.account_link = await checkAccountLink(userkey);
 
   //스탠딩
   result = await DB(
@@ -535,8 +538,8 @@ export const getCoinProductTypeList = async (req, res) => {
   //탑 컨텐츠
   responseData.top_content = await getTopContent(req);
 
-  //계정 연동 정보 
-  responseData.account_link = await checkAccountLink(userkey);
+  //계정 연동 정보
+  //responseData.account_link = await checkAccountLink(userkey);
 
   //조건절 추가
   if (code)
@@ -828,7 +831,7 @@ export const requestTotalCoinShop = async (req, res) => {
   ${wherePromotionQuery}
   ORDER BY sortkey, a.promotion_no DESC 
   LIMIT 3;`,
-  [lang, userkey]
+    [lang, userkey]
   );
   responseData.promotion = result.row;
 
