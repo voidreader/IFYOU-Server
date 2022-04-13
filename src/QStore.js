@@ -256,7 +256,14 @@ INSERT INTO pier.table_account
 VALUES(?, NULL, NULL, NULL, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, 0, ?, ?);
 `;
 
-export const Q_UPDATE_CLIENT_ACCOUNT_WITH_GAMEBASE = `UPDATE pier.table_account SET country = ?, valid = ?, lastlogintime = now() WHERE userkey = ?;`;
+export const Q_UPDATE_CLIENT_ACCOUNT_WITH_GAMEBASE = `
+UPDATE pier.table_account 
+   SET country = ?
+     , valid = ?
+     , lastlogintime = now() 
+     , os = ?
+ WHERE userkey = ?;
+`;
 
 export const Q_EMOTICON_SLAVE = `
 SELECT les.* 
