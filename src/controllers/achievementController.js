@@ -385,6 +385,19 @@ export const updateUserAchievement = async (req, res) => {
   let result = ``;
   let currentQuery = ``;
   let updateQuery = ``;
+  let calculate_check = 0;
+
+  //정산 중에 보상 받기를 할 경우 
+  result = await DB(`SELECT
+  CASE WHEN end_date <= now() AND now() <= next_start_date THEN 1 ELSE 0 END calculate_check 
+  FROM com_grade_season;`);
+  if(result.state && result.row.length > 0) calculate_check = result.row[0].calculate_check;
+
+  if(calculate_check > 0){
+    logger.error(`updateUserAchievement Error 1`);
+    respondDB(res, 80117);
+    return;
+  }
 
   result = await DB(
     `
@@ -472,7 +485,7 @@ export const updateUserAchievement = async (req, res) => {
   }
 
   if (experience === 0) {
-    logger.error(`updateUserAchievement Error`);
+    logger.error(`updateUserAchievement Error 2`);
     respondDB(res, 80019);
     return;
   }
