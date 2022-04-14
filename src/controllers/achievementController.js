@@ -213,12 +213,11 @@ const requestUserGradeInfo = async (userkey, lang) => {
 
   //시즌 끝일, 새시즌 끝일 
   result = await DB(
-  `SELECT 
-  DATE_FORMAT(end_date, '%Y-%m-%d %T') end_date
-  , DATE_FORMAT(next_start_date, '%Y-%m-%d %T') next_start_date
-  FROM com_grade_season; 
+  `SELECT
+  CASE WHEN end_date <= now() AND now() <= next_start_date THEN 1 ELSE 0 END calculate_check 
+  FROM com_grade_season;  
   `);
-  responseData.season = result.row;
+  responseData.season_check = result.row;
 
   //계정 등급 및 혜택
   result = await DB(
