@@ -142,19 +142,17 @@ export const reservationSend = async () => {
   } // ? end
 };
 
-//! 등급 정산 
-export const calculateGradeMonth = async () =>{
-
+//! 등급 정산
+export const calculateGradeMonth = async () => {
   const isMail = process.env.MAIL_SCHEDULE;
 
   logger.info(`calculateGradeMonth isMAIL : [${isMail}]`);
 
   if (isMail > 0) {
-
     logger.info(`calculateGradeMonth START`);
 
     let result;
-    let currentQuery = ``; 
+    let currentQuery = ``;
     let updateQuery = ``;
 
     //기간 계산(시작일/끝일, 다음 시즌 시작일/끝일, 다다음 시즌 시작일/끝일)
@@ -167,14 +165,13 @@ export const calculateGradeMonth = async () =>{
 	  , DATE_ADD(next_end_date, INTERVAL 30 DAY) season_end_date 
     FROM com_grade_season;`);
     const {
-        start_date, 
-        end_date, 
-        next_start_date, 
-        next_end_date, 
-        season_start_date, 
-        season_end_date,
+      start_date,
+      end_date,
+      next_start_date,
+      next_end_date,
+      season_start_date,
+      season_end_date,
     } = result.row[0];
-
 
     //시즌, 다음 시즌 업데이트
     //시즌 이후에 가입자는 제외
@@ -191,54 +188,57 @@ export const calculateGradeMonth = async () =>{
     WHERE a.grade = b.grade
     AND createtime < '${end_date}'
     ORDER BY userkey;`);
-    if(result.state && result.row.length > 0){
+    if (result.state && result.row.length > 0) {
+      // eslint-disable-next-line no-restricted-syntax
+      for (const item of result.row) {
+        const { userkey, grade, keep_point, upgrade_point, user_grade_exists } =
+          item;
+        let { next_grade, grade_experience } = item;
+        let grade_state = 0; //등급 상태
 
-        // eslint-disable-next-line no-restricted-syntax
-        for (const item of result.row) {
+        if (next_grade > grade) {
+          //시즌 중에 승급이 됐다면
+          grade_state = 2;
+        } else if (grade_experience < keep_point) {
+          //강등
+          next_grade -= 1;
+          grade_state = -1;
+          grade_experience = 0;
+        } else if (upgrade_point <= grade_experience) {
+          //승급
+          next_grade += 1;
+          grade_state = 2;
+          grade_experience -= upgrade_point;
+        } else {
+          //유지
+          grade_state = 1;
+          grade_experience = 0;
+        }
 
-          const { 
-            userkey
-            , grade
-            , keep_point 
-            , upgrade_point
-            , user_grade_exists
-          } = item;
-          let { next_grade, grade_experience, } = item;
-          let grade_state = 0;   //등급 상태 
-      
-          if( next_grade > grade) { //시즌 중에 승급이 됐다면
-            grade_state = 2;
-          }else if(grade_experience < keep_point){ //강등 
-            next_grade-=1;
-            grade_state = -1; 
-            grade_experience = 0; 
-          }else if (upgrade_point <= grade_experience){  //승급
-            next_grade+=1; 
-            grade_state = 2; 
-            grade_experience-=upgrade_point; 
-          }else{  //유지 
-            grade_state=1; 
-            grade_experience=0;
-          }
+        if (next_grade < 0) next_grade = 1; //브론즈로 고정
+        if (next_grade > 5) next_grade = 5; //이프유로 고정
+        if (grade_experience < 0) grade_experience = 0; //경험치가 마이너스가 되는 경우 0으로 초기화
 
-          if(next_grade < 0) next_grade = 1; //브론즈로 고정 
-          if(next_grade > 5) next_grade = 5; //이프유로 고정
-          if(grade_experience < 0) grade_experience = 0; //경험치가 마이너스가 되는 경우 0으로 초기화
-  
-          //처리되지 않은 것만 업데이트
-          if(user_grade_exists < 1) {
-            //계정 업데이트 
-            currentQuery = `
+        //처리되지 않은 것만 업데이트
+        if (user_grade_exists < 1) {
+          //계정 업데이트
+          currentQuery = `
             UPDATE table_account 
             SET grade = ? 
             , next_grade = ? 
             , grade_state = ? 
             , grade_experience = ?  
             WHERE userkey = ?;`;
-            updateQuery += mysql.format(currentQuery, [ next_grade, next_grade, grade_state, grade_experience, userkey ]);
+          updateQuery += mysql.format(currentQuery, [
+            next_grade,
+            next_grade,
+            grade_state,
+            grade_experience,
+            userkey,
+          ]);
 
-            //히스토리 누적
-            currentQuery = `
+          //히스토리 누적
+          currentQuery = `
             INSERT INTO user_grade_hist(
             userkey
             , grade
@@ -254,12 +254,17 @@ export const calculateGradeMonth = async () =>{
             , ?
             , ?
             );`;
-            updateQuery += mysql.format(currentQuery, [ userkey, grade, next_grade, grade_experience, start_date, end_date ]); 
-  
-          }
-        }       
+          updateQuery += mysql.format(currentQuery, [
+            userkey,
+            grade,
+            next_grade,
+            grade_experience,
+            start_date,
+            end_date,
+          ]);
+        }
+      }
     }
-
 
     currentQuery = `
     UPDATE com_grade_season 
@@ -267,20 +272,23 @@ export const calculateGradeMonth = async () =>{
     , end_date = ?
     , next_start_date = ?
     , next_end_date = ?;`;
-    updateQuery += mysql.format(currentQuery, [ next_start_date, next_end_date, season_start_date, season_end_date ]);
-    
-    //유저 등급 업데이트 
-    if(updateQuery){
+    updateQuery += mysql.format(currentQuery, [
+      next_start_date,
+      next_end_date,
+      season_start_date,
+      season_end_date,
+    ]);
+
+    //유저 등급 업데이트
+    if (updateQuery) {
       result = await transactionDB(updateQuery);
-      if(!result.state){
-        logger.error(`calculateGradeMonth Error ${result.error}`);  //실패
-      }else{
-        logger.info("calculateGradeMonth End");  //성공
+      if (!result.state) {
+        logger.error(`calculateGradeMonth Error ${result.error}`); //실패
+      } else {
+        logger.info("calculateGradeMonth End"); //성공
       }
     }
-
-  } //? if end 
-
+  } //? if end
 };
 
 // 일일 무료충전소 이용횟수 초기화
@@ -343,19 +351,19 @@ export const scheduleStatInsert = schedule.scheduleJob(
 //! 등급 정산
 //! 6~7시(UTC 기준) 한시간 동안 등급 정산
 const gradeRule = new schedule.RecurrenceRule();
-gradeRule.tz = 'ETC/UTC'; 
+gradeRule.tz = "ETC/UTC";
 gradeRule.hour = 7;
 gradeRule.minute = 0;
 
 export const scheduleGrade = schedule.scheduleJob(gradeRule, async () => {
-
-  let gradeCheck = 0; 
+  let gradeCheck = 0;
   const result = await DB(`
   SELECT
   CASE WHEN date(now()) = date(end_date) THEN 1 ELSE 0 END gradeCheck -- 시즌 끝일
   FROM com_grade_season;
   `);
-  if(result.state && result.row.length > 0) gradeCheck = result.row[0].gradeCheck;
+  if (result.state && result.row.length > 0)
+    gradeCheck = result.row[0].gradeCheck;
 
-  if(gradeCheck === 1) calculateGradeMonth(); //시즌 끝일이면, 정산 시작
+  if (gradeCheck === 1) calculateGradeMonth(); //시즌 끝일이면, 정산 시작
 });
