@@ -207,7 +207,7 @@ const checkAccountLink = async (userkey) => {
     [userkey]
   );
 
-  return result.row;
+  return result.row[0];
 };
 
 //! 메인 상품 목록
@@ -224,10 +224,11 @@ export const getCoinProductMainList = async (req, res) => {
   responseData.top_content = await getTopContent(req, 1);
 
   //계정 연동 정보
-  //responseData.account_link = await checkAccountLink(userkey);
+  let result = await checkAccountLink(userkey);
+  responseData.account_link = result.account_link;
 
   //스탠딩
-  let result = await DB(
+  result = await DB(
     `${coinProductListQuery} ORDER BY a.price DESC, rand() LIMIT 5;`,
     [
       lang,
@@ -389,7 +390,8 @@ export const getCoinProductSearchDetail = async (req, res) => {
   }
 
   //계정 연동 정보
-  //responseData.account_link = await checkAccountLink(userkey);
+  result = await checkAccountLink(userkey);
+  responseData.account_link = result.account_link;
 
   //스탠딩
   result = await DB(
@@ -539,13 +541,14 @@ export const getCoinProductTypeList = async (req, res) => {
   responseData.top_content = await getTopContent(req);
 
   //계정 연동 정보
-  //responseData.account_link = await checkAccountLink(userkey);
+  let result = await checkAccountLink(userkey);
+  responseData.account_link = result.account_link;
 
   //조건절 추가
   if (code)
     whereQuery = ` AND ( is_common > 0 OR ifnull(d.speaker, 'common') = '${code}' ) `;
 
-  const result = await DB(
+  result = await DB(
     `
     ${coinProductListQuery} ${whereQuery}
     ORDER BY sorting_order, a.price DESC;`,
