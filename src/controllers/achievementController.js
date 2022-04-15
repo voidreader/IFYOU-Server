@@ -161,23 +161,24 @@ export const requestAchievementMain = async (req, res) => {
     achievement_id === 16 ||
     achievement_id === 21
   ) {
-
     //비기너는 끝났으면 업적 누적 처리 X
-    if(
-      achievement_id === 1  || 
-      achievement_id === 2  || 
-      achievement_id === 3  || 
-      achievement_id === 4  || 
-      achievement_id === 5  || 
-      achievement_id === 6 
-    ){
-      result = await DB(`SELECT * FROM user_achievement WHERE userkey = ? AND achievement_id = ? AND is_clear = 1;`, [userkey, achievement_id]);
-      if(result.state && result.row.length > 0) validCheck = false;
+    if (
+      achievement_id === 1 ||
+      achievement_id === 2 ||
+      achievement_id === 3 ||
+      achievement_id === 4 ||
+      achievement_id === 5 ||
+      achievement_id === 6
+    ) {
+      result = await DB(
+        `SELECT * FROM user_achievement WHERE userkey = ? AND achievement_id = ? AND is_clear = 1;`,
+        [userkey, achievement_id]
+      );
+      if (result.state && result.row.length > 0) validCheck = false;
     }
 
     if (validCheck) query = await getAchievementQuery(userkey, achievement_id);
   } else {
-
     //올 클리어(반복)
     result = await DB(
       `SELECT * FROM user_all_clear WHERE userkey = ? AND project_id = ?;`,
@@ -211,17 +212,18 @@ const requestUserGradeInfo = async (userkey, lang) => {
   const responseData = {};
   let result = ``;
 
-  //시즌 끝일, 새시즌 끝일 
+  //시즌 끝일, 새시즌 끝일
   result = await DB(
-  `SELECT
-  CASE WHEN end_date <= now() AND now() <= next_start_date THEN 1 ELSE 0 END calculate_check 
+    `SELECT
+  CASE WHEN now() >= end_date AND now() < next_start_date THEN 1 ELSE 0 END calculate_check 
   FROM com_grade_season;  
-  `);
+  `
+  );
   responseData.season_check = result.row;
 
   //계정 등급 및 혜택
   result = await DB(
-  `
+    `
   SELECT 
   a.grade
   , a.next_grade
@@ -387,13 +389,14 @@ export const updateUserAchievement = async (req, res) => {
   let updateQuery = ``;
   let calculate_check = 0;
 
-  //정산 중에 보상 받기를 할 경우 
+  //정산 중에 보상 받기를 할 경우
   result = await DB(`SELECT
-  CASE WHEN end_date <= now() AND now() <= next_start_date THEN 1 ELSE 0 END calculate_check 
+  CASE WHEN now() >= end_date AND now() < next_start_date THEN 1 ELSE 0 END calculate_check 
   FROM com_grade_season;`);
-  if(result.state && result.row.length > 0) calculate_check = result.row[0].calculate_check;
+  if (result.state && result.row.length > 0)
+    calculate_check = result.row[0].calculate_check;
 
-  if(calculate_check > 0){
+  if (calculate_check > 0) {
     logger.error(`updateUserAchievement Error 1`);
     respondDB(res, 80117);
     return;
@@ -507,7 +510,8 @@ export const updateUserAchievement = async (req, res) => {
   };
 
   let currentGrade = result.row[0].grade; // * 현재 등급
-  if(result.row[0].next_grade > result.row[0].grade) currentGrade = result.row[0].next_grade; //*시즌 중에 승급을 했으면, 현재 그레이드는 next_grade로 변경 
+  if (result.row[0].next_grade > result.row[0].grade)
+    currentGrade = result.row[0].next_grade; //*시즌 중에 승급을 했으면, 현재 그레이드는 next_grade로 변경
 
   //경험치 업데이트
   currentQuery = `
