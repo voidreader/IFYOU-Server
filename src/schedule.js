@@ -195,6 +195,7 @@ export const calculateGradeMonth = async () => {
           item;
         let { next_grade, grade_experience } = item;
         let grade_state = 0; //등급 상태
+        const origin_grade_experience = grade_experience;
 
         if (next_grade > grade) {
           //시즌 중에 승급이 됐다면
@@ -244,10 +245,14 @@ export const calculateGradeMonth = async () => {
             , grade
             , next_grade
             , grade_experience
+            , next_grade_experience
+            , grade_state
             , start_date
             , end_date
             ) VALUES(
             ?
+            , ?
+            , ?
             , ?
             , ?
             , ?
@@ -258,7 +263,9 @@ export const calculateGradeMonth = async () => {
             userkey,
             grade,
             next_grade,
+            origin_grade_experience,
             grade_experience,
+            grade_state,
             start_date,
             end_date,
           ]);
