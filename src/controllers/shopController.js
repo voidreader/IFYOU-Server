@@ -1,5 +1,6 @@
 import mysql from "mysql2/promise";
 import { response } from "express";
+import { timeout } from "async";
 import { DB, logAction, transactionDB } from "../mysqldb";
 import { logger } from "../logger";
 import { respondDB, adminLogInsert, respondAdminSuccess } from "../respondent";
@@ -744,12 +745,37 @@ export const userPurchaseConfirm = async (req, purchase_no, res, next) => {
     body: { mail_no = 0, userkey = 0 },
   } = req;
 
+  const currentQuery = `INSERT INTO user_mail(userkey, mail_type, currency, quantity, expire_date, connected_project, purchase_no, paid) 
+  VALUES(?, ?, ?, ?, DATE_ADD(NOW(), INTERVAL 1 YEAR), -1, ?, ?);`;
+
   //! 유효성 체크
   if (mail_no === 0 || purchase_no === 0 || userkey === 0) {
     logger.error(`userPurchaseConfirm Error 1`);
     respondDB(res, 80019);
     return;
   }
+
+  const userGradeResult = await DB(`
+  SELECT ta.grade
+       , cg.store_sale
+       , cg.store_limit
+       , fn_get_user_star_benefit_count(ta.userkey, ta.grade) current_count
+  FROM table_account ta
+     , com_grade cg 
+ WHERE userkey = ${userkey}
+   AND cg.grade = ta.grade ;
+  `);
+
+  // 유저의 등급, 혜택 정보 가져온다.
+  const { grade, store_sale, store_limit, current_count } =
+    userGradeResult.row[0];
+
+  const bonusStarPercentage = parseFloat(store_sale) * 0.01; // 보너스 스타 계산하기.
+  const isBonusAVailable = !(store_limit >= current_count); // 보너스 제한 카운트 체크
+
+  logger.info(
+    `### userGrade : [${userkey}]/[${grade}]/[${bonusStarPercentage}]/[${isBonusAVailable}/[${current_count}]`
+  );
 
   //! 상품 조회
   const product = await DB(
@@ -808,6 +834,9 @@ export const userPurchaseConfirm = async (req, purchase_no, res, next) => {
   //* 메일 생성
   let insertQuery = ``;
   let index = 0;
+
+  let totalGem = 0;
+
   productInfo.row.forEach((item) => {
     const queryParams = [];
     let firstCheck = true;
@@ -824,9 +853,6 @@ export const userPurchaseConfirm = async (req, purchase_no, res, next) => {
     }
 
     if (firstCheck) {
-      const currentQuery = `INSERT INTO user_mail(userkey, mail_type, currency, quantity, expire_date, connected_project, purchase_no, paid) 
-      VALUES(?, ?, ?, ?, DATE_ADD(NOW(), INTERVAL 1 YEAR), -1, ?, ?);`;
-
       queryParams.push(userkey);
       queryParams.push(mailType);
       queryParams.push(item.currency);
@@ -834,12 +860,38 @@ export const userPurchaseConfirm = async (req, purchase_no, res, next) => {
       queryParams.push(purchase_no);
       queryParams.push(item.is_main); // 유료 재화 여부 추가
 
+      // 스타를 몇개 주는지 합산해놓는다.
+      if (item.currency === "gem") {
+        totalGem += item.quantity;
+      }
+
       insertQuery += mysql.format(currentQuery, queryParams);
     }
 
     if (index === 0) console.log(insertQuery);
     index += 1;
   });
+
+  // 등급 보너스에 대한 처리 추가
+  if (isBonusAVailable && totalGem > 0) {
+    let bonusGem = totalGem * bonusStarPercentage;
+
+    // 0보다 작은 수라면 1로 처리
+    if (bonusGem < 1) bonusGem = 1;
+    bonusGem = Math.round(bonusGem);
+
+    // 보너스 스타 존재시에 쿼리에 추가해놓는다.
+    if (bonusGem > 0) {
+      insertQuery += mysql.format(currentQuery, [
+        userkey,
+        "grade_bonus",
+        "gem",
+        bonusGem,
+        purchase_no,
+        0,
+      ]);
+    }
+  } // ? 등급 보너스 처리 끝.
 
   //! 메일 수신, 구매확정, 메일 발송
   const result = await transactionDB(
