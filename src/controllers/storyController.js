@@ -114,7 +114,7 @@ export const checkSideUnlockByEpisode = async (userInfo) => {
   // 없으면 떙!
   if (arrEpisodeIDs.length === 0) return [];
 
-  console.log(`user episode hist : ${arrEpisodeIDs}`);
+  // console.log(`user episode hist : ${arrEpisodeIDs}`);
 
   // ! 이제 locekdSideList 를 한행씩 검사하는거야..!
   // 매번.. 에피소드 플레이 할때마다 체크... 더 좋은 방법이 없을까
