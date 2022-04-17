@@ -148,6 +148,10 @@ import {
   updateUserAchievement,
 } from "./achievementController";
 import { getIFyouWebMainPageInfo, receiveInquiry } from "./webController";
+import {
+  requestCompleteEpisode,
+  requestEpisodeFirstClear,
+} from "./playingStoryAPI";
 
 dotenv.config();
 
@@ -1702,6 +1706,9 @@ export const clientHome = (req, res) => {
   else if (func === "receiveInquiry") receiveInquiry(req, res);
   else if (func === "collectProjectRetention")
     collectProjectRetention(req, res);
+  else if (func === "requestCompleteEpisode") requestCompleteEpisode(req, res);
+  else if (func === "requestEpisodeFirstClear")
+    requestEpisodeFirstClear(req, res);
   //업적 클리어
   else {
     //  res.status(400).send(`Wrong Func : ${func}`);
