@@ -771,7 +771,10 @@ export const userPurchaseConfirm = async (req, purchase_no, res, next) => {
     userGradeResult.row[0];
 
   const bonusStarPercentage = parseFloat(store_sale) * 0.01; // 보너스 스타 계산하기.
-  const isBonusAVailable = !(store_limit >= current_count); // 보너스 제한 카운트 체크
+  let isBonusAVailable = false;
+  if (store_limit > current_count)
+    // 보너스 제한 카운트 체크
+    isBonusAVailable = true;
 
   logger.info(
     `### userGrade : [${userkey}]/[${grade}]/[${bonusStarPercentage}]/[${isBonusAVailable}/[${current_count}]`
