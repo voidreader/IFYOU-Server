@@ -3046,6 +3046,46 @@ const getProjectResources = async (project_id, lang, bubbleID, userkey) => {
     }
   }
 
+  //엔딩 힌트에 능력치 조건 추가 
+  if (result.row[23].length > 0){
+    // eslint-disable-next-line no-restricted-syntax
+    for (const item of result.row[23]) {
+      const { ability_condition, } = item;
+      const abilitys = [];
+
+      if(ability_condition){
+        const abilityArr = ability_condition.split(",");  //값이 여러개인 경우 ,(콤마) 기준으로 split
+        
+        for(let i = 0; i < abilityArr.length; i++){
+        
+          let operator = ``; 
+          if (abilityArr[i].includes("<=")){
+            operator = "<=";
+          }else if (abilityArr[i].includes(">=")){
+            operator = ">=";
+          }else if(abilityArr[i].includes("<")){
+            operator = "<";
+          }else if(abilityArr[i].includes(">")){
+            operator = ">";
+          }else{
+            operator = "=";
+          }
+          
+          const ability = abilityArr[i].split(operator);  //operator 기준으로 split
+
+          abilitys.push({
+            speaker: ability[0].split("_")[0].replace("@", ""), //화자
+            ability_name: ability[0].split("_")[1],   //능력치명
+            operator,                                 //연산자
+            value: ability[1],                        //수치
+          });
+        }
+      }
+
+      item.ability_condition = abilitys;
+    }
+  }
+
   responseData.detail = result.row[0];
   responseData.dressCode = result.row[1];
   responseData.nametag = result.row[2];
