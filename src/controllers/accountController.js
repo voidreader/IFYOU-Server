@@ -100,6 +100,136 @@ import { getUserSelectionPurchaseInfo } from "./selectionController";
 
 dotenv.config();
 
+//! 현재 선택지 로그
+export const getUserStorySelectionHistory = async (userInfo) => {
+  const { userkey, project_id, lang } = userInfo;
+
+  const responseData = {};
+  const selection = {};
+  const ending = [];
+
+  //* 현재 셀렉션(user_selection_current) 값이 있는지 확인
+  let endingCheck = true;
+  let index = 0;
+
+  let result = await DB(
+    `SELECT * FROM user_selection_current 
+  WHERE userkey = ? AND project_id =?;
+  `,
+    [userkey, project_id]
+  );
+  if (!result.state || result.row.length === 0) endingCheck = false;
+
+  //* 현재 설렉션(user_selection_current), 엔딩(user_selection_ending) 같은 데이터가 있는지 확인
+  if (endingCheck) {
+    result = await DB(
+      `SELECT *
+    FROM user_selection_current a, user_selection_ending b 
+    WHERE a.userkey = b.userkey 
+    AND a.project_id = b.project_id 
+    AND a.play_count = b.play_count 
+    AND a.userkey = ? AND a.project_id = ?;
+    `,
+      [userkey, project_id]
+    );
+    if (result.row.length > 0) endingCheck = false;
+  }
+
+  if (!endingCheck) {
+    result = await DB(
+      `
+    SELECT a.episode_id episodeId 
+    , ifnull(fn_get_episode_title_lang(a.episode_id, ?), '') title
+    , a.selection_group selectionGroup
+    , a.selection_no selectionNo
+    , a.selection_order selectionOrder
+    , ${lang} selection_content
+    , CASE WHEN a.selection_group = b.selection_group AND a.selection_no = b.selection_no 
+    THEN 1 ELSE 0 END selected
+    , ifnull((SELECT sortkey FROM list_episode WHERE episode_id = a.episode_id),0) sortkey
+    , DATE_FORMAT(origin_action_date, '%Y-%m-%d %T') action_date  
+    , ending_id
+    , ifnull(fn_get_episode_title_lang(ending_id, ?), '') ending_title 
+    , fn_get_ending_type(ending_id) ending_type
+    , fn_get_script_data(a.episode_id, a.selection_group, a.selection_no, '${lang}') script_data
+    FROM list_selection a LEFT OUTER JOIN user_selection_ending b 
+    ON a.project_id = b.project_id AND a.episode_id = b.episode_id AND a.selection_group = b.selection_group
+    WHERE userkey = ? 
+    AND a.project_id = ?
+    AND play_count = (SELECT max(play_count) FROM user_selection_ending use3 WHERE userkey = ? AND project_id = ?)
+    ORDER BY sortkey, a.episode_id, selectionGroup, a.selection_order;`,
+      [lang, lang, userkey, project_id, userkey, project_id]
+    );
+  } else {
+    result = await DB(
+      `
+    SELECT a.episode_id episodeId  
+    , ifnull(fn_get_episode_title_lang(a.episode_id, ?), '') title
+    , a.selection_group selectionGroup
+    , a.selection_no selectionNo
+    , a.selection_order selectionOrder
+    , ${lang} selection_content
+    , CASE WHEN a.selection_group = b.selection_group AND a.selection_no = b.selection_no 
+    THEN 1 ELSE 0 END selected
+    , ifnull((SELECT sortkey FROM list_episode WHERE episode_id = a.episode_id),0) sortkey
+    , DATE_FORMAT(action_date, '%Y-%m-%d %T') action_date  
+    , '' ending_title
+    , fn_get_script_data(a.episode_id, a.selection_group, a.selection_no, '${lang}') script_data
+    FROM list_selection a LEFT OUTER JOIN user_selection_current b 
+    on a.project_id = b.project_id AND a.episode_id = b.episode_id AND a.selection_group = b.selection_group
+    WHERE userkey = ?
+    AND a.project_id = ?
+    ORDER BY sortkey, a.episode_id, selectionGroup, a.selection_order;`,
+      [lang, userkey, project_id]
+    );
+  }
+
+  if (result.state) {
+    // eslint-disable-next-line no-restricted-syntax
+    for (const item of result.row) {
+      if (!Object.prototype.hasOwnProperty.call(selection, item.title)) {
+        selection[item.title] = {};
+      }
+
+      if (
+        !Object.prototype.hasOwnProperty.call(
+          selection[item.title],
+          item.script_data
+        )
+      ) {
+        selection[item.title][item.script_data] = []; // 없으면 빈 배열 생성
+      }
+
+      selection[item.title][item.script_data].push({
+        //선택지
+        selection_group: item.selectionGroup,
+        selection_no: item.selectionNo,
+        selection_order: item.selectionOrder,
+        selection_content: item.selection_content,
+        selected: item.selected,
+      });
+
+      if (item.ending_title) {
+        if (index === 0) {
+          //엔딩
+          ending.push({
+            ending_id: item.ending_id,
+            ending_title: item.ending_title,
+            ending_type: item.ending_type,
+          });
+        }
+
+        index += 1;
+      }
+    }
+  }
+
+  responseData.selection = selection;
+  responseData.ending = ending;
+
+  return responseData;
+}; // ? END
+
 // * 유저 인트로 수행여부 업데이트
 export const updateUserIntroDone = async (req, res) => {
   const {
@@ -3264,6 +3394,8 @@ export const getUserSelectedStory = async (req, res) => {
   storyInfo.ability = await getUserProjectAbilityCurrent(userInfo); //유저의 현재 능력치 정보
   storyInfo.rawStoryAbility = await getUserStoryAbilityRawList(req.body); // 스토리에서 획득한 능력치 Raw 리스트
   storyInfo.selectionPurchase = await getUserSelectionPurchaseInfo(userInfo); // 과금 선택지 정보
+  storyInfo.selectionHistory = await getUserStorySelectionHistory(req.body); // 선택지 히스토리
+
   storyInfo.endingHint = projectResources.endingHint;
 
   // response
