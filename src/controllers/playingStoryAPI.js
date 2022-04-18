@@ -1,4 +1,5 @@
 import mysql from "mysql2/promise";
+import { response } from "express";
 import { DB, logAction, logDB, transactionDB } from "../mysqldb";
 import { respondDB, respondError } from "../respondent";
 import { logger } from "../logger";
@@ -13,6 +14,7 @@ import {
 
 import { getUserBankInfo } from "./bankController";
 import { UQ_ACCQUIRE_CURRENCY } from "../USERQStore";
+import { getUserStorySelectionHistory } from "./accountController";
 
 // * 인게임에서 호출되는 API
 
@@ -51,7 +53,7 @@ export const requestEpisodeFirstClear = async (req, res) => {
 
   const responseData = {};
   responseData.bank = await getUserBankInfo(req.body); // 뱅크 갱신
-  responseData.reward = { currency, quantity }; // 받은 물건
+  responseData.reward = { currency, quantity: realQuantity }; // 받은 물건
 
   res.status(200).json(responseData); // 응답처리
 }; // ? END requestEpisodeFirstClearReward
@@ -121,6 +123,9 @@ export const requestCompleteEpisode = async (req, res) => {
 
   // 첫결제 보상 서버에서 정해주기
   responseData.firstClearResult = { currency: "coin", quantity: 20 };
+
+  // * 작품의 선택지 기록 갱신해오기.
+  responseData.selectionHistory = await getUserStorySelectionHistory(req.body);
 
   // 클리어 로그
   logAction(userkey, "episode_clear", req.body);
