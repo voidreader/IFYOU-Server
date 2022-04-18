@@ -707,6 +707,7 @@ ORDER BY sorting_order;
 export const Q_SELECT_ENDING_HINT = `
 SELECT ending_id 
 , a.unlock_scenes
+, a.ability_condition
 , a.currency
 , a.price
 FROM com_ending_hint a, list_episode b 
