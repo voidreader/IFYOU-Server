@@ -893,6 +893,14 @@ export const userPurchaseConfirm = async (req, purchase_no, res, next) => {
         purchase_no,
         0,
       ]);
+
+      // user_grade_benefit 입력한다.
+      insertQuery += mysql.format(
+        `
+      INSERT INTO user_grade_benefit (userkey, grade, purchase_date, bonus_star) VALUES (?, ?, now(), ?);
+      `,
+        [userkey, grade, bonusGem]
+      );
     }
   } // ? 등급 보너스 처리 끝.
 
