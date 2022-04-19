@@ -3,10 +3,9 @@ import { response } from "express";
 import { DB, logAction, transactionDB } from "../mysqldb";
 import { logger } from "../logger";
 import { respondDB, responDBCoinShop } from "../respondent";
-import { getUserBankInfo } from "./bankController";
-import { getCurrencyQuantity } from "./accountController";
+import { getUserBankInfo, getCurrencyQuantity } from "./bankController";
 import { getLevelQuery, getAchievementQuery } from "./achievementController";
-import { getEqualConditionQuery, getInConditionQuery } from "../com/com";
+import { getInConditionQuery } from "../com/com";
 
 const coinProductListQuery = `
 SELECT coin_product_id

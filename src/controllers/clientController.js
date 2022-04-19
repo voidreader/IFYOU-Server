@@ -26,17 +26,13 @@ import {
   insertUserProjectDressProgress,
   updateUserIllustHistory,
   updateUserMissionHistory,
-  updateUserFavorHistory,
   changeAccountByGamebase,
   updateUserEpisodePlayRecord,
   updateUserSceneRecord,
   insertUserEpisodeStartRecord,
-  resetUserEpisodeProgress,
   accquireUserConsumableCurrency,
   consumeUserCurrency,
-  getUserEndingList,
   updateUserMinicutHistory,
-  purchaseEpisodeType2,
   updateUserScriptMission,
   updateTutorialStep,
   purchaseFreepass,
@@ -44,7 +40,6 @@ import {
   getUserProjectSceneHistory,
   getUserEpisodeHistory,
   requestFreeCharge,
-  requestExchangeOneTimeTicketWithCoin,
   getProfileCurrencyOwnList,
   updateUserMinicutHistoryVer2,
   insertUserProperty,
@@ -93,6 +88,7 @@ import {
   requestWaitingEpisodeWithAD,
   requestRemoveCurrentAD,
   setProjectProgressOrder,
+  purchaseEpisodeType2,
 } from "../com/userProject";
 import {
   getAllProductList,
@@ -171,51 +167,6 @@ const getProjectCreditList = async (req, res) => {
   res.status(200).json(creditResult.row);
 };
 
-// * 클라이언트에서 호출하는 공지사항(이벤트) 리스트
-const getClientNoticeList = async (req, res) => {
-  const noticeResult = await DB(`
-    SELECT cn.*
-    FROM com_notice cn  
-  WHERE now() BETWEEN cn.start_date AND cn.end_date
-    AND cn.is_public = 1
-  ORDER BY cn.sortkey;
-  `);
-
-  const detailResult = await DB(`
-    SELECT b.notice_no
-    , b.lang 
-    , b.title 
-    , b.contents 
-    , fn_get_design_info(b.design_id, 'url') banner_url
-    , fn_get_design_info(b.design_id, 'key') banner_key
-    , fn_get_design_info(b.detail_design_id, 'url') detail_banner_url
-    , fn_get_design_info(b.detail_design_id, 'key') detail_banner_key
-    , b.url_link 
-  FROM com_notice cn
-    , com_notice_detail b
-  WHERE now() BETWEEN cn.start_date AND cn.end_date
-  AND cn.is_public = 1
-  AND b.notice_no = cn.notice_no 
-  ORDER BY cn.sortkey
-  ;  
-  `);
-
-  //
-  noticeResult.row.forEach((notice) => {
-    if (!Object.prototype.hasOwnProperty.call(notice, "detail")) {
-      notice.detail = [];
-    }
-
-    detailResult.row.forEach((item) => {
-      if (item.notice_no === notice.notice_no) {
-        notice.detail.push(item);
-      }
-    });
-  }); // ? end of noticeResult forEach
-
-  res.status(200).json(noticeResult.row);
-};
-
 //* 프로모션 리스트
 export const getPromotionList = async (req, res) => {
   const promotionResult = await DB(
@@ -267,101 +218,7 @@ export const getPromotionList = async (req, res) => {
   res.status(200).json(promotionResult.row);
 };
 
-// * PLOP 전용. 백망되와 허블 1회권 조회
-const getUserOneTimeProperty = async (req, res) => {
-  const {
-    body: { userkey },
-  } = req;
-
-  const result = await DB(
-    `
-  SELECT up.currency 
-     , up.current_quantity 
-     , TIMESTAMPDIFF(HOUR, now(), up.expire_date) remain_hours
- FROM user_property up
-WHERE up.userkey = ${userkey}
-  AND currency IN ('countessOneTime', 'honeybloodOneTime')
-  AND up.current_quantity > 0
-ORDER BY property_no;
-  `,
-    []
-  );
-
-  const responseData = {};
-  responseData.bank = await getUserBankInfo(req.body);
-  responseData.onetime = result.row;
-
-  res.status(200).json(responseData);
-
-  logAction(userkey, "request_onetime_property", req.body);
-};
-
-// ? 갤러리 상단 배너 정보
-const getGalleryBannerInfo = async (req, res) => {
-  const {
-    body: { project_id },
-  } = req;
-
-  const result = await DB(
-    `
-  SELECT ld.image_url, ld.image_key 
-  FROM list_design ld
- WHERE ld.project_id = ?
-   AND ld.design_type ='gallery_top_banner'
-ORDER BY design_id 
-LIMIT 1;
-  `,
-    [project_id]
-  );
-
-  res.status(200).json(result.row);
-};
-
 /* clientController는 미들웨어에서 global.user를 통해 body 파라매터가 저장됩니다. */
-
-// 에피소드의 다운로드 필요한 리소스 정보
-const getEpisodeDownloadResources = async (req, res, result) => {
-  let ret = {};
-  const userInfo = req.body;
-
-  if (result !== undefined && result !== null) {
-    ret = result;
-  }
-
-  // 배경
-  const background = await DB(Q_SCRIPT_RESOURCE_BG, [
-    userInfo.project_id,
-    userInfo.episode_id,
-    userInfo.lang,
-  ]);
-  // 이미지
-  const image = await DB(Q_SCRIPT_RESOURCE_IMAGE, [
-    userInfo.project_id,
-    userInfo.episode_id,
-    userInfo.lang,
-  ]);
-  // 일러스트
-  const illust = await DB(Q_SCRIPT_RESOURCE_ILLUST, [
-    userInfo.project_id,
-    userInfo.episode_id,
-    userInfo.lang,
-  ]);
-  // 이모티콘
-  const emoticon = await DB(Q_SCRIPT_RESOURCE_EMOTICON, [
-    userInfo.project_id,
-    userInfo.episode_id,
-    userInfo.lang,
-  ]);
-
-  ret.background = background.row;
-  ret.image = image.row;
-  ret.illust = illust.row;
-  ret.emoticon = emoticon.row;
-
-  console.log(ret.background);
-
-  res.status(200).json(ret);
-};
 
 const getLivePairScriptInfo = async (project_id, template, pair_id) => {
   let result;
@@ -561,64 +418,6 @@ ORDER BY rand() LIMIT 1;
   logAction(userInfo.userkey, "episode_start", userInfo);
 };
 
-const getEmoticonResourceData = async (req, res) => {
-  const userInfo = req.body;
-
-  const result = await DB(Q_EMOTICON_SLAVE, [
-    userInfo.project_id,
-    userInfo.speaker,
-    userInfo.data,
-  ]);
-  if (!result.state) {
-    logger.error(`getEmoticonResourceData Error ${result.error}`);
-    respondDB(res, 80026, result.error);
-    return;
-  }
-
-  res.status(200).send(result);
-};
-
-// 이미지 리소스 데이터 가져오기 (템플릿 마다 다름..!)
-const getImageResourceData = async (req, res) => {
-  const userInfo = req.body;
-  let querystr = ``;
-
-  if (userInfo.template === "background") {
-    // 배경
-    querystr = `
-            SELECT a.*
-              FROM list_bg a
-             WHERE a.project_id = ?
-               AND a.image_name = ?
-        `;
-  } else if (userInfo.template === "image") {
-    // 미니컷
-    querystr = `
-        SELECT a.*
-          FROM list_minicut a
-         WHERE a.project_id = ?
-           AND a.image_name = ?
-    `;
-  } else if (userInfo.template === "illust") {
-    // 일러스트
-    querystr = `
-        SELECT a.*
-          FROM list_illust a
-         WHERE a.project_id = ?
-           AND a.image_name = ?
-    `;
-  }
-
-  const result = await DB(querystr, [userInfo.project_id, userInfo.data]);
-  if (!result.state) {
-    logger.error(`getImageResourceData Error ${result.error}`);
-    respondDB(res, 80026, result.error);
-    return;
-  }
-
-  res.status(200).send(result);
-}; // getImageResourceData 끝
-
 // * 프로젝트 카테고리
 const getDistinctProjectGenre = async (req, res) => {
   const {
@@ -670,67 +469,6 @@ const getProjectGenre = async (project_id, lang) => {
 
   return responseData;
 };
-
-// ! 로비의 프로젝트 리스트 조회
-const selectLobbyProjectList = async (req, res) => {
-  // build identifier, country 전달
-  // 국가와 빌드ID 전달받아서 조건으로 사용
-  // 일단 빌드ID만!
-  const {
-    body: {
-      userkey = 0,
-      build = "pier.make.story",
-      country = "KR",
-      lang = "KO",
-    },
-  } = req;
-
-  // ! 2021.07.06 list_project => list_project_master로 테이블 변경
-  // ! 기존에 이미지 직접 업로드에서 id만 가져오는 방식으로 변경
-  // ! 클라이언트에서 사용하는 언어는 임시로 한국어로 fix.
-  const query = `
-  SELECT a.project_id 
-  , ifnull(b.title, a.title) title
-  , ifnull(b.summary, a.summary) summary 
-  , ifnull(b.writer , a.writer) writer 
-  , a.sortkey 
-  , a.bubble_set_id
-  , a.favor_use 
-  , a.challenge_use 
-  , a.is_credit 
-  , fn_get_design_info(b.ifyou_banner_id, 'url') ifyou_image_url
-  , fn_get_design_info(b.ifyou_banner_id, 'key') ifyou_image_key
-  , fn_get_design_info(b.ifyou_thumbnail_id, 'url') ifyou_thumbnail_url
-  , fn_get_design_info(b.ifyou_thumbnail_id, 'key') ifyou_thumbnail_key
-  , fn_get_design_info(b.circle_image_id, 'url') circle_image_url
-  , fn_get_design_info(b.circle_image_id, 'key') circle_image_key
-  , a.banner_model_id -- 메인배너 Live2D 모델ID
-  , a.is_lock
-  , a.color_rgb
-  , fn_get_episode_progress_value(${userkey}, a.project_id) project_progress
-  , fn_check_exists_project_play_record(${userkey}, a.project_id) is_playing
- FROM list_project_master a
-LEFT OUTER JOIN list_project_detail b ON b.project_id = a.project_id AND b.lang ='${lang}'
-WHERE a.is_public > 0
-AND a.service_package LIKE CONCAT('%', ?, '%')
-AND (a.service_country IS NULL OR a.service_country = ?)
-ORDER BY a.sortkey;
-  `;
-
-  const result = await DB(query, [build, country]);
-  if (!result.state) {
-    logger.error(`selectLobbyProjectList Error ${result.error}`);
-    respondDB(res, 80026, result.error);
-    return;
-  }
-
-  // * 장르 추가
-  for await (const item of result.row) {
-    item.genre = await getProjectGenre(item.project_id, lang);
-  }
-
-  res.status(200).send(result.row);
-}; // ? 끝
 
 // * 이프유 프로젝트 리스트 조회
 const getIfYouProjectList = async (req, res) => {
@@ -797,7 +535,7 @@ const getIfYouProjectList = async (req, res) => {
 
   const result = await DB(`${query} ORDER BY a.sortkey;`, [build, country]);
   if (!result.state) {
-    logger.error(`selectLobbyProjectList Error ${result.error}`);
+    logger.error(`getIfYouProjectList Error ${result.error}`);
     respondDB(res, 80026, result.error);
     return;
   }
@@ -841,36 +579,6 @@ const getCharacterModel = async (req, res) => {
   ]);
 
   res.status(200).send(result.row);
-};
-
-// 에피소드의 상황 ID 리스트 가져오기
-const getEpisodeSceneIds = async (req, res) => {
-  const userInfo = req.body;
-  const result = await DB(Q_SCRIPT_SCENE_IDS, userInfo.episode_id);
-  res.status(200).send(result.row);
-};
-
-// 프로젝트 모든 이모티콘 정보 요청 (백그라운드 다운로드 용도)
-export const getProjectAllEmoticon = async (req, res) => {
-  const {
-    body: { project_id },
-  } = req;
-
-  logger.info(`getProjectAllEmoticon ${project_id}`);
-
-  const result = await DB(
-    `
-  SELECT DISTINCT ls.image_url, ls.image_key 
-  FROM list_emoticon_master lm
-     , list_emoticon_slave ls 
- WHERE lm.project_id = ?
-   AND lm.emoticon_master_id  = ls.emoticon_master_id 
-   AND ls.image_url IS NOT NULL;
-  `,
-    [project_id]
-  );
-
-  res.status(200).json(result.row);
 };
 
 //! 메인 로딩 이미지 랜덤 출력
@@ -1481,11 +1189,6 @@ export const clientHome = (req, res) => {
 
   // 스크립트 전체 행 조회
   if (func === "getEpisodeScript") getEpisodeScriptWithResources(req, res);
-  // 스크립트의 이미지 리소스 데이터 조회
-  else if (func === "getImageResourceData") getImageResourceData(req, res);
-  else if (func === "getEmoticonResourceData")
-    getEmoticonResourceData(req, res);
-  else if (func === "selectLobbyProjectList") selectLobbyProjectList(req, res);
   else if (func === "getCharacterModel") getCharacterModel(req, res);
   else if (func === "loginClient") loginClient(req, res);
   else if (func === "getUserSelectedStory") getUserSelectedStory(req, res);
@@ -1495,9 +1198,6 @@ export const clientHome = (req, res) => {
     insertUserEpisodeSceneHistory(req, res);
   else if (func === "updateUserEpisodeSceneRecord")
     updateUserSceneRecord(req, res);
-  else if (func === "getEpisodeDownloadResources")
-    getEpisodeDownloadResources(req, res);
-  else if (func === "getEpisodeSceneIds") getEpisodeSceneIds(req, res);
   else if (func === "deleteUserEpisodeSceneHistory")
     deleteUserEpisodeSceneProgress(req, res);
   else if (func === "insertUserProjectDressProgress")
@@ -1510,12 +1210,8 @@ export const clientHome = (req, res) => {
     updateUserEpisodePlayRecord(req, res);
   else if (func === "insertUserEpisodeStartRecord")
     insertUserEpisodeStartRecord(req, res);
-  else if (func === "updateUserFavorHistory") updateUserFavorHistory(req, res);
-  else if (func === "alignS3Objects") alignS3Objects(req, res);
   else if (func === "changeAccountByGamebase")
     changeAccountByGamebase(req, res);
-  else if (func === "resetUserEpisodeProgress")
-    resetUserEpisodeProgress(req, res);
   else if (func === "resetUserEpisodeProgressType2")
     resetUserEpisodeProgressType2(req, res);
   else if (func === "accquireUserConsumableCurrency")
@@ -1530,12 +1226,8 @@ export const clientHome = (req, res) => {
   else if (func === "requestReceiveSingleMail")
     requestReceiveSingleMail(req, res);
   else if (func === "requestReceiveAllMail") requestReceiveAllMail(req, res);
-  else if (func === "getProjectAllEmoticon") getProjectAllEmoticon(req, res);
-  else if (func === "getUserEndingList") getUserEndingList(req, res);
   else if (func === "updateUserMinicutHistory")
     updateUserMinicutHistory(req, res);
-  else if (func === "getGalleryBannerInfo") getGalleryBannerInfo(req, res);
-  //
   else if (func === "mainLoadingImageRandom")
     getMainLoadingImageRandom(req, res);
   else if (func === "updateUserScriptMission")
@@ -1565,9 +1257,7 @@ export const clientHome = (req, res) => {
   else if (func === "getUserPropertyHistory") getUserPropertyHistory(req, res);
   else if (func === "getAppCommonResources") getAppCommonResources(req, res);
   else if (func === "useCoupon") useCoupon(req, res);
-  else if (func === "getUserOneTimeProperty") getUserOneTimeProperty(req, res);
   else if (func === "purchaseFreepass") purchaseFreepass(req, res);
-  else if (func === "getClientNoticeList") getClientNoticeList(req, res);
   else if (func === "reportRequestError") reportRequestError(req, res);
   else if (func === "updateWithdrawDate") updateWithdrawDate(req, res);
   else if (func === "getProjectCreditList") getProjectCreditList(req, res);

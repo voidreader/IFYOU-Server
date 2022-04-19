@@ -101,7 +101,7 @@ export const userMisionReceive = async (req, res) => {
   //! 갱신된 bank, userProperty, 미션 리스트 전달
   const responseData = {};
   responseData.bank = await getUserBankInfo(req.body);
-  responseData.userProperty = await getUserProjectProperty(req.body);
+  responseData.userProperty = {};
 
   // 리스트 줄 필요 없을듯.
   //responseData.userMissionList = (await getUserMissionList(req.body)).row;
