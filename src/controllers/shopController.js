@@ -926,21 +926,63 @@ export const userPurchaseConfirm = async (req, purchase_no, res, next) => {
 };
 //* 클라이언트 호출 끝
 
-// * 프리패스
-// 프로젝트의 프리패스 상품 리스트 (project_id, userkey)
-export const getProjectFreepassProduct = async (project_id, userkey) => {
-  // * 한번 타임딜이 등장했던건 리스트에서 빼주기 위해서 NOT IN 조건 추가
-  const result = await DB(`
-    SELECT a.freepass_no
-    , a.appear_point
-    , a.discount
-    , a.timedeal_min
-  FROM com_freepass a 
-  WHERE a.project_id = ${project_id}
-  AND now() BETWEEN start_date AND end_date
-  AND a.freepass_no NOT IN (SELECT z.target_id FROM user_timedeal_limit z WHERE z.userkey = ${userkey} AND z.timedeal_type = 'freepass')
-  ORDER BY a.appear_point;
+// * 프리미엄 패스 타임딜.
+export const updatePassTimeDeal = async (req, res) => {
+  const {
+    body: { userkey, project_id, timedeal_id, deadline, discount },
+  } = req;
+
+  const responseData = { hasNew: 0 };
+
+  const existsCheck = await DB(`
+  SELECT z.*
+  FROM user_pass_timedeal z
+ WHERE z.userkey = ${userkey}
+   AND z.project_id = ${project_id}
+   AND z.timedeal_id = ${timedeal_id};
   `);
 
-  return result.row;
+  if (existsCheck.row.length > 0) {
+    res.status(200).json(responseData);
+    return;
+  }
+
+  // 없으면 insert 해준다.
+  const insertResult = await DB(`
+  INSERT INTO user_pass_timedeal (userkey, project_id, timedeal_id, end_date, discount)
+  VALUES (${userkey}, ${project_id}, ${timedeal_id}, DATE_ADD(now(), INTERVAL ${deadline} MINUTE), ${discount});
+  `);
+
+  if (!insertResult.state) {
+    logger.error(`updatePassTimeDeal : ${JSON.stringify(insertResult.error)}`);
+    res.status(200).json(responseData);
+    return;
+  }
+
+  // 현재 프로젝트의 가장 마지막에 끝나는 타임딜 정보를 가져온다.
+  const selectResult = await DB(`
+  SELECT a.project_id
+  , a.timedeal_id 
+  , date_format(a.end_date, '%Y-%m-%d %T') end_date
+  , a.discount 
+  FROM user_pass_timedeal a
+  WHERE a.userkey = ${userkey}
+  AND a.project_id = ${project_id}
+  AND now() < end_date 
+  AND a.end_date = (SELECT max(z.end_date) FROM user_pass_timedeal z WHERE z.userkey = a.userkey AND z.project_id = a.project_id);
+  `);
+
+  if (selectResult.row.length === 0) {
+    res.status(200).json(responseData);
+    return;
+  }
+
+  const timedeal = selectResult.row[0];
+  const endDate = new Date(timedeal.end_date);
+  timedeal.end_date_tick = endDate.getTime(); // tick 추가
+
+  responseData.hasNew = 1;
+  responseData.timedeal = timedeal;
+
+  res.status(200).json(responseData);
 };
