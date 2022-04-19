@@ -136,7 +136,7 @@ export const getAppCommonResources = async (req, res) => {
   });
 
   // responseData.currencyIcons = currencyIcons.row;
-  responseData.levelList = await getLevelListNoResponse();
+  responseData.levelList = []; // 삭제대상
 
   res.status(200).json(responseData);
 };
@@ -148,11 +148,22 @@ export const getServerMasterInfo = async (req, res) => {
   let query = ``;
   query += `SELECT * FROM com_server cs WHERE server_no > 0 LIMIT 1;`;
   query += `SELECT a.* FROM com_ad a LIMIT 1;`;
+  query += `
+    SELECT cpt.timedeal_id 
+      , cpt.conditions
+      , cpt.discount 
+      , cpt.deadline 
+      , cpt.episode_progress 
+    FROM com_premium_timedeal cpt 
+  WHERE timedeal_id > 0 
+  ORDER BY timedeal_id; 
+  `;
 
   const result = await DB(query);
 
   responseData.master = result.row[0][0]; // 마스터 정보
   responseData.ad = result.row[1][0]; // 광고 정보
+  responseData.timedeal = result.row[2]; // 타임딜 정보
 
   res.status(200).json(responseData);
 };

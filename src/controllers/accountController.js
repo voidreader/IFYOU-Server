@@ -79,7 +79,7 @@ import {
   getProjectFreepassBadge,
 } from "./designController";
 import { getUserBankInfo, getCurrencyQuantity } from "./bankController";
-import { getProjectFreepassProduct } from "./shopController";
+
 import { gamebaseAPI } from "../com/gamebaseAPI";
 import {
   getProfileCurrencyCurrent,
@@ -2456,95 +2456,6 @@ export const updateUserMinicutHistory = async (req, res) => {
   result.illustHistory = await getUserIllustHistory(req.body);
 
   res.status(200).json(result);
-};
-
-// * 프리패스 타임딜 등장시점 체크하기
-// userkey, project_id, 작품별 에피소드 구매 기록 파라매터로 받아서 처리
-const checkFreepassTimedealAppear = async (
-  userkey,
-  project_id,
-  episodePurchase,
-  has_freepass = -1
-) => {
-  // * 이미 프리패스 구매자의 경우는 체크할 필요 없다.
-  if (has_freepass > 0) return [];
-
-  // * has_freepass 파라매터가 없는 경우는 DB조회를 통해 체크한다
-  if (await checkUserHasProjectFreepass(userkey, project_id)) {
-    return []; // 프리패스 가지고 있으면 true 리턴
-  }
-
-  console.log(`checkFreepassTimedealAppear no-freepass user start`);
-
-  // * 이제 프리패스 없는 사람에 대한 처리 시작.
-  const freepassProducts = await getProjectFreepassProduct(project_id, userkey); // 작품의 프리패스 상품 리스트 조회
-  const timedealPromise = [];
-
-  //
-  for (let i = 0; i < freepassProducts.length; i++) {
-    // appear_point보다, 작품의 구매 타입에 상관없이 구매 개수가 많으면 timedeal 상품 등장을 위해 데이터 입력
-    if (freepassProducts[i].appear_point <= episodePurchase.length) {
-      timedealPromise.push(
-        DB(UQ_INSERT_USER_TIMEDEAL, [
-          userkey,
-          "freepass",
-          freepassProducts[i].freepass_no,
-          freepassProducts[i].timedeal_min,
-        ])
-      );
-
-      break; // 한번이라도 push 했으면 중단하고 나온다.
-    }
-  } // ? end of for
-
-  console.log(`timedeal insert count [${timedealPromise.length}]`);
-
-  await Promise.all(timedealPromise)
-    .then((values) => {})
-    .catch((err) => {
-      logger.error(err.error);
-      return [];
-    });
-
-  // 마지막에 유저에게 등록된 타임들 보여주기
-  const userTimedealResult = await DB(`
-  SELECT a.timedeal_no
-       , a.userkey
-       , a.timedeal_type
-       , a.target_id
-       , DATE_FORMAT(a.end_date, '%Y-%m-%d %T') end_date
-       , b.discount
-  FROM user_timedeal_limit a
-     , com_freepass b
- WHERE a.userkey = ${userkey}
-   AND a.end_date > now()
-   AND a.timedeal_type = 'freepass'
-   AND a.is_end = 0
-   AND b.freepass_no = a.target_id
-   ORDER BY a.timedeal_no DESC;
-  `);
-
-  userTimedealResult.row.forEach((item) => {
-    const endDate = new Date(item.end_date);
-    item.end_tick = endDate.getTime();
-  });
-
-  return userTimedealResult.row;
-};
-
-// * 프로젝트 로딩 리스트
-const getEpisodeLoadingList = async (project_id) => {
-  const result = await DB(`
-  SELECT a.loading_id 
-     , a.image_id 
-     , fn_get_design_info(a.image_id, 'url') image_url
-     , fn_get_design_info(a.image_id, 'key') image_key
-     , a.loading_name
-  FROM list_loading a
- WHERE a.project_id = ${project_id};
-  `);
-
-  return result.row;
 };
 
 // 유저 일러스트 히스토리 업데이트

@@ -6,12 +6,10 @@ import dotenv from "dotenv";
 import { DB, logAction, transactionDB, logDB } from "../mysqldb";
 import {
   Q_MODEL_RESOURCE_INFO,
-  Q_EMOTICON_SLAVE,
   Q_SCRIPT_RESOURCE_BG,
   Q_SCRIPT_RESOURCE_EMOTICON,
   Q_SCRIPT_RESOURCE_ILLUST,
   Q_SCRIPT_RESOURCE_IMAGE,
-  Q_SCRIPT_SCENE_IDS,
   Q_SCRIPT_SELECT_WITH_DIRECTION,
   Q_SCRIPT_RESOURCE_BGM,
   Q_SCRIPT_RESOURCE_VOICE,
@@ -94,6 +92,7 @@ import {
   getAllProductList,
   getUserPurchaseList,
   getUserRawPurchaseList,
+  updatePassTimeDeal,
   userPurchase,
 } from "./shopController";
 import { getUserPropertyHistory, reportRequestError } from "./logController";
@@ -1399,7 +1398,8 @@ export const clientHome = (req, res) => {
   else if (func === "requestCompleteEpisode") requestCompleteEpisode(req, res);
   else if (func === "requestEpisodeFirstClear")
     requestEpisodeFirstClear(req, res);
-  //업적 클리어
+  // 타임딜 생성 처리
+  else if (func === "updatePassTimeDeal") updatePassTimeDeal(req, res);
   else {
     //  res.status(400).send(`Wrong Func : ${func}`);
     logger.error(`clientHome Error ${func}`);
