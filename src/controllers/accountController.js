@@ -3276,3 +3276,28 @@ export const requestUserTutorialProgress = async (req, res) => {
 
   logAction(userkey, "tutorial_ver2", req.body);
 };
+
+// * 유저의 active 타임딜 찾기
+export const getUserActiveTimeDeal = async (req, res) => {
+  const {
+    body: { userkey },
+  } = req;
+
+  const selectResult = await DB(`
+  SELECT a.project_id
+  , a.timedeal_id 
+  , date_format(a.end_date, '%Y-%m-%d %T') end_date
+  , a.discount 
+  FROM user_pass_timedeal a
+  WHERE a.userkey = ${userkey}
+  AND now() < end_date 
+  AND a.end_date = (SELECT max(z.end_date) FROM user_pass_timedeal z WHERE z.userkey = a.userkey AND z.project_id = a.project_id);
+  `);
+
+  selectResult.row.forEach((item) => {
+    const endDate = new Date(item.end_date);
+    item.end_date_tick = endDate.getTime(); // tick 넣어주기!
+  });
+
+  res.status(200).json(selectResult.row);
+};
