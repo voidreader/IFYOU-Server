@@ -2,9 +2,8 @@ import mysql from "mysql2/promise";
 import { DB, logAction, transactionDB } from "../mysqldb";
 import { logger } from "../logger";
 import { respondDB } from "../respondent";
-import { getUserSelectionCurrent, } from "../com/userProject";
-import { getCurrencyQuantity } from "./accountController";
-import { getUserBankInfo } from "./bankController";
+import { getUserSelectionCurrent } from "../com/userProject";
+import { getUserBankInfo, getCurrencyQuantity } from "./bankController";
 
 //! 인게임 중 선택지 저장
 export const updateUserSelectionCurrent = async (req, res) => {

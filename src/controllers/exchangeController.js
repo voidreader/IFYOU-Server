@@ -3,8 +3,7 @@ import { response } from "express";
 import { DB, logAction, transactionDB } from "../mysqldb";
 import { logger } from "../logger";
 import { respondDB } from "../respondent";
-import { getUserBankInfo } from "./bankController";
-import { getCurrencyQuantity } from "./accountController";
+import { getUserBankInfo, getCurrencyQuantity } from "./bankController";
 
 //! 판매 중인 코인 환전상품 리스트
 export const getCoinExchangeProductList = async (req, res) => {

@@ -28,23 +28,18 @@ import {
   Q_SELECT_PROJECT_ALL_ILLUST,
   Q_SELECT_PROJECT_DRESS_CODE,
   Q_SELECT_USER_DRESS_PROGRESS,
-  Q_SELECT_USER_FAVOR_HISTORY,
   Q_SELECT_USER_ILLUST_HISTORY,
-  Q_UPDATE_USER_FAVOR_UPDATE,
   Q_UPDATE_USER_ILLUST_HISTORY,
   Q_USER_EPISODE_PURCHASE,
   Q_USER_EPISODE_SCENE_CLEAR,
   Q_USER_EPISODE_SCENE_PROGRESS,
   UQ_ACCQUIRE_CURRENCY,
-  UQ_SELECT_USER_SIDE_EPISODE,
   UQ_USE_CURRENCY,
-  UQ_CHECK_PROJECT_USER_FREEPASS,
   Q_UPDATE_USER_MISSION_HISTORY,
   Q_SELECT_USER_MISSION_HISTORY,
   Q_PROJECT_ENDING_COUNT,
   Q_USER_ENDING_COUNT,
   UQ_GET_PROJECT_USER_PROPERTY,
-  UQ_SELECT_USER_MAIN_EPISODE,
   UQ_INSERT_USER_TIMEDEAL,
   Q_SELECT_PROJECT_ALL_MINICUT,
   Q_SELECT_PROJECT_RESET_COIN_PRICE,
@@ -76,15 +71,14 @@ import {
   getUserProjectCurrent,
   getUserProjectSelectionProgress,
   requestUpdateProjectCurrent,
-  getProjectResetInfo,
+  getUserProjectProgressInfo,
+  getUserEpisodePurchaseInfo,
 } from "../com/userProject";
 import {
   getProjectBgmBannerInfo,
   getProjectFreepassBadge,
-  getProjectFreepassBannerInfo,
-  getProjectFreepassTitleInfo,
 } from "./designController";
-import { getUserBankInfo } from "./bankController";
+import { getUserBankInfo, getCurrencyQuantity } from "./bankController";
 import { getProjectFreepassProduct } from "./shopController";
 import { gamebaseAPI } from "../com/gamebaseAPI";
 import {
@@ -334,40 +328,6 @@ export const getUserProjectProperty = async (userInfo) => {
   return responseData;
 };
 
-// 재화 수량 조회
-// * 특정 그룹 재화를 위한 기능 추가 (1회권)
-export const getCurrencyQuantity = async (
-  userkey,
-  currency,
-  isGroup = false
-) => {
-  let result;
-
-  if (isGroup) {
-    result = await DB(
-      `SELECT fn_get_user_group_property(?, ?) quantity
-      FROM DUAL;`,
-      [userkey, currency]
-    );
-  } else {
-    result = await DB(
-      `SELECT fn_get_user_property(?, ?) quantity
-      FROM DUAL;`,
-      [userkey, currency]
-    );
-  }
-
-  if (result.state && result.row.length > 0) {
-    return result.row[0].quantity;
-  } else {
-    if (!result.state) {
-      logger.error(`getCurrencyQuantity Error ${result.error}`);
-    }
-
-    return 0;
-  }
-};
-
 // 유저의 미수신 우편 카운트
 const getUserUnreadMailCount = async (userkey) => {
   const { cnt } = (
@@ -378,59 +338,6 @@ const getUserUnreadMailCount = async (userkey) => {
 };
 
 // ? /////////////////////////////////////////////////////////////////////////////////////////////////
-
-// 1회권 에피소드의 플레이 카운트 0으로 만들기
-const setZeroEpisodeOneTimePlayCount = async (userkey, episodeID) => {
-  await DB(
-    `
-  UPDATE user_episode_purchase
-   SET onetime_playable = 0
- WHERE userkey = ?
-   AND episode_id = ?;
-  `,
-    [userkey, episodeID]
-  );
-
-  // 오류 체크.. 필요 없겠지?;;
-};
-
-// 에피소드의 1회권 플레이 횟수 차감 가능 여부 체크
-const getEpisodeOneTimePlayable = async (userkey, episodeID) => {
-  const result = await DB(
-    `
-  SELECT CASE WHEN a.purchase_type = 'OneTime' AND a.onetime_playable > 0 THEN 1
-            ELSE 0 END isPlayable
-  FROM user_episode_purchase a
- WHERE a.userkey = ?
-   AND episode_id = ?;
-  `,
-    [userkey, episodeID]
-  );
-
-  if (
-    !result.state ||
-    result.row.length === 0 ||
-    result.row[0].isPlayable === 0
-  )
-    // 차감 불가
-    return false;
-  else return true; // 차감 가능한 상태
-};
-
-// 유저 에피소드 구매 정보 !
-export const getUserEpisodePurchaseInfo = async (userInfo) => {
-  const result = await DB(Q_USER_EPISODE_PURCHASE, [
-    userInfo.userkey,
-    userInfo.project_id,
-  ]);
-
-  if (!result.state) {
-    logger.error(`getUserEpisodePurchaseInfo Error ${result.error}`);
-    return [];
-  }
-
-  return result.row;
-};
 
 // ? 유저 수집요소 달성율
 // 작품상세화면 View
@@ -527,72 +434,6 @@ const getUserCollectionProgress = async (userInfo) => {
   );
 
   return progress;
-};
-
-// 유저가 획득한 엔딩 리스트
-// 엔딩 View에서 사용
-export const getUserEndingList = async (req, res) => {
-  const {
-    body: { userkey, project_id, lang = "KO" },
-  } = req;
-
-  const result = await DB(
-    `
-  SELECT c.episode_id
-     , c.title
-     , a.ending_type
-     , fn_get_design_info(a.popup_image_id, 'url') popup_image_url
-     , fn_get_design_info(a.popup_image_id, 'key') popup_image_key
-  FROM list_episode a
-     , user_ending b
-     , list_episode_detail c
- WHERE a.project_id = ?
-   AND b.userkey = ?
-   AND b.episode_id = a.episode_id
-   AND a.episode_type ='ending'
-   AND a.episode_id = c.episode_id 
-   AND c.lang = ?
- ORDER BY sortkey ;
-  `,
-    [project_id, userkey, lang]
-  );
-
-  // 프로젝트 엔딩 카운트
-  const projectEndingCount = await DB(Q_PROJECT_ENDING_COUNT, [project_id]);
-
-  const responseData = {};
-  responseData.userEnding = result.row;
-  responseData.projectEndingCount = projectEndingCount.row[0].cnt;
-
-  res.status(200).json(responseData);
-};
-
-// 유저 호감도 히스토리 업데이트
-export const updateUserFavorHistory = async (req, res) => {
-  const userInfo = req.body;
-
-  logger.info(`updateUserFavorHistory ${JSON.stringify(userInfo)}`);
-
-  const result = await DB(Q_UPDATE_USER_FAVOR_UPDATE, [
-    userInfo.userkey,
-    userInfo.project_id,
-    userInfo.favor_name,
-    userInfo.score,
-  ]);
-
-  if (!result.state) {
-    logger.error(`updateUserFavorHistory Error ${result.error}`);
-    respondDB(res, 80026, result.error);
-    return;
-  }
-
-  // 업데이트하고 재조회
-  const refresh = await DB(Q_SELECT_USER_FAVOR_HISTORY, [
-    userInfo.userkey,
-    userInfo.project_id,
-  ]);
-
-  res.status(200).send(refresh.row);
 };
 
 // 유저 도전과제 히스토리 업데이트
@@ -1986,170 +1827,6 @@ export const accquireUserConsumableCurrency = async (req, res) => {
 
 // ! 재화 소모와 획득에 대한 처리 끝! //////////////////////
 
-// # 에피소드 구매 타입2 (Rent, OneTime, Permanent)
-// * 2021.08.03 추가 로직 1.0.10 버전부터 반영된다.
-export const purchaseEpisodeType2 = async (req, res, needResponse = true) => {
-  const {
-    // 클라이언트에서 구매타입, 사용화폐, 화폐개수를 같이 받아온다.
-    body: {
-      userkey,
-      episodeID,
-      purchaseType,
-      project_id,
-      currency = "none",
-      currencyQuantity = 0,
-    },
-  } = req;
-
-  logger.info(`purchaseEpisodeType2 start [${JSON.stringify(req.body)}]`);
-
-  let useCurrency = currency; // 사용되는 화폐
-  let useQuantity = currencyQuantity; // 사용되는 화폐 개수
-  let hasFreepass = false; // 자유이용권 갖고 있는지 true/false
-  let freepassCode = ""; // 연결된 작품의 자유이용권 코드
-  let currentPurchaseType = purchaseType; // 입력되는 구매 형태
-
-  // 구매 형태(purchase_type은 list_standard.purchase_type 참조)
-
-  const responseData = {}; // 응답데이터
-
-  // ! 자유이용권 구매자인지 체크할것!
-  // 클라이언트에서 체크하겠지만 한번 더 체크..
-  const freepassCheck = await DB(UQ_CHECK_PROJECT_USER_FREEPASS, [
-    userkey,
-    project_id,
-  ]);
-
-  // * 자유이용권 보유중!!
-  if (freepassCheck.state && freepassCheck.row.length > 0) {
-    logger.info(`freepass user [${userkey}]`);
-
-    hasFreepass = true;
-    freepassCode = freepassCheck.row[0].currency;
-
-    // 자유이용권 이용자는 화폐를 프리패스로 변경.
-    useCurrency = freepassCode;
-    useQuantity = 1;
-    currentPurchaseType = "Permanent"; // 프리패스 이용자는 무조건 소장처리
-  } // ? 자유이용권 보유 체크 종료
-
-  // * 프리패스(자유이용권) '미'소지자에 대한 처리
-  if (!hasFreepass) {
-    // ! 아직 유효한 구매상태인지 체크한다.
-    // 대여기간, 1회 플레이, 소장
-    // 이중구매는 막아준다. 400 응답
-    // 프리패스 이용자가 아닐때만 하는 이유는 프리패스는 이중구매고 뭐고 그냥 구매해도 상관없다.
-    const validationCheck = await DB(
-      `
-      SELECT CASE WHEN uep.permanent = 1 THEN 1
-                  ELSE 0 END is_purchased
-        FROM user_episode_purchase uep
-        WHERE uep.userkey = ? 
-          AND uep.episode_id = ?;
-    `,
-      [userkey, episodeID]
-    );
-
-    // 유효한 구매 있음.
-    if (
-      validationCheck.state &&
-      validationCheck.row.length > 0 &&
-      validationCheck.row[0].is_purchased > 0
-    ) {
-      // * 이미 구입했으면 클라이언트에서 정상 동작하도록 처리해준다.(2021.11.18)
-      responseData.episodePurchase = await getUserEpisodePurchaseInfo(req.body); // 구매기록
-      responseData.bank = await getUserBankInfo(req.body); // bank.
-      responseData.userProperty = await getUserProjectProperty(req.body); // 프로젝트 프로퍼티
-
-      if (needResponse) {
-        res.status(200).json(responseData);
-        return;
-      } else {
-        return responseData;
-      }
-    } // ? 유효한 구매 체크 종료
-
-    // ! 사용하려는 재화의 보유고를 체크한다.
-    // ! none일때는 제외
-    if (useCurrency !== "none") {
-      // 보유고가 모자라면 400 응답
-      const currentCurrencyCount = await getCurrencyQuantity(
-        userkey,
-        useCurrency
-      );
-
-      // 모자라요!
-      if (currentCurrencyCount < useQuantity) {
-        logger.error(`purchaseEpisodeType2 Error 2`);
-        respondDB(res, 80024, "not enough your property");
-        return;
-      }
-    }
-  } // ? 프리패스 미소유자에 대한 처리 끝
-
-  logger.info(
-    `purchase procedure call ${episodeID}/${useCurrency}/${useQuantity}/${currentPurchaseType}`
-  );
-
-  // ! 실제 구매 처리(type2)
-  const purchaseResult = await DB(
-    `
-  CALL sp_purchase_episode_type2(?,?,?,?,?,?);
-  `,
-    [
-      userkey,
-      project_id,
-      episodeID,
-      useCurrency,
-      useQuantity,
-      currentPurchaseType,
-    ]
-  );
-
-  if (!purchaseResult.state) {
-    logger.error(`purchaseEpisodeType2 Error 3 ${purchaseResult.error}`);
-    respondDB(res, 80022, purchaseResult.error);
-    return;
-  }
-
-  // ! 재화 소모 처리
-  // ! 프리패스 이용자는 재화 소모 처리하지 않음.
-  if (!hasFreepass && useCurrency !== "none") {
-    const consumeResult = await DB(UQ_USE_CURRENCY, [
-      userkey,
-      useCurrency,
-      useQuantity,
-      currentPurchaseType,
-      project_id,
-    ]);
-
-    // DB ERROR
-    if (!consumeResult.state) {
-      logger.error(`purchaseEpisodeType2 Error 4 ${consumeResult.error}`);
-      respondDB(res, 80022, consumeResult.error);
-      return;
-    }
-  }
-
-  // TODO 유저에게 갱신된 episodePurchase 정보와 bank, ProjectProperty 정보를 함께 준다.
-  responseData.episodePurchase = await getUserEpisodePurchaseInfo(req.body); // 구매기록
-  responseData.bank = await getUserBankInfo(req.body); // bank.
-  responseData.userProperty = await getUserProjectProperty(req.body); // 프로젝트 프로퍼티
-
-  if (needResponse) {
-    res.status(200).json(responseData);
-
-    // 로그
-    logAction(userkey, "episode_purchase", req.body);
-  } else {
-    logAction(userkey, "episode_purchase", req.body);
-
-    return responseData;
-  }
-}; // ? 끝! purchaseEpisodeType2
-
-// ? /////////////////////////////////////////////////////////
-
 // * 랜덤 핀코드 생성하기
 const getRandomPIN = () => {
   return Math.random().toString(36).substr(2, 4).toUpperCase();
@@ -2453,108 +2130,6 @@ const getProjectResetCoinPrice = async (userkey, project_id) => {
   const responseData = { resetPrice, reset_count };
   return responseData;
 };
-
-// ! 유저 에피소드 진행도 초기화
-export const resetUserEpisodeProgress = async (req, res) => {
-  logger.info(`resetUserEpisodeProgress [${JSON.stringify(req.body)}]`);
-
-  // * 2021.12.12 : 선택지 로그 추가로 sp_reset_user_episode_progress 프로시저로 일부 수정 - JE
-  // * 2022.01.05 : 리셋 제한 추가(프리패스 : 상관없음, 그 외 : 횟수에 따라 코인값 조정)
-  const {
-    body: {
-      userkey,
-      project_id,
-      episodeID,
-      isFree = false,
-      scene_id,
-      kind = "reset",
-    },
-  } = req;
-
-  const userCoin = await getCurrencyQuantity(userkey, "coin"); // 유저 보유 코인수
-  const resetData = await getProjectResetCoinPrice(userkey, project_id);
-
-  // * 프리미엄 패스 재화코드는 Free+프로젝트ID (Free73)
-  const userFreePass = await getCurrencyQuantity(
-    userkey,
-    `Free${project_id.toString()}`
-  ); // 프리패스 보유체크
-
-  let useQuery = ``;
-
-  // * 프리미엄패스 유저의 경우 resetPrice는 0원.
-  if (userFreePass > 0) {
-    //프리패스 미보유자
-    resetData.resetPrice = 0;
-  }
-
-  // * 코인 부족한 경우 종료
-  if (userCoin < resetData.resetPrice) {
-    //코인부족
-    logger.error(`resetUserEpisodeProgress Error 1`);
-    respondDB(res, 80013);
-    return;
-  }
-
-  if (resetData.resetPrice > 0) {
-    useQuery = mysql.format(
-      `CALL sp_use_user_property(?, 'coin', ?, 'reset_purchase', ?);`,
-      [userkey, resetData.resetPrice, project_id]
-    );
-  }
-
-  //능력치 리셋 쿼리 가져오기
-  const abilityResetQuery = await createQueryResetAbility({
-    userkey,
-    project_id,
-    episode_id: episodeID,
-  });
-
-  const resetResult = await transactionDB(
-    `
-    ${useQuery}
-    CALL sp_update_user_reset(?, ?, ?);
-    CALL sp_reset_user_episode_progress(?, ?, ?);
-    ${abilityResetQuery}
-    `,
-    [
-      userkey,
-      project_id,
-      resetData.reset_count + 1,
-      userkey,
-      project_id,
-      episodeID,
-    ]
-  );
-
-  if (!resetResult.state) {
-    logger.error(`resetUserEpisodeProgress Error 1 ${resetResult.error}`);
-    respondDB(res, 80026, resetResult.error);
-    return;
-  }
-
-  // ! 재조회 refresh nextEpisode, currentEpisode, episodeProgress, episodeSceneProgress...
-  const responseData = {};
-
-  responseData.episodeProgress = await getUserEpisodeProgress(req.body); // * 유저 에피소드 진행도
-  responseData.sceneProgress = await getUserEpisodeSceneProgress(req.body); // * 유저 사건ID 진행도
-
-  // * 2021.08.27
-  responseData.projectCurrent = await getUserProjectCurrent(req.body); // 프로젝트 현재 플레이 지점 !
-  responseData.selectionProgress = await getUserProjectSelectionProgress(
-    req.body
-  ); // 프로젝트 선택지 Progress
-
-  // const responseData = { resetPrice, reset_count };
-  resetData.reset_count += 1;
-  responseData.resetData = resetData; // 리셋 데이터
-
-  responseData.bank = await getUserBankInfo(req.body);
-
-  res.status(200).json(responseData);
-
-  logAction(userkey, "reset_progress", req.body);
-}; // * End of resetUserEpisodeProgress
 
 // ! 유저 작품 초기화 TYPE2 - 15버전 부터 사용
 export const resetUserEpisodeProgressType2 = async (req, res) => {
@@ -3313,7 +2888,7 @@ export const getUserSelectedStory = async (req, res) => {
   storyInfo.loading = currentLoadingData.loading;
   storyInfo.loadingDetail = currentLoadingData.loadingDetail;
 
-  storyInfo.userProperty = await getUserProjectProperty(userInfo); // 유저 소유
+  storyInfo.userProperty = {}; // 삭제대상 노드
 
   const projectResources = await getProjectResources(
     userInfo.project_id,
@@ -3455,51 +3030,6 @@ WHERE userkey = ${userkey};`;
 
   logAction(userkey, "ad_charge", { currentChargeCount });
 }; // ? 끝!
-
-// * 코인으로 1회권 교환하기
-export const requestExchangeOneTimeTicketWithCoin = async (req, res) => {
-  const {
-    body: { userkey, project_id },
-  } = req;
-
-  const userCurrentCoin = await getCurrencyQuantity(userkey, "coin");
-  console.log(`current Coin : ${userCurrentCoin}`);
-
-  if (parseInt(userCurrentCoin, 10) < 7) {
-    respondDB(res, 80031, "응모권 부족");
-    return;
-  }
-
-  let onetimeCurrency = "";
-
-  if (project_id == 57) onetimeCurrency = "countessOneTime";
-  else if (project_id == 60) onetimeCurrency = "honeybloodOneTime";
-  else {
-    respondDB(res, 80031, "프로젝트를 알 수 없음");
-    return;
-  }
-
-  const consumeQuery = `CALL sp_use_user_property (${userkey}, 'coin', 7, 'exchange', ${project_id});`;
-  //const mailQuery = `CALL sp_send_user_mail (${userkey}, 'ad_charge', '${onetimeCurrency}', 1, ${project_id}, 30);`;
-
-  // 직접 지급으로 변경
-  const propertyQuery = `CALL sp_insert_user_property (${userkey}, '${onetimeCurrency}', 1, 'ad_charge');`;
-
-  const result = await DB(`${consumeQuery} ${propertyQuery}`);
-  if (!result.state) {
-    respondDB(res, 80086, "보상 지급 실패");
-    return;
-  }
-
-  // * 유저 정보 및 unreadmailcount 정보 갱신
-  const responseData = {};
-  responseData.bank = await getUserBankInfo(req.body);
-  responseData.unreadMailCount = await getUserUnreadMailCount(userkey);
-
-  res.status(200).json(responseData);
-
-  logAction(userkey, "exchange_charge", req.body);
-}; // ? END
 
 // * 유저가 보유한 재화 (꾸미기 가능 재화 한정) 리스트
 export const getProfileCurrencyOwnList = async (req, res) => {
@@ -3722,7 +3252,7 @@ export const purchaseFreepass = async (req, res) => {
   // * 성공했으면 bank와 userProperty(프로젝트) 갱신해서 전달해주기
   const responseData = {};
   responseData.bank = await getUserBankInfo(req.body);
-  responseData.userProperty = await getUserProjectProperty(req.body);
+  responseData.userProperty = {};
 
   // * 아래 2개 2022.03.15 추가
   responseData.projectCurrent = await getUserProjectCurrent(req.body); // 프로젝트 현재 플레이 지점 !
@@ -3834,26 +3364,4 @@ export const requestUserTutorialProgress = async (req, res) => {
   res.status(200).json(accountInfo);
 
   logAction(userkey, "tutorial_ver2", req.body);
-};
-
-//! 현재 에피의 경로 정보
-export const getUserProjectProgressInfo = async (userInfo) => {
-  const { userkey, project_id, episode_id } = userInfo;
-
-  const result = await DB(
-    `
-  SELECT 
-  scene_id
-  , selection_group 
-  , route 
-  FROM user_project_progress_order
-  WHERE userkey = ? 
-  AND project_id = ? 
-  AND episode_id = ?
-  ORDER BY route; 
-  `,
-    [userkey, project_id, episode_id]
-  );
-
-  return result.row;
 };

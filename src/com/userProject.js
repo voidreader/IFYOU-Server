@@ -2,43 +2,51 @@ import mysql from "mysql2/promise";
 import { DB, logAction, transactionDB } from "../mysqldb";
 import { logger } from "../logger";
 import { respondDB } from "../respondent";
-import { getUserBankInfo } from "../controllers/bankController";
-import { createQueryResetAbility } from "../controllers/abilityController";
 import {
-  getUserProjectProgressInfo,
-  getUserEpisodePurchaseInfo,
-  getUserProjectProperty,
-  purchaseEpisodeType2,
-} from "../controllers/accountController";
+  getCurrencyQuantity,
+  getUserBankInfo,
+} from "../controllers/bankController";
+import {
+  Q_USER_EPISODE_PURCHASE,
+  UQ_CHECK_PROJECT_USER_FREEPASS,
+  UQ_USE_CURRENCY,
+} from "../USERQStore";
 
-// 재화 수량 조회
-// * 특정 그룹 재화를 위한 기능 추가 (1회권)
-const getCurrencyQuantity = async (userkey, currency, isGroup = false) => {
-  let result;
+// 유저 에피소드 구매 정보 !
+export const getUserEpisodePurchaseInfo = async (userInfo) => {
+  const result = await DB(Q_USER_EPISODE_PURCHASE, [
+    userInfo.userkey,
+    userInfo.project_id,
+  ]);
 
-  if (isGroup) {
-    result = await DB(
-      `SELECT fn_get_user_group_property(?, ?) quantity
-      FROM DUAL;`,
-      [userkey, currency]
-    );
-  } else {
-    result = await DB(
-      `SELECT fn_get_user_property(?, ?) quantity
-      FROM DUAL;`,
-      [userkey, currency]
-    );
+  if (!result.state) {
+    logger.error(`getUserEpisodePurchaseInfo Error ${result.error}`);
+    return [];
   }
 
-  if (result.state && result.row.length > 0) {
-    return result.row[0].quantity;
-  } else {
-    if (!result.state) {
-      logger.error(`getCurrencyQuantity Error ${result.error}`);
-    }
+  return result.row;
+};
 
-    return 0;
-  }
+//! 현재 에피의 경로 정보
+export const getUserProjectProgressInfo = async (userInfo) => {
+  const { userkey, project_id, episode_id } = userInfo;
+
+  const result = await DB(
+    `
+  SELECT 
+  scene_id
+  , selection_group 
+  , route 
+  FROM user_project_progress_order
+  WHERE userkey = ? 
+  AND project_id = ? 
+  AND episode_id = ?
+  ORDER BY route; 
+  `,
+    [userkey, project_id, episode_id]
+  );
+
+  return result.row;
 };
 
 // 작품 선택지 선택 Progress
@@ -733,106 +741,6 @@ export const updateUserNickname = async (req, res) => {
   res.status(200).json(result.row[0]);
 };
 
-// * 코인으로 기다리는 에피소드 열기
-export const requestWaitingEpisodeWithCoin = async (req, res) => {
-  const {
-    body: { userkey, project_id, price },
-  } = req;
-
-  // * 현재 프로젝트의 진행중인 에피소드에 대해서 코인을 지불하고 오픈 시간을 앞당긴다.
-  // * 에피소드가 열리는 시간은 user_project_current에서의  next_open_time  컬럼이다.
-  logger.info(`requestWaitingEpisodeWithCoin : ${JSON.stringify(req.body)}`);
-
-  // project current 체크
-  const rowCheck = await DB(`
-  SELECT a.*
-    FROM user_project_current a
-  WHERE a.userkey = ${userkey}
-    AND a.is_special = 0
-    AND a.project_id = ${project_id};
-  `);
-
-  // projectCurrent가 없네..!?
-  if (rowCheck.row.length <= 0) {
-    logger.error(
-      `requestWaitingEpisode error. No project current ${JSON.stringify(
-        req.body
-      )}`
-    );
-    respondDB(res, 80026, "No project current"); // error
-    return;
-  }
-
-  const episodeID = rowCheck.row[0].episode_id; // 에피소드 ID
-  const userCoin = await getCurrencyQuantity(userkey, "coin"); // 유저 보유 코인수
-
-  // 보유량 체크
-  if (price > userCoin) {
-    // 80013
-    logger.error(
-      `requestWaitingEpisode error. Not enough coins ${JSON.stringify(
-        req.body
-      )}`
-    );
-    respondDB(res, 80013, "Not enouogh coins"); // error
-    return;
-  }
-
-  // * 소모 처리하고, open 시간 바꿔준다.
-  let query = ``;
-
-  // 재화 소모처리
-  query += mysql.format(
-    `CALL sp_use_user_property(?, 'coin', ?, 'open_force', ?);`,
-    [userkey, price, project_id]
-  );
-
-  // 업데이트 쿼리
-  query += `
-  UPDATE user_project_current
-    SET next_open_time = date_add(now(), INTERVAL -1 minute) 
-  WHERE userkey = ${userkey}
-    AND is_special = 0
-    AND project_id = ${project_id};`;
-
-  // 결과
-  const result = await transactionDB(query);
-  if (!result.state) {
-    respondDB(res, 80026, result.error);
-    return;
-  }
-
-  console.log(`requestWaitingEpisodeWithCoin #1`);
-
-  // * 에피소드 구매 처리
-  req.body.episodeID = episodeID;
-  req.body.purchaseType = "Permanent";
-  req.body.currency = "coin";
-  req.body.currencyQuantity = 0; // 0으로 구매해야한다.(purchaseEpisodeType2 사용해야되서 쓴다)
-
-  // 코인으로 기다리면 무료를 해제했을때는 Permanent로 처리한다.
-  const responseData = {};
-  await purchaseEpisodeType2(req, res, false);
-
-  console.log(`requestWaitingEpisodeWithCoin #2`);
-
-  // 갱신한다.
-  responseData.episodePurchase = await getUserEpisodePurchaseInfo(req.body); // 구매기록
-  responseData.bank = await getUserBankInfo(req.body); // bank.
-  responseData.userProperty = await getUserProjectProperty(req.body); // 프로젝트 프로퍼티
-  responseData.projectCurrent = await getUserProjectCurrent(req.body); // 프로젝트 현재 플레이 지점 !
-  // responseData.bank = await getUserBankInfo(req.body); // 뱅크
-
-  console.log(`requestWaitingEpisodeWithCoin #3`);
-  res.status(200).json(responseData);
-
-  logger.info(
-    `requestWaitingEpisodeWithCoin END : ${JSON.stringify(responseData)}`
-  );
-
-  logAction(userkey, "waitingOpenCoin", req.body);
-}; // ? requestWaitingEpisodeWithCoin END
-
 // * 광고로 기다리는 에피소드 열기
 export const requestWaitingEpisodeWithAD = async (req, res) => {
   const {
@@ -1062,3 +970,267 @@ export const setProjectProgressOrder = async (req, res) => {
 
   res.status(200).json(result);
 };
+
+// # 에피소드 구매 타입2 (Rent, OneTime, Permanent)
+// * 2021.08.03 추가 로직 1.0.10 버전부터 반영된다.
+export const purchaseEpisodeType2 = async (req, res, needResponse = true) => {
+  const {
+    // 클라이언트에서 구매타입, 사용화폐, 화폐개수를 같이 받아온다.
+    body: {
+      userkey,
+      episodeID,
+      purchaseType,
+      project_id,
+      currency = "none",
+      currencyQuantity = 0,
+    },
+  } = req;
+
+  logger.info(`purchaseEpisodeType2 start [${JSON.stringify(req.body)}]`);
+
+  let useCurrency = currency; // 사용되는 화폐
+  let useQuantity = currencyQuantity; // 사용되는 화폐 개수
+  let hasFreepass = false; // 자유이용권 갖고 있는지 true/false
+  let freepassCode = ""; // 연결된 작품의 자유이용권 코드
+  let currentPurchaseType = purchaseType; // 입력되는 구매 형태
+
+  // 구매 형태(purchase_type은 list_standard.purchase_type 참조)
+
+  const responseData = {}; // 응답데이터
+
+  // ! 자유이용권 구매자인지 체크할것!
+  // 클라이언트에서 체크하겠지만 한번 더 체크..
+  const freepassCheck = await DB(UQ_CHECK_PROJECT_USER_FREEPASS, [
+    userkey,
+    project_id,
+  ]);
+
+  // * 자유이용권 보유중!!
+  if (freepassCheck.state && freepassCheck.row.length > 0) {
+    logger.info(`freepass user [${userkey}]`);
+
+    hasFreepass = true;
+    freepassCode = freepassCheck.row[0].currency;
+
+    // 자유이용권 이용자는 화폐를 프리패스로 변경.
+    useCurrency = freepassCode;
+    useQuantity = 1;
+    currentPurchaseType = "Permanent"; // 프리패스 이용자는 무조건 소장처리
+  } // ? 자유이용권 보유 체크 종료
+
+  // * 프리패스(자유이용권) '미'소지자에 대한 처리
+  if (!hasFreepass) {
+    // ! 아직 유효한 구매상태인지 체크한다.
+    // 대여기간, 1회 플레이, 소장
+    // 이중구매는 막아준다. 400 응답
+    // 프리패스 이용자가 아닐때만 하는 이유는 프리패스는 이중구매고 뭐고 그냥 구매해도 상관없다.
+    const validationCheck = await DB(
+      `
+      SELECT CASE WHEN uep.permanent = 1 THEN 1
+                  ELSE 0 END is_purchased
+        FROM user_episode_purchase uep
+        WHERE uep.userkey = ? 
+          AND uep.episode_id = ?;
+    `,
+      [userkey, episodeID]
+    );
+
+    // 유효한 구매 있음.
+    if (
+      validationCheck.state &&
+      validationCheck.row.length > 0 &&
+      validationCheck.row[0].is_purchased > 0
+    ) {
+      // * 이미 구입했으면 클라이언트에서 정상 동작하도록 처리해준다.(2021.11.18)
+      responseData.episodePurchase = await getUserEpisodePurchaseInfo(req.body); // 구매기록
+      responseData.bank = await getUserBankInfo(req.body); // bank.
+      responseData.userProperty = {}; // 삭제 대상 노드
+
+      if (needResponse) {
+        res.status(200).json(responseData);
+        return;
+      } else {
+        return responseData;
+      }
+    } // ? 유효한 구매 체크 종료
+
+    // ! 사용하려는 재화의 보유고를 체크한다.
+    // ! none일때는 제외
+    if (useCurrency !== "none") {
+      // 보유고가 모자라면 400 응답
+      const currentCurrencyCount = await getCurrencyQuantity(
+        userkey,
+        useCurrency
+      );
+
+      // 모자라요!
+      if (currentCurrencyCount < useQuantity) {
+        logger.error(`purchaseEpisodeType2 Error 2`);
+        respondDB(res, 80024, "not enough your property");
+        return;
+      }
+    }
+  } // ? 프리패스 미소유자에 대한 처리 끝
+
+  logger.info(
+    `purchase procedure call ${episodeID}/${useCurrency}/${useQuantity}/${currentPurchaseType}`
+  );
+
+  // ! 실제 구매 처리(type2)
+  const purchaseResult = await DB(
+    `
+  CALL sp_purchase_episode_type2(?,?,?,?,?,?);
+  `,
+    [
+      userkey,
+      project_id,
+      episodeID,
+      useCurrency,
+      useQuantity,
+      currentPurchaseType,
+    ]
+  );
+
+  if (!purchaseResult.state) {
+    logger.error(`purchaseEpisodeType2 Error 3 ${purchaseResult.error}`);
+    respondDB(res, 80022, purchaseResult.error);
+    return;
+  }
+
+  // ! 재화 소모 처리
+  // ! 프리패스 이용자는 재화 소모 처리하지 않음.
+  if (!hasFreepass && useCurrency !== "none") {
+    const consumeResult = await DB(UQ_USE_CURRENCY, [
+      userkey,
+      useCurrency,
+      useQuantity,
+      currentPurchaseType,
+      project_id,
+    ]);
+
+    // DB ERROR
+    if (!consumeResult.state) {
+      logger.error(`purchaseEpisodeType2 Error 4 ${consumeResult.error}`);
+      respondDB(res, 80022, consumeResult.error);
+      return;
+    }
+  }
+
+  // TODO 유저에게 갱신된 episodePurchase 정보와 bank, ProjectProperty 정보를 함께 준다.
+  responseData.episodePurchase = await getUserEpisodePurchaseInfo(req.body); // 구매기록
+  responseData.bank = await getUserBankInfo(req.body); // bank.
+  responseData.userProperty = {}; // 삭제 대상 노드
+
+  if (needResponse) {
+    res.status(200).json(responseData);
+
+    // 로그
+    logAction(userkey, "episode_purchase", req.body);
+  } else {
+    logAction(userkey, "episode_purchase", req.body);
+
+    return responseData;
+  }
+}; // ? 끝! purchaseEpisodeType2
+
+// ? /////////////////////////////////////////////////////////
+
+// * 코인으로 기다리는 에피소드 열기
+export const requestWaitingEpisodeWithCoin = async (req, res) => {
+  const {
+    body: { userkey, project_id, price },
+  } = req;
+
+  // * 현재 프로젝트의 진행중인 에피소드에 대해서 코인을 지불하고 오픈 시간을 앞당긴다.
+  // * 에피소드가 열리는 시간은 user_project_current에서의  next_open_time  컬럼이다.
+  logger.info(`requestWaitingEpisodeWithCoin : ${JSON.stringify(req.body)}`);
+
+  // project current 체크
+  const rowCheck = await DB(`
+  SELECT a.*
+    FROM user_project_current a
+  WHERE a.userkey = ${userkey}
+    AND a.is_special = 0
+    AND a.project_id = ${project_id};
+  `);
+
+  // projectCurrent가 없네..!?
+  if (rowCheck.row.length <= 0) {
+    logger.error(
+      `requestWaitingEpisode error. No project current ${JSON.stringify(
+        req.body
+      )}`
+    );
+    respondDB(res, 80026, "No project current"); // error
+    return;
+  }
+
+  const episodeID = rowCheck.row[0].episode_id; // 에피소드 ID
+  const userCoin = await getCurrencyQuantity(userkey, "coin"); // 유저 보유 코인수
+
+  // 보유량 체크
+  if (price > userCoin) {
+    // 80013
+    logger.error(
+      `requestWaitingEpisode error. Not enough coins ${JSON.stringify(
+        req.body
+      )}`
+    );
+    respondDB(res, 80013, "Not enouogh coins"); // error
+    return;
+  }
+
+  // * 소모 처리하고, open 시간 바꿔준다.
+  let query = ``;
+
+  // 재화 소모처리
+  query += mysql.format(
+    `CALL sp_use_user_property(?, 'coin', ?, 'open_force', ?);`,
+    [userkey, price, project_id]
+  );
+
+  // 업데이트 쿼리
+  query += `
+  UPDATE user_project_current
+    SET next_open_time = date_add(now(), INTERVAL -1 minute) 
+  WHERE userkey = ${userkey}
+    AND is_special = 0
+    AND project_id = ${project_id};`;
+
+  // 결과
+  const result = await transactionDB(query);
+  if (!result.state) {
+    respondDB(res, 80026, result.error);
+    return;
+  }
+
+  console.log(`requestWaitingEpisodeWithCoin #1`);
+
+  // * 에피소드 구매 처리
+  req.body.episodeID = episodeID;
+  req.body.purchaseType = "Permanent";
+  req.body.currency = "coin";
+  req.body.currencyQuantity = 0; // 0으로 구매해야한다.(purchaseEpisodeType2 사용해야되서 쓴다)
+
+  // 코인으로 기다리면 무료를 해제했을때는 Permanent로 처리한다.
+  const responseData = {};
+  await purchaseEpisodeType2(req, res, false);
+
+  console.log(`requestWaitingEpisodeWithCoin #2`);
+
+  // 갱신한다.
+  responseData.episodePurchase = await getUserEpisodePurchaseInfo(req.body); // 구매기록
+  responseData.bank = await getUserBankInfo(req.body); // bank.
+  responseData.userProperty = {}; // 삭제 대상 노드
+  responseData.projectCurrent = await getUserProjectCurrent(req.body); // 프로젝트 현재 플레이 지점 !
+  // responseData.bank = await getUserBankInfo(req.body); // 뱅크
+
+  console.log(`requestWaitingEpisodeWithCoin #3`);
+  res.status(200).json(responseData);
+
+  logger.info(
+    `requestWaitingEpisodeWithCoin END : ${JSON.stringify(responseData)}`
+  );
+
+  logAction(userkey, "waitingOpenCoin", req.body);
+}; // ? requestWaitingEpisodeWithCoin END
