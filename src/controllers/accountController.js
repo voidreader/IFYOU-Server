@@ -2535,6 +2535,10 @@ const getProjectResources = async (project_id, lang, bubbleID, userkey) => {
     userkey,
     lang,
     userkey,
+    userkey, 
+    lang, 
+    userkey,
+    lang,
     project_id,
   ]); // 18. 에피소드 사이드 스토리
   query += mysql.format(Q_SELECT_EPISODE_PROGRESS, [userkey, project_id]); // 19. 에피소드 progress
@@ -2659,6 +2663,72 @@ const getProjectResources = async (project_id, lang, bubbleID, userkey) => {
     // eslint-disable-next-line no-restricted-syntax
     for (const item of result.row[20]) {
       episodeHistory.push(item.episode_id);
+    }
+  }
+
+  //엔딩 힌트에 능력치 조건 추가 
+  if (result.row[23].length > 0){
+    // eslint-disable-next-line no-restricted-syntax
+    for (const item of result.row[23]) {
+      let { ability_condition, } = item;
+      const abilitys = [];
+
+      ability_condition = ability_condition.toString().replace(" ", ""); //공백 모두 제거
+      if(ability_condition){
+        const abilityArr = ability_condition.split(",");  //값이 여러개인 경우 ,(콤마) 기준으로 split
+        
+        for(let i = 0; i < abilityArr.length; i++){
+        
+          let operator = ``; 
+          if (abilityArr[i].includes("<=")){
+            operator = "<=";
+          }else if (abilityArr[i].includes(">=")){
+            operator = ">=";
+          }else if(abilityArr[i].includes("<")){
+            operator = "<";
+          }else if(abilityArr[i].includes(">")){
+            operator = ">";
+          }else{
+            operator = "=";
+          }
+          
+          const ability = abilityArr[i].split(operator);  //operator 기준으로 split
+
+          abilitys.push({
+            speaker: ability[0].split("_")[0].replace("@", ""), //화자
+            ability_name: ability[0].split("_")[1],   //능력치명
+            operator,                                 //연산자
+            value: ability[1],                        //수치
+          });
+        }
+      }
+
+      item.ability_condition = abilitys;
+    }
+  }
+
+  //스페셜 에피소드 힌트 관련 에피소드 추가 
+  if (result.row[18].length > 0){
+    // eslint-disable-next-line no-restricted-syntax
+    for (const item of result.row[18]) {
+      const { side_hint, } = item; 
+      const hints = [];
+
+      if(side_hint !== ""){
+        const hintArr = String(side_hint).split(",");
+        for(let i = 0; i < hintArr.length; i++){
+          if(String(side_hint).includes(":")){        //사건
+            hints.push({
+              episode_id : hintArr[i].split(":")[0],  //에피소드ID
+              played: hintArr[i].split(":")[1],       //플레이건수
+              total: hintArr[i].split(":")[2],        //토탈
+            });
+          }else{                                      //에피소드
+            hints.push(hintArr[i]);
+          }
+        }
+      }
+      item.side_hint = hints;
     }
   }
 
