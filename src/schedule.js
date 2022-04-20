@@ -18,12 +18,15 @@ import { updateProjectViewCnt } from "./controllers/coinController";
 dotenv.config();
 
 //! 가능 유저 조회
-export const userkeyCheck = async (send_to, reservation_no) => {
+export const userkeyCheck = async (send_to, os, reservation_no) => {
   let whereQuery = ``;
   if (parseInt(send_to, 10) !== -1) {
     whereQuery = ` AND userkey IN (${send_to}) `;
   }
 
+  // os 운영기기에 따라 메일 전송
+  if(os === "Android" || os === "iOS") whereQuery += ` AND os = '${os}' `;
+  
   const result = await DB(
     `SELECT userkey FROM table_account
     WHERE userkey NOT IN (SELECT userkey FROM user_mail WHERE reservation_no = ?)
@@ -62,6 +65,7 @@ export const reservationSend = async () => {
       , currency
       , quantity
       , DATE_FORMAT(expire_date, '%Y-%m-%d %T') expire_date
+      , os
       FROM list_reservation 
       WHERE is_complete = 0 AND send_date <= sysdate()
       limit 1;`,
@@ -87,10 +91,11 @@ export const reservationSend = async () => {
       currency,
       quantity,
       expire_date,
+      os,
     } = mailCheck.row[0];
 
     // 가능 userkey 조회
-    const userkey = await userkeyCheck(send_to, reservation_no);
+    const userkey = await userkeyCheck(send_to, os, reservation_no);
 
     let state = 2;
 
