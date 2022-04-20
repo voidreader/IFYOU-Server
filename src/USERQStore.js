@@ -496,6 +496,9 @@ SELECT a.episode_id
 , a.next_open_min
 , CASE WHEN ifnull(a.publish_date, '2020-01-01') > now() THEN 1 ELSE 0 END is_serial -- 
 , date_format(ifnull(a.publish_date, '2020-01-01'), '%Y-%m-%d %T') publish_date
+, CASE WHEN unlock_style = 'episode' THEN fn_get_unlock_list(?, a.project_id, a.episode_id, ?, a.unlock_style) 
+       WHEN unlock_style = 'event' THEN fn_get_unlock_list(?, a.project_id, a.episode_id, ?, a.unlock_style)
+ELSE '' END side_hint
 FROM list_episode a
 WHERE a.project_id = ?
 AND a.episode_type = 'side'
@@ -707,6 +710,7 @@ ORDER BY sorting_order;
 export const Q_SELECT_ENDING_HINT = `
 SELECT ending_id 
 , a.unlock_scenes
+, a.ability_condition
 , a.currency
 , a.price
 FROM com_ending_hint a, list_episode b 
