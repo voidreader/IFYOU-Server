@@ -25,12 +25,8 @@ export const userkeyCheck = async (send_to, os, reservation_no) => {
   }
 
   // os 운영기기에 따라 메일 전송
-  if(os === "Android"){
-    whereQuery += ` AND (os = '${os}' OR deviceid NOT LIKE '%-%') `;
-  }else if(os === "iOS"){
-    whereQuery += ` AND (os = '${os}' OR deviceid LIKE '%-%') `;
-  }
-
+  if(os === "Android" || os === "iOS") whereQuery += ` AND os = '${os}' `;
+  
   const result = await DB(
     `SELECT userkey FROM table_account
     WHERE userkey NOT IN (SELECT userkey FROM user_mail WHERE reservation_no = ?)
