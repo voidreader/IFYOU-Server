@@ -2535,8 +2535,8 @@ const getProjectResources = async (project_id, lang, bubbleID, userkey) => {
     userkey,
     lang,
     userkey,
-    userkey, 
-    lang, 
+    userkey,
+    lang,
     userkey,
     lang,
     project_id,
@@ -2666,39 +2666,38 @@ const getProjectResources = async (project_id, lang, bubbleID, userkey) => {
     }
   }
 
-  //엔딩 힌트에 능력치 조건 추가 
-  if (result.row[23].length > 0){
+  //엔딩 힌트에 능력치 조건 추가
+  if (result.row[23].length > 0) {
     // eslint-disable-next-line no-restricted-syntax
     for (const item of result.row[23]) {
-      let { ability_condition, } = item;
+      let { ability_condition } = item;
       const abilitys = [];
 
       ability_condition = ability_condition.toString().replace(" ", ""); //공백 모두 제거
-      if(ability_condition){
-        const abilityArr = ability_condition.split(",");  //값이 여러개인 경우 ,(콤마) 기준으로 split
-        
-        for(let i = 0; i < abilityArr.length; i++){
-        
-          let operator = ``; 
-          if (abilityArr[i].includes("<=")){
+      if (ability_condition) {
+        const abilityArr = ability_condition.split(","); //값이 여러개인 경우 ,(콤마) 기준으로 split
+
+        for (let i = 0; i < abilityArr.length; i++) {
+          let operator = ``;
+          if (abilityArr[i].includes("<=")) {
             operator = "<=";
-          }else if (abilityArr[i].includes(">=")){
+          } else if (abilityArr[i].includes(">=")) {
             operator = ">=";
-          }else if(abilityArr[i].includes("<")){
+          } else if (abilityArr[i].includes("<")) {
             operator = "<";
-          }else if(abilityArr[i].includes(">")){
+          } else if (abilityArr[i].includes(">")) {
             operator = ">";
-          }else{
+          } else {
             operator = "=";
           }
-          
-          const ability = abilityArr[i].split(operator);  //operator 기준으로 split
+
+          const ability = abilityArr[i].split(operator); //operator 기준으로 split
 
           abilitys.push({
             speaker: ability[0].split("_")[0].replace("@", ""), //화자
-            ability_name: ability[0].split("_")[1],   //능력치명
-            operator,                                 //연산자
-            value: ability[1],                        //수치
+            ability_name: ability[0].split("_")[1], //능력치명
+            operator, //연산자
+            value: ability[1], //수치
           });
         }
       }
@@ -2707,23 +2706,25 @@ const getProjectResources = async (project_id, lang, bubbleID, userkey) => {
     }
   }
 
-  //스페셜 에피소드 힌트 관련 에피소드 추가 
-  if (result.row[18].length > 0){
+  //스페셜 에피소드 힌트 관련 에피소드 추가
+  if (result.row[18].length > 0) {
     // eslint-disable-next-line no-restricted-syntax
     for (const item of result.row[18]) {
-      const { side_hint, } = item; 
+      const { side_hint } = item;
       const hints = [];
 
-      if(side_hint !== ""){
+      if (side_hint !== "") {
         const hintArr = String(side_hint).split(",");
-        for(let i = 0; i < hintArr.length; i++){
-          if(String(side_hint).includes(":")){        //사건
+        for (let i = 0; i < hintArr.length; i++) {
+          if (String(side_hint).includes(":")) {
+            //사건
             hints.push({
-              episode_id : hintArr[i].split(":")[0],  //에피소드ID
-              played: hintArr[i].split(":")[1],       //플레이건수
-              total: hintArr[i].split(":")[2],        //토탈
+              episode_id: hintArr[i].split(":")[0], //에피소드ID
+              played: hintArr[i].split(":")[1], //플레이건수
+              total: hintArr[i].split(":")[2], //토탈
             });
-          }else{                                      //에피소드
+          } else {
+            //에피소드
             hints.push(hintArr[i]);
           }
         }
@@ -2906,17 +2907,10 @@ export const getUserSelectedStory = async (req, res) => {
   //* 에피소드 정보
   storyInfo.episodeProgress = projectResources.episodeProgress; // ! 유저 에피소드 진행도
   storyInfo.episodeHistory = projectResources.episodeHistory; // 유저 에피소드 히스토리
-  // storyInfo.dressProgress = projectResources.dressProgress; // 유저 의상 정보
-  storyInfo.dressProgress = []; // 유저 의상 정보 (2022.02 사용하지 않게 변경됨)
   storyInfo.episodePurchase = projectResources.episodePurchase; // 에피소드 구매 정보
   storyInfo.sides = projectResources.sides; // 유저의 사이드 에피소드 리스트
 
   storyInfo.premiumPrice = await getCurrentProjectPassPrice(userInfo); // 현재 작품의 프리미엄 패스 가격정보
-
-  // * 기존 프리패스 친구들 사용하지 않도록 변경 (2022.03.17)
-  storyInfo.userFreepassTimedeal = []; // 유저의 살아있는 프리패스 타임딜
-  storyInfo.freepasProduct = []; // 대상 작품의 프리패스 상품 리스트
-  storyInfo.freepassPrice = await getProjectFreepassPrice(userInfo); // 대상작품의 프리패스 가격정보
 
   storyInfo.selectionProgress = await getUserProjectSelectionProgress(userInfo); // 프로젝트 선택지 Progress
 
