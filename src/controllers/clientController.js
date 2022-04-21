@@ -523,6 +523,8 @@ const getIfYouProjectList = async (req, res) => {
   , fn_check_exists_project_play_record(${userkey}, a.project_id) is_playing
   , b.original
   , ifnull(a.serial_day, -1) serial_day
+  , ifnull(fn_get_origin_pass_price (a.project_id), 100) pass_price
+  , ROUND(fn_get_current_pass_price(${userkey}, a.project_id), 2) pass_discount
   FROM list_project_master a
   LEFT OUTER JOIN list_project_detail b ON b.project_id = a.project_id AND b.lang ='${lang}'
   WHERE a.is_public > 0
