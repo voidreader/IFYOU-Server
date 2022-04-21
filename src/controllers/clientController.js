@@ -52,6 +52,7 @@ import {
   requestGalleryLobbyOpen,
   updateUserIntroDone,
   getUserActiveTimeDeal,
+  purchasePremiumPass,
 } from "./accountController";
 import { logger } from "../logger";
 
@@ -1405,6 +1406,7 @@ export const clientHome = (req, res) => {
   else if (func === "updatePassTimeDeal") updatePassTimeDeal(req, res);
   // 유저의 활성화된 타임딜 가져오기
   else if (func === "getUserActiveTimeDeal") getUserActiveTimeDeal(req, res);
+  else if (func === "purchasePremiumPass") purchasePremiumPass(req, res);
   else {
     //  res.status(400).send(`Wrong Func : ${func}`);
     logger.error(`clientHome Error ${func}`);
