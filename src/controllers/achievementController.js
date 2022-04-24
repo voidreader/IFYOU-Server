@@ -216,7 +216,7 @@ const requestUserGradeInfo = async (userkey, lang) => {
   result = await DB(
     `SELECT
   CASE WHEN now() >= end_date AND now() < next_start_date THEN 1 ELSE 0 END calculate_check 
-  FROM com_grade_season;  
+  FROM com_grade_season where season_no = 0;  
   `
   );
   responseData.season_check = result.row;
@@ -231,7 +231,7 @@ const requestUserGradeInfo = async (userkey, lang) => {
   , grade_experience
   , b2.keep_point -- 
   , b.upgrade_point 
-  , abs(TIMESTAMPDIFF(DAY, (SELECT end_date FROM com_grade_season), now())) remain_day
+  , abs(TIMESTAMPDIFF(DAY, (SELECT end_date FROM com_grade_season where season_no = 0), now())) remain_day
   , b2.store_sale add_star
   , b2.store_limit add_star_limit
   , fn_get_user_star_benefit_count(${userkey}, a.grade) add_star_use
@@ -392,7 +392,7 @@ export const updateUserAchievement = async (req, res) => {
   //정산 중에 보상 받기를 할 경우
   result = await DB(`SELECT
   CASE WHEN now() >= end_date AND now() < next_start_date THEN 1 ELSE 0 END calculate_check 
-  FROM com_grade_season;`);
+  FROM com_grade_season where season_no = 0;`);
   if (result.state && result.row.length > 0)
     calculate_check = result.row[0].calculate_check;
 
