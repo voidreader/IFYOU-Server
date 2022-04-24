@@ -622,27 +622,6 @@ export const getUserPurchaseList = async (req, res, isResponse = true) => {
     [req.body.userkey]
   );
 
-  /*
-  result.row.forEach((item) => {
-    if (
-      !Object.hasOwnProperty.call(
-        responseData.userPurchaseHistory,
-        item.purchase_no.toString()
-      )
-    ) {
-      responseData.userPurchaseHistory[item.purchase_no.toString()] = [];
-    }
-
-    responseData.userPurchaseHistory[item.purchase_no.toString()].push({
-      product_id: item.product_id,
-      product_name: item.product_name,
-      receipt: item.receipt,
-      state: item.state,
-      purchase_date: item.purchase_date,
-    });
-  });
-  */
-
   if (isResponse) {
     res.status(200).json(result.row);
   } else {

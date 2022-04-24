@@ -18,8 +18,7 @@ export const getCoinExchangeProductList = async (req, res) => {
     ELSE 
         CASE WHEN a.daily_purchase_cnt <= fn_get_user_coin_exchange(?, a.exchange_product_id) THEN 0 ELSE 1 END 
     END exchange_check
-    FROM com_coin_exchange_product a LEFT OUTER JOIN user_coin_exchange b 
-    ON a.exchange_product_id = b.exchange_product_id 
+    FROM com_coin_exchange_product a
     WHERE is_service > 0 ;
     `,
     [req.body.userkey]
@@ -194,8 +193,7 @@ export const coinExchangePurchase = async (req, res) => {
   ELSE 
       CASE WHEN a.daily_purchase_cnt <= fn_get_user_coin_exchange(${userkey}, a.exchange_product_id) THEN 0 ELSE 1 END 
   END exchange_check
-  FROM com_coin_exchange_product a LEFT OUTER JOIN user_coin_exchange b 
-  ON a.exchange_product_id = b.exchange_product_id 
+  FROM com_coin_exchange_product a
   WHERE is_service > 0 ;`);
 
   responseData.coinExchangeProduct = coinExchangeProduct.row;
