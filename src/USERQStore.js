@@ -719,3 +719,18 @@ WHERE a.ending_id = b.episode_id
 AND a.project_id = ?
 ORDER BY sortkey, episode_id;
 `;
+
+//선택지 힌트 구매 리스트 
+export const Q_SELECT_SELECTION_HINT_PURCHASE = `
+SELECT 
+a.episode_id 
+, scene_id
+, selection_group 
+, selection_no 
+, a.price 
+FROM user_selection_hint_purchase a, list_episode b 
+WHERE a.episode_id = b.episode_id 
+AND a.project_id = ? 
+AND userkey = ?
+ORDER BY sortkey, episode_id; 
+`;
