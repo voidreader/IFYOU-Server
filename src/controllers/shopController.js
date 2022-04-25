@@ -913,6 +913,7 @@ export const updatePassTimeDeal = async (req, res) => {
 
   const responseData = { hasNew: 0 };
 
+  // * 동일 타임딜 있는지 확인한다.
   const existsCheck = await DB(`
   SELECT z.*
   FROM user_pass_timedeal z
@@ -921,24 +922,24 @@ export const updatePassTimeDeal = async (req, res) => {
    AND z.timedeal_id = ${timedeal_id};
   `);
 
-  if (existsCheck.row.length > 0) {
-    res.status(200).json(responseData);
-    return;
-  }
+  // 없으면 insert
+  if (existsCheck.row.length === 0) {
+    // 없으면 insert 해준다.
+    const insertResult = await DB(`
+    INSERT INTO user_pass_timedeal (userkey, project_id, timedeal_id, end_date, discount)
+    VALUES (${userkey}, ${project_id}, ${timedeal_id}, DATE_ADD(now(), INTERVAL ${deadline} MINUTE), ${discount});
+    `);
 
-  // 없으면 insert 해준다.
-  const insertResult = await DB(`
-  INSERT INTO user_pass_timedeal (userkey, project_id, timedeal_id, end_date, discount)
-  VALUES (${userkey}, ${project_id}, ${timedeal_id}, DATE_ADD(now(), INTERVAL ${deadline} MINUTE), ${discount});
-  `);
+    if (!insertResult.state) {
+      logger.error(
+        `updatePassTimeDeal : ${JSON.stringify(insertResult.error)}`
+      );
+    }
 
-  if (!insertResult.state) {
-    logger.error(`updatePassTimeDeal : ${JSON.stringify(insertResult.error)}`);
-    res.status(200).json(responseData);
-    return;
-  }
+    responseData.hasNew = 1; // 새로운거 있음
+  } // insert 종료
 
-  // 현재 프로젝트의 가장 마지막에 끝나는 타임딜 정보를 가져온다.
+  // 타임딜 갱신
   const selectResult = await DB(`
   SELECT a.project_id
   , a.timedeal_id 
@@ -946,22 +947,16 @@ export const updatePassTimeDeal = async (req, res) => {
   , a.discount 
   FROM user_pass_timedeal a
   WHERE a.userkey = ${userkey}
-  AND a.project_id = ${project_id}
   AND now() < end_date 
   AND a.end_date = (SELECT max(z.end_date) FROM user_pass_timedeal z WHERE z.userkey = a.userkey AND z.project_id = a.project_id);
   `);
 
-  if (selectResult.row.length === 0) {
-    res.status(200).json(responseData);
-    return;
-  }
+  selectResult.row.forEach((item) => {
+    const endDate = new Date(item.end_date);
+    item.end_date_tick = endDate.getTime(); // tick 넣어주기!
+  });
 
-  const timedeal = selectResult.row[0];
-  const endDate = new Date(timedeal.end_date);
-  timedeal.end_date_tick = endDate.getTime(); // tick 추가
-
-  responseData.hasNew = 1;
-  responseData.timedeal = timedeal;
+  responseData.timedeal = selectResult.row;
 
   res.status(200).json(responseData);
 };
