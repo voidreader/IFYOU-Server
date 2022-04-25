@@ -91,10 +91,14 @@ export const requestCompleteEpisode = async (req, res) => {
     is_final: nextEpisodeID < 0 ? 1 : 0, // 다음 에피소드 설정이 없으면 1로 처리 (엔딩이나 설정 문제)
   };
 
+  logger.info(
+    `requestCompleteEpisode updateParam [${JSON.stringify(updateParam)}]`
+  );
+
   // 에피소드 플레이 기록 저장하기, 엔딩 오픈 처리
   const updateEpisodeRecordResult = await DB(`
   call sp_update_user_episode_hist(${userkey}, ${project_id}, ${episodeID});
-  CALL sp_update_user_ending(${userkey}, ${project_id}, ${episodeID});
+  CALL sp_update_user_ending(${userkey}, ${project_id}, ${updateParam.episodeID});
   `);
 
   if (!updateEpisodeRecordResult.state) {
@@ -115,7 +119,7 @@ export const requestCompleteEpisode = async (req, res) => {
   }
 
   responseData.projectCurrent = projectCurrent;
-  responseData.episode_id = episodeID; // 저장된 에피소드ID
+  responseData.episode_id = episodeID; // 방금 플레이한 에피소드ID
 
   // * 사이드 에피소드, 미션 해금 처리
   responseData.unlockSide = await checkSideUnlockByEpisode(req.body);
