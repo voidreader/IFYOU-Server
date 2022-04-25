@@ -499,6 +499,7 @@ SELECT a.episode_id
 FROM list_episode a
 WHERE a.project_id = ?
 AND a.episode_type = 'side'
+AND a.unlock_style <> 'coupon'
 ORDER BY a.episode_type, a.sortkey;  
 `;
 
