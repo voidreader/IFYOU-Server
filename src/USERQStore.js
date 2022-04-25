@@ -502,6 +502,7 @@ ELSE '' END side_hint
 FROM list_episode a
 WHERE a.project_id = ?
 AND a.episode_type = 'side'
+AND a.unlock_style <> 'coupon'
 ORDER BY a.episode_type, a.sortkey;  
 `;
 
