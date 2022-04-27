@@ -439,6 +439,9 @@ SELECT a.mission_id
   , fn_get_design_info((SELECT icon_image_id FROM com_currency WHERE currency = reward_currency), 'url') icon_image_url
   , fn_get_design_info((SELECT icon_image_id FROM com_currency WHERE currency = reward_currency), 'key') icon_image_key
   , fn_get_mission_name(a.mission_id, 'KO') origin_name
+  , CASE WHEN detail_hint > 0 AND ( mission_type = 'episode' OR mission_type = 'event' ) THEN
+    fn_get_unlock_mission(?, ?, a.project_id, a.mission_id, mission_type)
+  ELSE '' END detail_hint    
   FROM list_mission a 
   LEFT OUTER JOIN user_mission b ON a.mission_id = b.mission_id AND b.userkey = ? 
   WHERE a.project_id = ?;
