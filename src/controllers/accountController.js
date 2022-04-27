@@ -2517,7 +2517,7 @@ const getProjectResources = async (project_id, lang, bubbleID, userkey) => {
   query += mysql.format(Q_SELECT_MISSION_ALL, [
     lang,
     lang,
-    userkey, 
+    userkey,
     lang,
     userkey,
     project_id,
@@ -2549,8 +2549,10 @@ const getProjectResources = async (project_id, lang, bubbleID, userkey) => {
   query += mysql.format(Q_SELECT_PROJECT_ALL_BG, [project_id]); // 21. 프로젝트 모든 배경
   query += mysql.format(Q_SELECT_PROJECT_ALL_EMOTICONS, [project_id]); // 22. 프로젝트 모든 이모티콘
   query += mysql.format(Q_SELECT_ENDING_HINT, [project_id]); // 23. 엔딩 힌트
-  query += mysql.format(Q_SELECT_SELECTION_HINT_PURCHASE, [project_id, userkey]); // 24. 선택지 힌트 구매 
-
+  query += mysql.format(Q_SELECT_SELECTION_HINT_PURCHASE, [
+    project_id,
+    userkey,
+  ]); // 24. 선택지 힌트 구매
 
   // * 모인 쿼리 실행
   const result = await DB(query);
@@ -2641,17 +2643,17 @@ const getProjectResources = async (project_id, lang, bubbleID, userkey) => {
     }
   }
 
-  //미션 힌트 
+  //미션 힌트
   if (result.row[12].length > 0) {
     // eslint-disable-next-line no-restricted-syntax
     for (const item of result.row[12]) {
-      const { detail_hint } = item;
+      const { hint } = item;
       const hints = [];
-    
-      if (detail_hint !== "") {
-        const hintArr = String(detail_hint).split(",");
+
+      if (hint !== "") {
+        const hintArr = String(hint).split(",");
         for (let i = 0; i < hintArr.length; i++) {
-          if (String(detail_hint).includes(":")) {
+          if (String(hint).includes(":")) {
             //사건
             hints.push({
               episode_id: hintArr[i].split(":")[0], //에피소드ID
@@ -2660,11 +2662,11 @@ const getProjectResources = async (project_id, lang, bubbleID, userkey) => {
             });
           } else {
             //에피소드
-             hints.push(hintArr[i]);
+            hints.push(hintArr[i]);
           }
         }
       }
-      item.detail_hint = hints;
+      item.hint = hints;
     }
   }
 
@@ -2765,19 +2767,21 @@ const getProjectResources = async (project_id, lang, bubbleID, userkey) => {
     }
   }
 
-  // 선택지 힌트 구매 
+  // 선택지 힌트 구매
   const selectionHintPurchase = {};
-  if(result.row[24].length > 0){
-    
+  if (result.row[24].length > 0) {
     // eslint-disable-next-line no-restricted-syntax
-    for(const item of result.row[24]){
+    for (const item of result.row[24]) {
       // 키 없으면 추가해준다.
       if (
-        !Object.prototype.hasOwnProperty.call(selectionHintPurchase, item.episode_id.toString())
+        !Object.prototype.hasOwnProperty.call(
+          selectionHintPurchase,
+          item.episode_id.toString()
+        )
       ) {
         selectionHintPurchase[item.episode_id.toString()] = [];
       }
-    
+
       selectionHintPurchase[item.episode_id.toString()].push(item); // 배열에 추가한다.
     }
   }
@@ -2997,7 +3001,7 @@ export const getUserSelectedStory = async (req, res) => {
   storyInfo.selectionHistory = await getUserStorySelectionHistory(req.body); // 선택지 히스토리
 
   storyInfo.endingHint = projectResources.endingHint;
-  storyInfo.selectionHintPurchase = projectResources.selectionHintPurchase; 
+  storyInfo.selectionHintPurchase = projectResources.selectionHintPurchase;
 
   // response
   res.status(200).json(storyInfo);
@@ -3558,50 +3562,55 @@ export const getUserActiveTimeDeal = async (req, res) => {
   res.status(200).json(selectResult.row);
 };
 
-
 //! 선택지 힌트 결제 및 팝업
 export const requestSelectionHint = async (req, res) => {
   const {
-    body:{
+    body: {
       userkey,
       lang = "KO",
       project_id = -1,
       episode_id = -1,
-      selection_group = -1, 
-      selection_no = -1, 
-    }
+      selection_group = -1,
+      selection_no = -1,
+    },
   } = req;
-
 
   const responseData = {};
   let purchaseCheck = false;
   let totalPrice = 0;
-  let scene_id = null; 
+  let scene_id = null;
 
   // 해당 선택지의 타겟씬id 조회
-  let result = await DB(`
+  let result = await DB(
+    `
   SELECT target_scene_id
   FROM list_script 
   WHERE episode_id = ? 
   AND lang = ? 
   AND selection_group = ? 
   AND selection_no = ?;
-  `, [episode_id, lang, selection_group, selection_no]);
-  if(result.state && result.row.length > 0) scene_id = result.row[0].target_scene_id;
+  `,
+    [episode_id, lang, selection_group, selection_no]
+  );
+  if (result.state && result.row.length > 0)
+    scene_id = result.row[0].target_scene_id;
 
   // 이전에 결제했는지 확인
-  result = await DB(`
+  result = await DB(
+    `
   SELECT * 
   FROM user_selection_hint_purchase 
   WHERE userkey = ? 
   AND episode_id = ? 
   AND selection_group = ? 
-  AND selection_no = ?;`, [userkey, episode_id, selection_group, selection_no]);
-  if(result.state && result.row.length === 0) purchaseCheck = true; 
-  
+  AND selection_no = ?;`,
+    [userkey, episode_id, selection_group, selection_no]
+  );
+  if (result.state && result.row.length === 0) purchaseCheck = true;
 
   // 리스트
-  result = await DB(`
+  result = await DB(
+    `
   SELECT ending_id 
   , fn_get_episode_title_lang(ending_id, ?) title 
   , fn_get_ending_type_lang(ending_id, ?) ending_type
@@ -3609,41 +3618,56 @@ export const requestSelectionHint = async (req, res) => {
   FROM com_ending_hint 
   WHERE project_id = ? 
   AND unlock_scenes LIKE CONCAT('%', ?, '%');
-  `, [lang, lang, project_id, scene_id]); 
-  if(result.state && result.row.length > 0) {
-
+  `,
+    [lang, lang, project_id, scene_id]
+  );
+  if (result.state && result.row.length > 0) {
     // eslint-disable-next-line no-restricted-syntax
-    for(const item of result.row){
+    for (const item of result.row) {
       totalPrice += item.price;
     }
   }
 
-  responseData.list = result.row; 
+  responseData.list = result.row;
 
-  let currentQuery = ``; 
+  let currentQuery = ``;
   let updateQuery = ``;
 
-  // 결제 
-  if(purchaseCheck){
-    const userCoin = await getCurrencyQuantity(userkey, 'coin');
+  // 결제
+  if (purchaseCheck) {
+    const userCoin = await getCurrencyQuantity(userkey, "coin");
 
-    if(userCoin < totalPrice){
+    if (userCoin < totalPrice) {
       respondDB(res, 80013, "Charge your coin");
       return;
     }
 
     //코인 사용
     currentQuery = `CALL sp_use_user_property(?,?,?,?,?);`;
-    updateQuery += mysql.format(currentQuery, [userkey, "coin", totalPrice, "selection_hint", project_id]);
+    updateQuery += mysql.format(currentQuery, [
+      userkey,
+      "coin",
+      totalPrice,
+      "selection_hint",
+      project_id,
+    ]);
 
     //히스토리 누적
     currentQuery = `
     INSERT INTO user_selection_hint_purchase(userkey, project_id, episode_id, scene_id, selection_group, selection_no, price) 
     VALUES(?, ?, ?, ?, ?, ?, ?);`;
-    updateQuery += mysql.format(currentQuery, [userkey, project_id, episode_id, scene_id, selection_group, selection_no, totalPrice]);
+    updateQuery += mysql.format(currentQuery, [
+      userkey,
+      project_id,
+      episode_id,
+      scene_id,
+      selection_group,
+      selection_no,
+      totalPrice,
+    ]);
 
-    result = await transactionDB(updateQuery); 
-    if(!result.state){
+    result = await transactionDB(updateQuery);
+    if (!result.state) {
       logger.error(`requestSelectionHint Error ${result.error}`);
       respondDB(res, 80026, result.error);
       return;
@@ -3652,24 +3676,26 @@ export const requestSelectionHint = async (req, res) => {
 
   const selectionHintPurchase = {};
   result = await DB(Q_SELECT_SELECTION_HINT_PURCHASE, [project_id, userkey]);
-  if(result.state && result.row.length > 0){
-    
+  if (result.state && result.row.length > 0) {
     // eslint-disable-next-line no-restricted-syntax
-    for(const item of result.row){
+    for (const item of result.row) {
       // 키 없으면 추가해준다.
       if (
-        !Object.prototype.hasOwnProperty.call(selectionHintPurchase, item.episode_id.toString())
+        !Object.prototype.hasOwnProperty.call(
+          selectionHintPurchase,
+          item.episode_id.toString()
+        )
       ) {
         selectionHintPurchase[item.episode_id.toString()] = [];
       }
-    
+
       selectionHintPurchase[item.episode_id.toString()].push(item); // 배열에 추가한다.
-    }      
+    }
   }
   responseData.selectionHintPurchase = selectionHintPurchase;
 
   responseData.bank = await getUserBankInfo(req.body); // 뱅크 갱신
-  
+
   logAction(userkey, "selection_hint", req.body);
 
   res.status(200).json(responseData);
