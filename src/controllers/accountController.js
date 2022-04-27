@@ -2517,6 +2517,8 @@ const getProjectResources = async (project_id, lang, bubbleID, userkey) => {
   query += mysql.format(Q_SELECT_MISSION_ALL, [
     lang,
     lang,
+    userkey, 
+    lang,
     userkey,
     project_id,
   ]); // 12. 모든 도전 과제
@@ -2636,6 +2638,33 @@ const getProjectResources = async (project_id, lang, bubbleID, userkey) => {
       resetPrice = Math.floor(
         resetPrice + resetPrice * (reset_increment_rate / 100)
       );
+    }
+  }
+
+  //미션 힌트 
+  if (result.row[12].length > 0) {
+    // eslint-disable-next-line no-restricted-syntax
+    for (const item of result.row[12]) {
+      const { detail_hint } = item;
+      const hints = [];
+    
+      if (detail_hint !== "") {
+        const hintArr = String(detail_hint).split(",");
+        for (let i = 0; i < hintArr.length; i++) {
+          if (String(detail_hint).includes(":")) {
+            //사건
+            hints.push({
+              episode_id: hintArr[i].split(":")[0], //에피소드ID
+              played: hintArr[i].split(":")[1], //플레이건수
+              total: hintArr[i].split(":")[2], //토탈
+            });
+          } else {
+            //에피소드
+             hints.push(hintArr[i]);
+          }
+        }
+      }
+      item.detail_hint = hints;
     }
   }
 
