@@ -1,7 +1,7 @@
 // 미션 컨트롤
 import mysql from "mysql2/promise";
 
-import { DB, transactionDB } from "../mysqldb";
+import { DB, logAction, transactionDB } from "../mysqldb";
 import {
   respond,
   respondRedirect,
@@ -185,6 +185,8 @@ export const requestMissionAllReward = async(req, res) => {
     responseData.bank = await getUserBankInfo(req.body);
   }
  
+  logAction(userkey, "mission_all", req.body);
+
   res.status(200).json(responseData);
 
 };

@@ -2553,7 +2553,7 @@ const getProjectResources = async (project_id, lang, bubbleID, userkey) => {
     project_id,
     userkey,
   ]); // 24. 선택지 힌트 구매
-  query += mysql.format(`SELECT fn_check_mission_all_clear(?, ?, ?) all_clear FROM DUAL;`, [userkey, project_id, lang]); // 25. 미션 올 클리어 
+  query += mysql.format(`SELECT * FROM user_mission_all_clear WHERE userkey = ? AND project_id = ?;`, [userkey, project_id]); // 25. 미션 올 클리어 
 
   // * 모인 쿼리 실행
   const result = await DB(query);
@@ -2812,7 +2812,7 @@ const getProjectResources = async (project_id, lang, bubbleID, userkey) => {
   responseData.sides = result.row[18];
   responseData.endingHint = result.row[23];
   responseData.selectionHintPurchase = selectionHintPurchase;
-  responseData.missionAllClear = result.row[25][0].all_clear;
+  responseData.missionAllClear = result.row[25].length > 0 ? 1 : 0;
 
   return responseData;
 };
