@@ -75,7 +75,7 @@ import {
   requestReceiveAllMail,
   requestReceiveSingleMail,
 } from "./mailController";
-import { userMissionList, userMisionReceive } from "./missionController";
+import { userMissionList, userMisionReceive, requestMissionAllReward, } from "./missionController";
 import { respondDB } from "../respondent";
 import {
   updateSelectionProgress,
@@ -1409,6 +1409,7 @@ export const clientHome = (req, res) => {
   else if (func === "getUserActiveTimeDeal") getUserActiveTimeDeal(req, res);
   else if (func === "purchasePremiumPass") purchasePremiumPass(req, res);
   else if (func === "requestSelectionHint") requestSelectionHint(req, res); // 선택지 힌트
+  else if (func === "requestMissionAllReward") requestMissionAllReward(req, res); // 미션 전체 클리어 보상
   else {
     //  res.status(400).send(`Wrong Func : ${func}`);
     logger.error(`clientHome Error ${func}`);
