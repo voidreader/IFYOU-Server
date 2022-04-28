@@ -2553,7 +2553,10 @@ const getProjectResources = async (project_id, lang, bubbleID, userkey) => {
     project_id,
     userkey,
   ]); // 24. 선택지 힌트 구매
-  query += mysql.format(`SELECT * FROM user_mission_all_clear WHERE userkey = ? AND project_id = ?;`, [userkey, project_id]); // 25. 미션 올 클리어 
+  query += mysql.format(
+    `SELECT * FROM user_mission_all_clear WHERE userkey = ? AND project_id = ?;`,
+    [userkey, project_id]
+  ); // 25. 미션 올 클리어
 
   // * 모인 쿼리 실행
   const result = await DB(query);
@@ -3351,8 +3354,10 @@ export const purchasePremiumPass = async (req, res) => {
   );
 
   // 여기서 이상한 유저들 걸러낸다.
-  if (salePrice < 3) {
+  if (salePrice < 3 || originPrice < 3 || originPrice < salePrice) {
     logger.error(`Error in purchasePremiumPass ${JSON.stringify(req.body)}`);
+    respondDB(res, 80026, "Error in premium pass purchase");
+    return;
   }
 
   // 현재 보유량이 가격보다 적은 경우! return
