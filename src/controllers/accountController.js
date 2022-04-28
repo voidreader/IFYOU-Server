@@ -3319,7 +3319,7 @@ export const purchasePremiumPass = async (req, res) => {
   );
 
   // 여기서 이상한 유저들 걸러낸다.
-  if (salePrice < 3) {
+  if (salePrice < 3 || originPrice < 3 || originPrice < salePrice) {
     logger.error(`Error in purchasePremiumPass ${JSON.stringify(req.body)}`);
     respondDB(res, 80026, "Error in premium pass purchase");
     return;
