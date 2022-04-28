@@ -1214,7 +1214,15 @@ export const requestWaitingEpisodeWithCoin = async (req, res) => {
 
   // 코인으로 기다리면 무료를 해제했을때는 Permanent로 처리한다.
   const responseData = {};
-  await purchaseEpisodeType2(req, res, false);
+  // await purchaseEpisodeType2(req, res, false);
+  await DB(`CALL sp_purchase_episode_type2(?,?,?,?,?,?);`, [
+    userkey,
+    project_id,
+    episodeID,
+    "coin",
+    0,
+    "Permanent",
+  ]);
 
   console.log(`requestWaitingEpisodeWithCoin #2`);
 
@@ -1228,9 +1236,11 @@ export const requestWaitingEpisodeWithCoin = async (req, res) => {
   console.log(`requestWaitingEpisodeWithCoin #3`);
   res.status(200).json(responseData);
 
+  /*
   logger.info(
     `requestWaitingEpisodeWithCoin END : ${JSON.stringify(responseData)}`
   );
+  */
 
   logAction(userkey, "waitingOpenCoin", req.body);
 }; // ? requestWaitingEpisodeWithCoin END
