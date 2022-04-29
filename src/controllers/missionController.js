@@ -37,9 +37,12 @@ export const userMissionList = async (req, res) => {
 
 //! 미션 받기
 export const userMisionReceive = async (req, res) => {
+  
   const {
     body: { project_id, mission_id, userkey },
   } = req;
+
+  const responseData = {};
 
   // * 유저가 대상 미션에 대해 보상을 받은적이 있는지 체크한다.
   const checkResult = await DB(MQ_CLIENT_CHECK_MISSION, [mission_id, userkey]);
@@ -66,7 +69,7 @@ export const userMisionReceive = async (req, res) => {
   WHERE lm.mission_id = ${mission_id};
   `);
 
-  if (!missionRewardResult.state || missionRewardResult.row.length == 0) {
+  if (!missionRewardResult.state || missionRewardResult.row.length === 0) {
     logger.error("No Mission reward data");
     respondDB(res, 80025, "미션 보상 정보가 없습니다");
     return;
@@ -76,20 +79,40 @@ export const userMisionReceive = async (req, res) => {
   const { reward_currency, reward_quantity, reward_exp } =
     missionRewardResult.row[0];
 
-  // * 경험치는 추후 처리
-
   //! quantity가 0이 아닌 경우
   if (reward_quantity !== 0) {
     insertQuery = `CALL sp_insert_user_property(?, ?, ?, ?);`;
   }
 
+  // * 등급 경험치 처리
+  let result = await DB(`
+  SELECT a.grade, next_grade, grade_experience
+  FROM table_account a, com_grade b   
+  WHERE a.grade = b.grade  
+  AND userkey = ?;
+  `, [userkey]);
+
+  let currentGrade = result.row[0].grade; // * 현재 등급
+  if (result.row[0].next_grade > result.row[0].grade) currentGrade = result.row[0].next_grade; //*시즌 중에 승급을 했으면, 현재 그레이드는 next_grade로 변경
+  responseData.grade_info = {
+    current_grade: currentGrade, 
+    next_grade: currentGrade,
+  };
+
+  responseData.experience_info = {
+    grade_experience: result.row[0].grade_experience, //기존 경험치
+    get_experience: reward_exp, //획득한 경험치
+    total_exp: reward_exp + result.row[0].grade_experience,
+  };
+
   //! sp_insert_user_property 부여 및 상태값 업데이트
-  const result = await transactionDB(
+  result = await transactionDB(
     `
   ${insertQuery}
   ${MQ_CLIENT_UPDATE_MISSION}
+  UPDATE table_account SET grade_experience = grade_experience + ? WHERE userkey = ?;
   `,
-    [userkey, reward_currency, reward_quantity, "mission", mission_id]
+    [userkey, reward_currency, reward_quantity, "mission", mission_id, reward_exp, userkey]
   );
 
   if (!result.state) {
@@ -98,14 +121,44 @@ export const userMisionReceive = async (req, res) => {
     return;
   }
 
+  // 경험치 업데이를 하고, 현재 grade의 max 포인트랑 비교를 해서 지금 현재의
+  // 경험치가 max 보다 이상이면 등급업을 시켜줘야한다.
+  const maxExpResult = await DB(`
+    SELECT a.upgrade_point 
+    FROM com_grade a
+  WHERE a.grade = ${currentGrade};
+  `);
+
+  const maxExp = maxExpResult.row[0].upgrade_point; // max exp
+  const currentExp = responseData.experience_info.total_exp; // 현재 상태의 exp
+
+  // 현재 경험치가 맥스 이상이되었음. => 등급업.
+  if (currentExp >= maxExp) {
+    // * 등급업!
+    const upgradeResult = await DB(`
+    update table_account
+       SET next_grade = next_grade + 1
+         , grade_experience = grade_experience - ${maxExp}
+     WHERE userkey = ${userkey};
+    `);
+
+    if (!upgradeResult.state) {
+      logger.error(upgradeResult.error);
+    }
+    responseData.grade_info.next_grade = currentGrade+1;
+  }
+
+  logAction(userkey, "mission", { 
+    userkey,
+    mission_id,
+    grade:currentGrade,
+    total_exp: currentExp,
+    get_exp: reward_exp,
+    max_exp: maxExp,
+  });
+
   //! 갱신된 bank, userProperty, 미션 리스트 전달
-  const responseData = {};
   responseData.bank = await getUserBankInfo(req.body);
-  responseData.userProperty = {};
-
-  // 리스트 줄 필요 없을듯.
-  //responseData.userMissionList = (await getUserMissionList(req.body)).row;
-
   res.status(200).json(responseData);
 };
 
@@ -144,10 +197,6 @@ export const requestMissionAllReward = async(req, res) => {
   `, [userkey, project_id, lang]);
   if(result.state && result.row.length > 0) all_clear = result.row[0].all_clear;
 
-  //전체 보상 경험치 
-  result = await DB(`SELECT ifnull(mission_exp, 0) mission_exp FROM list_project_master WHERE project_id = ?;`, [project_id]);
-  responseData.mission_exp = result.row[0].mission_exp;
-
   //전체 보상 재화 
   result = await DB(`
   SELECT 
@@ -164,7 +213,7 @@ export const requestMissionAllReward = async(req, res) => {
   responseData.reward = result.row; 
 
   responseData.bank = {};
-  console.log(`all_clear : ${all_clear}`);
+  console.log(`all_clear : ${userkey}/${project_id}/${all_clear}`);
   if(all_clear === 1){
     currentQuery = `CALL sp_insert_user_property(?, ?, ?, ?);`;
     // eslint-disable-next-line no-restricted-syntax
