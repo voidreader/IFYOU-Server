@@ -125,6 +125,7 @@ import {
   coinProductDetail,
   getCoinProductPurchaseList,
   requestTotalCoinShop,
+  requestLocalizingCoinShop,
 } from "./coinController";
 
 import { getLevelList, updateUserLevelProcess } from "./levelController";
@@ -1410,6 +1411,7 @@ export const clientHome = (req, res) => {
   else if (func === "purchasePremiumPass") purchasePremiumPass(req, res);
   else if (func === "requestSelectionHint") requestSelectionHint(req, res); // 선택지 힌트
   else if (func === "requestMissionAllReward") requestMissionAllReward(req, res); // 미션 전체 클리어 보상
+  else if (func === "requestLocalizingCoinShop") requestLocalizingCoinShop(req, res); //코인샵 다국어
   else {
     //  res.status(400).send(`Wrong Func : ${func}`);
     logger.error(`clientHome Error ${func}`);
