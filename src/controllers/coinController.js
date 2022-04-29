@@ -889,6 +889,26 @@ export const updateProjectViewCnt = async () => {
   }
 };
 
+//! 다국어 로컬 라이징 
+export const requestLocalizingCoinShop = async (req, res) =>{
+  logger.info(`requestLocalizingCoinShop`);
+
+  const {
+    body:{
+      lang = "KO", 
+    }
+  } = req;
+
+  const result = await DB(`
+  SELECT 
+  id
+  , ${lang} message 
+  FROM com_localize
+  WHERE id IN (7015,7018,7006,7007,7021,6017,7003,7010,7011,7012,7017,7004,7005,7019,7020,7000,7001,7002,7022);`);
+
+  res.status(200).json(result.row);
+};
+
 //// 차후에 삭제할 예정
 const getColumn = (kind, lang) => {
   let result = `   
@@ -1020,3 +1040,4 @@ export const coinProductDetail = async (req, res) => {
 
   res.status(200).json(list);
 };
+
