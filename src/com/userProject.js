@@ -705,7 +705,7 @@ export const updateUserNickname = async (req, res) => {
   );
   if (!result.state || result.row.length > 0) {
     logger.error(`updateUserNickname error 3`);
-    respondDB(res, 80100);
+    respondDB(res, 80119);
     return;
   }
 
