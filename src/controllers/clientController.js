@@ -75,7 +75,11 @@ import {
   requestReceiveAllMail,
   requestReceiveSingleMail,
 } from "./mailController";
-import { userMissionList, userMisionReceive, requestMissionAllReward, } from "./missionController";
+import {
+  userMissionList,
+  userMisionReceive,
+  requestMissionAllReward,
+} from "./missionController";
 import { respondDB } from "../respondent";
 import {
   updateSelectionProgress,
@@ -1135,38 +1139,79 @@ export const getCommingList = async (req, res) => {
   res.status(200).json(result.row);
 };
 
+// * 맥북에서 업로드된 리소스들 때문에.. 이름 일괄 변경 처리 */
 const normalizeResource = async (req, res) => {
-  /*
-  const result = await DB(`
-  SELECT les.emoticon_slave_id id, les.image_name  FROM list_emoticon_master lem, list_emoticon_slave les  
-WHERE lem.project_id = 94
-  AND lem.emoticon_master_id = les.emoticon_master_id ;
-  `);
+  const {
+    body: { project_id },
+  } = req;
 
-  // const query = ``;
+  // 배경
+  const result = await DB(`
+  select lb.bg_id id, lb.image_name
+    FROM list_bg lb
+  WHERE lb.project_id = ${project_id};
+  `);
 
   result.row.forEach((item) => {
     DB(
       `
-    UPDATE list_emoticon_slave
+    UPDATE list_bg
        set image_name = ?
-    WHERE emoticon_slave_id = ?
-      AND project_id = 94;
+    WHERE bg_id = ?
+      AND project_id = ${project_id};
     `,
       [item.image_name.normalize("NFC"), item.id]
     );
 
     // item.image_name = item.image_name.normalize("NFC");
   });
-  */
 
-  const result = await DB(`
-  SELECT a.script_no, script_data, sound_effect, emoticon_expression 
-  FROM list_script a
- WHERE a.project_id = 94;
+  const minicutResult = await DB(`
+  select a.minicut_id id, a.image_name 
+    from list_minicut a
+  WHERE a.project_id = ${project_id};
   `);
 
-  result.row.forEach((item) => {
+  minicutResult.row.forEach((item) => {
+    DB(
+      `
+    UPDATE list_minicut
+       set image_name = ?
+    WHERE minicut_id = ?
+      AND project_id = ${project_id};
+    `,
+      [item.image_name.normalize("NFC"), item.id]
+    );
+  });
+
+  const emoticonResult = await DB(`
+  SELECT les.emoticon_slave_id id, les.image_name  FROM list_emoticon_master lem, list_emoticon_slave les  
+WHERE lem.project_id = ${project_id}
+  AND lem.emoticon_master_id = les.emoticon_master_id ;
+  `);
+
+  // const query = ``;
+
+  emoticonResult.row.forEach((item) => {
+    DB(
+      `
+    UPDATE list_emoticon_slave
+       set image_name = ?
+    WHERE emoticon_slave_id = ?
+      AND project_id = ${project_id};
+    `,
+      [item.image_name.normalize("NFC"), item.id]
+    );
+  });
+
+  // * 스크립트 처리
+  const scriptResult = await DB(`
+  SELECT a.script_no, script_data, sound_effect, emoticon_expression 
+  FROM list_script a
+ WHERE a.project_id = ${project_id};
+  `);
+
+  scriptResult.row.forEach((item) => {
     DB(
       `UPDATE list_script
            SET script_data = ?
@@ -1280,8 +1325,6 @@ export const clientHome = (req, res) => {
   else if (func === "getProjectEpisodeProgressCount")
     getProjectEpisodeProgressCount(req, res);
   else if (func === "requestFreeCharge") requestFreeCharge(req, res);
-  else if (func === "requestExchangeOneTimeTicketWithCoin")
-    requestExchangeOneTimeTicketWithCoin(req, res);
   else if (func === "requestPromotionList") getPromotionList(req, res);
   else if (func === "userCoinPurchase") userCoinPurchase(req, res);
   else if (func === "updateUserSelectionCurrent")
@@ -1409,9 +1452,15 @@ export const clientHome = (req, res) => {
   // 유저의 활성화된 타임딜 가져오기
   else if (func === "getUserActiveTimeDeal") getUserActiveTimeDeal(req, res);
   else if (func === "purchasePremiumPass") purchasePremiumPass(req, res);
-  else if (func === "requestSelectionHint") requestSelectionHint(req, res); // 선택지 힌트
-  else if (func === "requestMissionAllReward") requestMissionAllReward(req, res); // 미션 전체 클리어 보상
-  else if (func === "requestLocalizingCoinShop") requestLocalizingCoinShop(req, res); //코인샵 다국어
+  else if (func === "requestSelectionHint") requestSelectionHint(req, res);
+  // 선택지 힌트
+  else if (func === "requestMissionAllReward")
+    requestMissionAllReward(req, res);
+  // 미션 전체 클리어 보상
+  else if (func === "requestLocalizingCoinShop")
+    requestLocalizingCoinShop(req, res);
+  //코인샵 다국어
+  else if (func === "normalizeResource") normalizeResource(req, res);
   else {
     //  res.status(400).send(`Wrong Func : ${func}`);
     logger.error(`clientHome Error ${func}`);
