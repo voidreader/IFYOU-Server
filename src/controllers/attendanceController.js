@@ -12,8 +12,7 @@ export const attendanceList = async (req, res) => {
 
   const responseData = {};
   const attendanceArray = [];
-  // 반복이거나 아직 덜 받은 얘들만
-  // 금일에 받은 출석 보상은 제외
+  // 연속 출석 제외
   const result = await DB(
     `
     SELECT a.attendance_id 
@@ -30,6 +29,7 @@ export const attendanceList = async (req, res) => {
     AND b.currency = c.currency
     AND is_public > 0
     AND now() BETWEEN from_date AND to_date
+    AND kind <> -1
     ;`
   );
 
