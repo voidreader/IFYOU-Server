@@ -3625,7 +3625,7 @@ export const requestSelectionHint = async (req, res) => {
   , price
   FROM com_ending_hint 
   WHERE project_id = ? 
-  AND unlock_scenes LIKE CONCAT('%', ?, '%');
+  AND find_in_set(?, unlock_scenes);
   `,
     [lang, lang, project_id, scene_id]
   );
