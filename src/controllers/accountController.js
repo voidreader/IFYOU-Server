@@ -2674,6 +2674,7 @@ const getProjectResources = async (project_id, lang, bubbleID, userkey) => {
     }
   }
 
+  // [14] 씬 프로그레스
   const scenceProgress = [];
   if (result.row[14].length > 0) {
     // eslint-disable-next-line no-restricted-syntax
@@ -2681,6 +2682,8 @@ const getProjectResources = async (project_id, lang, bubbleID, userkey) => {
       scenceProgress.push(item.scene_id);
     }
   }
+
+  // [15] 씬 히스토리
   const scenceHistory = [];
   if (result.row[15].length > 0) {
     // eslint-disable-next-line no-restricted-syntax
@@ -2689,6 +2692,7 @@ const getProjectResources = async (project_id, lang, bubbleID, userkey) => {
     }
   }
 
+  // [19] 에피소드 프로그레스
   const episodeProgress = [];
   if (result.row[19].length > 0) {
     // eslint-disable-next-line no-restricted-syntax
@@ -2696,6 +2700,8 @@ const getProjectResources = async (project_id, lang, bubbleID, userkey) => {
       episodeProgress.push(item.episode_id);
     }
   }
+
+  // [20] 에피소드 히스토리
   const episodeHistory = [];
   if (result.row[20].length > 0) {
     // eslint-disable-next-line no-restricted-syntax
@@ -2704,7 +2710,7 @@ const getProjectResources = async (project_id, lang, bubbleID, userkey) => {
     }
   }
 
-  //엔딩 힌트에 능력치 조건 추가
+  // [23] 엔딩 힌트에 능력치 조건 추가
   if (result.row[23].length > 0) {
     // eslint-disable-next-line no-restricted-syntax
     for (const item of result.row[23]) {
@@ -2744,7 +2750,7 @@ const getProjectResources = async (project_id, lang, bubbleID, userkey) => {
     }
   }
 
-  //스페셜 에피소드 힌트 관련 에피소드 추가
+  // [18] 스페셜 에피소드 힌트 관련 에피소드 추가
   if (result.row[18].length > 0) {
     // eslint-disable-next-line no-restricted-syntax
     for (const item of result.row[18]) {
@@ -2771,7 +2777,7 @@ const getProjectResources = async (project_id, lang, bubbleID, userkey) => {
     }
   }
 
-  // 선택지 힌트 구매
+  // [24] 선택지 힌트 구매
   const selectionHintPurchase = {};
   if (result.row[24].length > 0) {
     // eslint-disable-next-line no-restricted-syntax
