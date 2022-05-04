@@ -798,7 +798,7 @@ const UnlockUserAllGalleryImage = async (req, res) => {
    WHERE a.project_id = ${project_id}
      AND a.is_public = 1
      AND a.appear_episode > 0
-     AND a.live_pair_id > 0;
+     ;
   
   INSERT INTO user_illust (userkey, project_id, illust_id, illust_type) 
   SELECT ${userkey}, a.project_id, a.live_illust_id, 'live2d'
