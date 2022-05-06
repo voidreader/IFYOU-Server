@@ -219,6 +219,59 @@ export const sendAttendanceReward = async (req, res) => {
     VALUES(?, 'attendance', ?, ?, DATE_ADD(NOW(), INTERVAL 1 YEAR), -1);`;
   updateQuery += mysql.format(currentQuery, [userkey, currency, quantity]);
 
+
+  //연속 출석 시즌일 가져오기
+  result = await DB(`
+  SELECT 
+  DATE_FORMAT(start_date, '%Y-%m-%d %T') start_date
+  , DATE_FORMAT(end_date, '%Y-%m-%d %T') end_date
+  , (SELECT ifnull(max(attendance_id), 0) FROM com_attendance WHERE attendance_id > 0 AND is_kind <> -1) continuous_attendance_id
+  FROM com_attendance_season cas WHERE season_no = 0;`);
+  
+  const {
+    start_date, 
+    end_date,
+    continuous_attendance_id, 
+  } = result.row[0];
+
+  //연속 출석 처리
+  if(continuous_attendance_id > 0){
+    result = await DB(`
+    SELECT
+    attendance_no
+    , is_attendance
+    , CASE WHEN date(attendance_date) = date(now()) THEN 1 ELSE 0 END attendance_done
+    , CASE WHEN date(DATE_ADD(attendance_date, INTERVAL 1 DAY)) = date(now()) THEN 1 ELSE 0 END attendance_check
+    FROM user_continuous_attendance 
+    WHERE userkey = ? 
+    AND create BETWEEN ? AND ?;`, [userkey, start_date, end_date]);
+    if(result.state){
+      if(result.row.length === 0){
+        //없는 경우, 연속 출석 시작
+        currentQuery = `INSERT INTO user_continuous_attendance(attendace_id, attendance_date) VALUES(?, now());`;
+        updateQuery += mysql.format(currentQuery, [continuous_attendance_id]);
+      }else{
+        const { attendance_no, is_attendance, attendance_done, attendance_check, } = result.row[0];
+        //연속출석 가능하고, 금일 연속 출석을 안한 경우 
+        if(is_attendance === 1 && attendance_done === 0){ 
+          if(attendance_check === 1){ //마지막출석+1 === 현재
+            currentQuery = `
+            UPDATE user_continuous_attendance 
+            SET current_result = current_result + 1
+            , attendance_date = now()
+            WHERE attendance_no = ?`;
+          }else{ //마지막출석+1 !== 현재
+            currentQuery = `
+            UPDATE user_continuous_attendance
+            SET is_attendance = 0 
+            WHERE attendance_no = ?;`;
+          }
+          updateQuery += mysql.format(currentQuery, [attendance_no]);
+        }
+      }
+    }
+  }
+
   result = await transactionDB(updateQuery);
   if (!result.state) {
     logger.error(`sendAttendanceReward Error 4 ${result.error}`);
@@ -572,6 +625,7 @@ export const resetAttendanceMission = async (req, res) => {
     UPDATE user_continuous_attendance 
     SET current_result = current_result + ?
     , attendace_date = now()
+    , is_attendance = 1
     ${updateColum}
     WHERE userkey = ? 
     AND attendance_no = ?;
