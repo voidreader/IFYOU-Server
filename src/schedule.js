@@ -379,3 +379,58 @@ export const scheduleGrade = schedule.scheduleJob(gradeRule, async () => {
 
   if (gradeCheck === 1) calculateGradeMonth(); //시즌 끝일이면, 정산 시작
 });
+
+//! 연속 출석 체크 
+export const scheduleAttendanceMission = schedule.scheduleJob(
+  "0 0 0 * * *",
+  async () => {
+    
+    const isMail = process.env.MAIL_SCHEDULE;
+
+    logger.info(`scheduleAttendanceMission Start`);
+
+    if (isMail < 1) return;
+
+    let seasonCheck = 0;
+    let start_date = ``; 
+    let end_date = ``; 
+    let next_start_date = 0; 
+    let next_end_date = 0; 
+
+    let result = await DB(`
+    SELECT
+    CASE WHEN date(now()) = date(end_date) THEN 1 ELSE 0 END seasonCheck -- 시즌 끝일
+    , DATE_FORMAT(next_start_date, '%Y-%m-%d %T') start_date
+    , DATE_FORMAT(next_end_date, '%Y-%m-%d %T') end_date
+    , DATE_ADD(next_start_date, INTERVAL 14 DAY) next_start_date 
+	  , DATE_ADD(next_end_date, INTERVAL 14 DAY) next_end_date 
+    FROM com_attendance_season cas WHERE season_no = 0;
+    `);
+    if (result.state && result.row.length > 0) {
+      seasonCheck = result.row[0].seasonCheck;
+      start_date = result.row[0].start_date;
+      end_date = result.row[0].end_date;
+      next_start_date = result.row[0].next_start_date;
+      next_end_date = result.row[0].next_end_date;
+    }
+
+    //시즌 끝일이면, 시즌 업데이트
+    if (seasonCheck === 1) {
+      result = await DB(`
+      UPDATE com_attendance_season
+      SET start_date = ?
+      , end_date = ?
+      , next_start_date = ?
+      , next_end_date = ? 
+      WHERE season_no = 0;
+      `, [start_date, end_date, next_start_date, next_end_date]);
+    }
+
+    if(!result.state){
+      logger.error(`scheduleAttendanceMission Error`);
+      return;
+    }
+
+    logger.info(`scheduleStatInsert End`);
+  }
+);
