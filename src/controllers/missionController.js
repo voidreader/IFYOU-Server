@@ -37,7 +37,6 @@ export const userMissionList = async (req, res) => {
 
 //! 미션 받기
 export const userMisionReceive = async (req, res) => {
-  
   const {
     body: { project_id, mission_id, userkey },
   } = req;
@@ -85,17 +84,21 @@ export const userMisionReceive = async (req, res) => {
   }
 
   // * 등급 경험치 처리
-  let result = await DB(`
+  let result = await DB(
+    `
   SELECT a.grade, next_grade, grade_experience
   FROM table_account a, com_grade b   
   WHERE a.grade = b.grade  
   AND userkey = ?;
-  `, [userkey]);
+  `,
+    [userkey]
+  );
 
   let currentGrade = result.row[0].grade; // * 현재 등급
-  if (result.row[0].next_grade > result.row[0].grade) currentGrade = result.row[0].next_grade; //*시즌 중에 승급을 했으면, 현재 그레이드는 next_grade로 변경
+  if (result.row[0].next_grade > result.row[0].grade)
+    currentGrade = result.row[0].next_grade; //*시즌 중에 승급을 했으면, 현재 그레이드는 next_grade로 변경
   responseData.grade_info = {
-    current_grade: currentGrade, 
+    current_grade: currentGrade,
     next_grade: currentGrade,
   };
 
@@ -112,7 +115,15 @@ export const userMisionReceive = async (req, res) => {
   ${MQ_CLIENT_UPDATE_MISSION}
   UPDATE table_account SET grade_experience = grade_experience + ? WHERE userkey = ?;
   `,
-    [userkey, reward_currency, reward_quantity, "mission", mission_id, reward_exp, userkey]
+    [
+      userkey,
+      reward_currency,
+      reward_quantity,
+      "mission",
+      mission_id,
+      reward_exp,
+      userkey,
+    ]
   );
 
   if (!result.state) {
@@ -145,13 +156,13 @@ export const userMisionReceive = async (req, res) => {
     if (!upgradeResult.state) {
       logger.error(upgradeResult.error);
     }
-    responseData.grade_info.next_grade = currentGrade+1;
+    responseData.grade_info.next_grade = currentGrade + 1;
   }
 
-  logAction(userkey, "mission", { 
+  logAction(userkey, "mission", {
     userkey,
     mission_id,
-    grade:currentGrade,
+    grade: currentGrade,
     total_exp: currentExp,
     get_exp: reward_exp,
     max_exp: maxExp,
@@ -162,43 +173,44 @@ export const userMisionReceive = async (req, res) => {
   res.status(200).json(responseData);
 };
 
-
-//! 전체 미션 보상 
-export const requestMissionAllReward = async(req, res) => {
-  
+//! 전체 미션 보상
+export const requestMissionAllReward = async (req, res) => {
   const {
-    body:{
-      userkey, 
-      project_id = -1, 
-      lang = "KO",
-    }
+    body: { userkey, project_id = -1, lang = "KO" },
   } = req;
 
   const responseData = {};
   let all_clear = 0;
   let result = ``;
-  let currentQuery = ``; 
+  let currentQuery = ``;
   let updateQuery = ``;
 
-
-  //이미 전체 보상을 받은 경우 
-  result = await DB(`SELECT * FROM user_mission_all_clear WHERE userkey = ? AND project_id = ?;`, [userkey, project_id]);
-  if(result.state && result.row.length > 0){
+  //이미 전체 보상을 받은 경우
+  result = await DB(
+    `SELECT * FROM user_mission_all_clear WHERE userkey = ? AND project_id = ?;`,
+    [userkey, project_id]
+  );
+  if (result.state && result.row.length > 0) {
     logger.error(`requestMissionAllReward Error`);
     respondDB(res, 80025, "already received reward.");
     return;
   }
 
-  //전체 미션 달성 확인 
-  result= await DB(`
+  //전체 미션 달성 확인
+  result = await DB(
+    `
   SELECT 
-  fn_check_mission_all_clear(?, ?, ?) all_clear
+  fn_check_mission_all_clear_simple(?, ?) all_clear
   FROM DUAL;
-  `, [userkey, project_id, lang]);
-  if(result.state && result.row.length > 0) all_clear = result.row[0].all_clear;
+  `,
+    [userkey, project_id]
+  );
+  if (result.state && result.row.length > 0)
+    all_clear = result.row[0].all_clear;
 
-  //전체 보상 재화 
-  result = await DB(`
+  //전체 보상 재화
+  result = await DB(
+    `
   SELECT 
   a.currency
   , a.quantity
@@ -209,35 +221,41 @@ export const requestMissionAllReward = async(req, res) => {
   WHERE a.currency = b.currency
   AND a.project_id = ? 
   ORDER BY a.sortkey; 
-  `, [project_id]);
-  responseData.reward = result.row; 
+  `,
+    [project_id]
+  );
+  responseData.reward = result.row;
 
   responseData.bank = {};
   console.log(`all_clear : ${userkey}/${project_id}/${all_clear}`);
-  if(all_clear === 1){
+  if (all_clear === 1) {
     currentQuery = `CALL sp_insert_user_property(?, ?, ?, ?);`;
     // eslint-disable-next-line no-restricted-syntax
-    for(const item of result.row){
-      updateQuery += mysql.format(currentQuery, [userkey, item.currency, item.quantity, 'mission_all']);
+    for (const item of result.row) {
+      updateQuery += mysql.format(currentQuery, [
+        userkey,
+        item.currency,
+        item.quantity,
+        "mission_all",
+      ]);
     }
 
     currentQuery = `INSERT INTO user_mission_all_clear(userkey, project_id) VALUES(?, ?);`;
     updateQuery += mysql.format(currentQuery, [userkey, project_id]);
 
-    result = await transactionDB(updateQuery); 
-    if(!result.state){
+    result = await transactionDB(updateQuery);
+    if (!result.state) {
       logger.error(`requestMissionAllReward Error ${result.error}`);
       respondDB(res, 80026, result.error);
-      return;      
+      return;
     }
 
     responseData.bank = await getUserBankInfo(req.body);
   }
- 
+
   logAction(userkey, "mission_all", req.body);
 
   res.status(200).json(responseData);
-
 };
 
 ////////// 클라이언트 호출 종료 /////////////////
