@@ -138,7 +138,13 @@ import {
   getCoinExchangeProductList,
   coinExchangePurchase,
 } from "./exchangeController";
-import { attendanceList, sendAttendanceReward, requestAttendanceMission, } from "./attendanceController";
+import { 
+  attendanceList,
+  sendAttendanceReward,
+  requestAttendanceMission,
+  receiveAttendanceMissionReward,
+  resetAttendanceMission,
+} from "./attendanceController";
 import { updateSnippetPlayCount } from "./snippetController";
 import { firstResetAbility, addUserAbility } from "./abilityController";
 import {
@@ -1461,7 +1467,9 @@ export const clientHome = (req, res) => {
     requestLocalizingCoinShop(req, res);
   //코인샵 다국어
   else if (func === "normalizeResource") normalizeResource(req, res);
-  else if (func === "requestAttendanceMission") requestAttendanceMission(req, res); //출석 미션
+  else if (func === "requestAttendanceMission") requestAttendanceMission(req, res); //연속 출석 미션
+  else if (func === "receiveAttendanceMissionReward") receiveAttendanceMissionReward(req, res); //연속 출석 미션 보상 받기
+  else if (func === "resetAttendanceMission") resetAttendanceMission(req, res); //연속 출석 미션 보충
   else {
     //  res.status(400).send(`Wrong Func : ${func}`);
     logger.error(`clientHome Error ${func}`);

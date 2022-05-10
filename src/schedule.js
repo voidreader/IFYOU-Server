@@ -379,3 +379,40 @@ export const scheduleGrade = schedule.scheduleJob(gradeRule, async () => {
 
   if (gradeCheck === 1) calculateGradeMonth(); //시즌 끝일이면, 정산 시작
 });
+
+//! 연속 출석 미션 시즌 업데이트
+export const scheduleContinuousAttendance  = schedule.scheduleJob(
+  "0 0 0 * * *",
+  async () => {
+    const isMail = process.env.MAIL_SCHEDULE;
+
+    if (isMail < 1) return;
+
+    logger.info(`scheduleContinuousAttendance Start [${isMail}]`);
+
+    //시즌 갱신
+    const result = await DB(`
+    SELECT 
+    DATE_FORMAT(next_start_date, '%Y-%m-%d %T') next_start_date
+    , DATE_FORMAT(next_end_date, '%Y-%m-%d %T') next_end_date
+    , date_add(date_format(next_end_date, '%Y-%m-%d'), INTERVAL 1 DAY) season_start_date
+    , date_add(date_add(date_format(next_end_date, '%Y-%m-%d'), INTERVAL 1 DAY), INTERVAL 14 DAY) season_end_date
+    , CASE WHEN date(next_start_date) = date(now()) THEN 1 ELSE 0 END season_check
+    FROM com_attendance_season WHERE season_no = 0;
+    `);
+    const { next_start_date, next_end_date, season_start_date, season_end_date, season_check, } = result.row[0];
+
+    if(season_check === 1){
+      await DB(`
+      UPDATE com_attendance_season
+      SET start_date = ?
+      , end_date = ?
+      , next_start_date = concat(?, ' 00:00:00')  
+      , next_end_date = concat(?, ' 23:59:59')  
+      WHERE season_no = 0;`, [next_start_date, next_end_date, season_start_date, season_end_date]);
+
+      logger.info(`scheduleContinuousAttendance End`);
+    }
+  }
+
+);
