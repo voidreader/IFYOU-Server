@@ -142,6 +142,7 @@ export const userMisionReceive = async (req, res) => {
 
   const maxExp = maxExpResult.row[0].upgrade_point; // max exp
   const currentExp = responseData.experience_info.total_exp; // 현재 상태의 exp
+  responseData.grade_info.upgrade_point = maxExp;
 
   // 현재 경험치가 맥스 이상이되었음. => 등급업.
   if (currentExp >= maxExp) {
@@ -156,7 +157,22 @@ export const userMisionReceive = async (req, res) => {
     if (!upgradeResult.state) {
       logger.error(upgradeResult.error);
     }
+
+    //  등급업
     responseData.grade_info.next_grade = currentGrade + 1;
+
+    // 등급 업된 경우 total_exp 갱신
+    const preTotalExp = responseData.experience_info.total_exp;
+    responseData.experience_info.total_exp = preTotalExp - maxExp;
+
+    // 올라간 등급의 max 경험치를 다시 구해야한다.
+    const newMaxExpResult = await DB(`
+      SELECT a.upgrade_point 
+      FROM com_grade a
+    WHERE a.grade = ${responseData.grade_info.next_grade};
+    `);
+    responseData.grade_info.upgrade_point =
+      newMaxExpResult.row[0].upgrade_point;
   }
 
   logAction(userkey, "mission", {
