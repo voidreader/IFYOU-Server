@@ -161,7 +161,7 @@ export const userMisionReceive = async (req, res) => {
     //  등급업
     responseData.grade_info.next_grade = currentGrade + 1;
 
-    // 등급 업된 경우 total_exp 갱신
+    // 등급 오른 경우 total_exp 갱신
     const preTotalExp = responseData.experience_info.total_exp;
     responseData.experience_info.total_exp = preTotalExp - maxExp;
 
