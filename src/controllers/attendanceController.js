@@ -73,6 +73,47 @@ const getAttendanceList = async (userkey) => {
   return responseData;
 };
 
+
+//! 연속 출석 리스트
+const getContinuousAttendanceList = async (userkey) =>{
+
+  const responseData = {};
+
+  //유저 정보
+  let result = await DB(`
+  SELECT 
+  DATE_FORMAT(start_date, '%Y-%m-%d %T') start_date
+  , DATE_FORMAT(end_date, '%Y-%m-%d %T') end_date
+  , fn_get_continuous_attendance(?, start_date, end_date, 0, 'day') attendance_day
+  , fn_get_continuous_attendance(?, start_date, end_date, 0, 'check') is_attendance
+  , DATEDIFF(end_date, now()) remain_day 
+  , DATEDIFF(now(), start_date)+1-fn_get_continuous_attendance(?, start_date, end_date, 0, 'day') reset_day 
+  FROM com_attendance_season
+  WHERE season_no = 0;
+  `, [userkey, userkey, userkey]);
+  responseData.user_info = result.row;
+
+  const { start_date, end_date } = result.row[0];
+
+  //연속 출석
+  result = await DB(`
+  SELECT 
+  day_seq
+  , fn_get_design_info(cc.icon_image_id, 'url') currency_url
+  , fn_get_design_info(cc.icon_image_id, 'key') currency_key
+  , quantity
+  , fn_get_continuous_attendance(?, ?, ?, day_seq, 'reward') reward_check
+  FROM com_attendance_daily cad INNER JOIN com_currency cc ON cad.currency = cc.currency
+  WHERE cad.attendance_id = fn_get_max_attendance_id(-1, 'com');`, [userkey, start_date, end_date]);
+  if(result.state && result.row.length > 0) responseData.continuous_attendance = result.row; 
+
+  //기존 출석
+  result = await getAttendanceList(userkey);
+  responseData.attendance = result; 
+
+  return responseData;
+};
+
 //! 출석리스트
 export const attendanceList = async (req, res) => {
   const {
@@ -90,7 +131,7 @@ export const sendAttendanceReward = async (req, res) => {
     body: { userkey, attendance_id = 0, day_seq = 0 },
   } = req;
 
-  const responseData = {};
+  let responseData = {};
 
   //* 유효한지 확인
   let result = await DB(
@@ -296,51 +337,21 @@ export const sendAttendanceReward = async (req, res) => {
   if (unreadMailResult.state && unreadMailResult.row.length > 0)
     responseData.unreadMailCount = unreadMailResult.row[0].cnt;
 
+
+  result = await getContinuousAttendanceList(userkey);
+
+  responseData = {
+    ...responseData,
+    user_info: result.user_info,
+    continuous_attendance: result.continuous_attendance,
+    attendance: result.attendance,
+  };
+
   res.status(200).json(responseData);
   logAction(userkey, "attendance", req.body);
 };
 
 //? 이프유 플레이 시작
-
-//! 연속 출석 리스트
-const getContinuousAttendanceList = async (userkey) =>{
-
-  const responseData = {};
-
-  //유저 정보
-  let result = await DB(`
-  SELECT 
-  DATE_FORMAT(start_date, '%Y-%m-%d %T') start_date
-  , DATE_FORMAT(end_date, '%Y-%m-%d %T') end_date
-  , fn_get_continuous_attendance(?, start_date, end_date, 0, 'day') attendance_day
-  , fn_get_continuous_attendance(?, start_date, end_date, 0, 'check') is_attendance
-  , DATEDIFF(end_date, now()) remain_day 
-  , DATEDIFF(now(), start_date)+1-fn_get_continuous_attendance(?, start_date, end_date, 0, 'day') reset_day 
-  FROM com_attendance_season
-  WHERE season_no = 0;
-  `, [userkey, userkey, userkey]);
-  responseData.user_info = result.row;
-
-  const { start_date, end_date } = result.row[0];
-
-  //연속 출석
-  result = await DB(`
-  SELECT 
-  day_seq
-  , fn_get_design_info(cc.icon_image_id, 'url') currency_url
-  , fn_get_design_info(cc.icon_image_id, 'key') currency_key
-  , quantity
-  , fn_get_continuous_attendance(?, ?, ?, day_seq, 'reward') reward_check
-  FROM com_attendance_daily cad INNER JOIN com_currency cc ON cad.currency = cc.currency
-  WHERE cad.attendance_id = fn_get_max_attendance_id(-1, 'com');`, [userkey, start_date, end_date]);
-  if(result.state && result.row.length > 0) responseData.continuous_attendance = result.row; 
-
-  //기존 출석
-  result = await getAttendanceList(userkey);
-  responseData.attendance = result; 
-
-  return responseData;
-};
 
 //! 출석 미션 리스트 
 export const requestAttendanceMission = async(req, res) =>{
