@@ -3,34 +3,32 @@ import { response } from "express";
 import { DB, logAction, transactionDB } from "../mysqldb";
 import { logger } from "../logger";
 import { respondDB } from "../respondent";
+import { getUserBankInfo, getCurrencyQuantity } from "./bankController";
 
-//! 출석리스트
-export const attendanceList = async (req, res) => {
-  const {
-    body: { userkey },
-  } = req;
+const getAttendanceList = async (userkey) => {
+ 
+ const responseData = {};
+ const attendanceArray = [];
 
-  const responseData = {};
-  const attendanceArray = [];
-  // 반복이거나 아직 덜 받은 얘들만
-  // 금일에 받은 출석 보상은 제외
-  const result = await DB(
-    `
-    SELECT a.attendance_id 
-    , day_seq
-    , b.currency
-    , quantity
-    , fn_get_design_info(icon_image_id, 'url') icon_image_url
-    , fn_get_design_info(icon_image_id, 'key') icon_image_key
-    , fn_check_attendance_exists(${userkey}, a.attendance_id, day_seq, fn_get_attendance_max(${userkey}, a.attendance_id)) is_receive -- 보상 수령 여부 
-    , fn_check_attendance_past_check(${userkey}, a.attendance_id, b.day_seq) is_past -- 대상 day_seq가 과거인지 체크 
-    FROM com_attendance a, com_attendance_daily b, com_currency c
-    WHERE a.attendance_id > 0
-    AND a.attendance_id = b.attendance_id
-    AND b.currency = c.currency
-    AND is_public > 0
-    AND now() BETWEEN from_date AND to_date
-    ;`
+ // 연속 출석 제외
+ const result = await DB(
+  `
+  SELECT a.attendance_id 
+  , day_seq
+  , b.currency
+  , quantity
+  , fn_get_design_info(icon_image_id, 'url') icon_image_url
+  , fn_get_design_info(icon_image_id, 'key') icon_image_key
+  , fn_check_attendance_exists(${userkey}, a.attendance_id, day_seq, fn_get_attendance_max(${userkey}, a.attendance_id)) is_receive -- 보상 수령 여부 
+  , fn_check_attendance_past_check(${userkey}, a.attendance_id, b.day_seq) is_past -- 대상 day_seq가 과거인지 체크 
+  FROM com_attendance a, com_attendance_daily b, com_currency c
+  WHERE a.attendance_id > 0
+  AND a.attendance_id = b.attendance_id
+  AND b.currency = c.currency
+  AND is_public > 0
+  AND now() BETWEEN from_date AND to_date
+  AND kind <> -1
+  ;`
   );
 
   let isCurrentDecided = false; // 현재 dayseq 결정됨
@@ -72,7 +70,59 @@ export const attendanceList = async (req, res) => {
     });
   }
 
-  res.status(200).json(responseData);
+  return responseData;
+};
+
+
+//! 연속 출석 리스트
+const getContinuousAttendanceList = async (userkey) =>{
+
+  const responseData = {};
+
+  //유저 정보
+  let result = await DB(`
+  SELECT 
+  DATE_FORMAT(start_date, '%Y-%m-%d %T') start_date
+  , DATE_FORMAT(end_date, '%Y-%m-%d %T') end_date
+  , fn_get_continuous_attendance(?, start_date, end_date, 0, 'day') attendance_day
+  , fn_get_continuous_attendance(?, start_date, end_date, 0, 'check') is_attendance
+  , DATEDIFF(end_date, now()) remain_day 
+  , DATEDIFF(now(), start_date)+1-fn_get_continuous_attendance(?, start_date, end_date, 0, 'day') reset_day 
+  FROM com_attendance_season
+  WHERE season_no = 0;
+  `, [userkey, userkey, userkey]);
+  responseData.user_info = result.row;
+
+  const { start_date, end_date } = result.row[0];
+
+  //연속 출석
+  result = await DB(`
+  SELECT 
+  day_seq
+  , fn_get_design_info(cc.icon_image_id, 'url') currency_url
+  , fn_get_design_info(cc.icon_image_id, 'key') currency_key
+  , quantity
+  , fn_get_continuous_attendance(?, ?, ?, day_seq, 'reward') reward_check
+  FROM com_attendance_daily cad INNER JOIN com_currency cc ON cad.currency = cc.currency
+  WHERE cad.attendance_id = fn_get_max_attendance_id(-1, 'com');`, [userkey, start_date, end_date]);
+  if(result.state && result.row.length > 0) responseData.continuous_attendance = result.row; 
+
+  //기존 출석
+  result = await getAttendanceList(userkey);
+  responseData.attendance = result; 
+
+  return responseData;
+};
+
+//! 출석리스트
+export const attendanceList = async (req, res) => {
+  const {
+    body: { userkey },
+  } = req;
+
+  const result = await getAttendanceList(userkey);
+ 
+  res.status(200).json(result);
 };
 
 //! 출석 보상
@@ -81,7 +131,7 @@ export const sendAttendanceReward = async (req, res) => {
     body: { userkey, attendance_id = 0, day_seq = 0 },
   } = req;
 
-  const responseData = {};
+  let responseData = {};
 
   //* 유효한지 확인
   let result = await DB(
@@ -210,6 +260,62 @@ export const sendAttendanceReward = async (req, res) => {
     VALUES(?, 'attendance', ?, ?, DATE_ADD(NOW(), INTERVAL 1 YEAR), -1);`;
   updateQuery += mysql.format(currentQuery, [userkey, currency, quantity]);
 
+
+  // 연속 출석 처리
+  result = await DB(`
+  SELECT 
+  DATE_FORMAT(start_date, '%Y-%m-%d %T') start_date
+  , DATE_FORMAT(end_date, '%Y-%m-%d %T') end_date
+  , CASE WHEN date(start_date) = date(now()) THEN 1 ELSE 0 END start_check
+  , fn_get_max_attendance_id(-1, 'com') continuous_attendance_id
+  , ifnull(fn_get_max_attendance_id(?, 'user'), 0) attendance_no
+  FROM com_attendance_season
+  WHERE season_no = 0;`, [userkey, userkey]);
+  const { start_date, end_date, start_check, continuous_attendance_id, attendance_no, } = result.row[0];
+  if(attendance_no === 0){ //시즌 시작일
+    if(start_check === 1){
+      currentQuery = `INSERT INTO user_continuous_attendance(attendance_id, userkey, current_result, start_date, end_date) VALUES(?, ?, 1, ?, ?);`;
+      updateQuery += mysql.format(currentQuery, [continuous_attendance_id, userkey, start_date, end_date]);
+    }
+  }else{ //시즌 시작 그 이후에
+    result = await DB(`
+    SELECT
+    CASE WHEN attendance_date IS NOT NULL THEN 
+      CASE WHEN date(DATE_ADD(attendance_date, INTERVAL 1 DAY)) = date(now()) THEN 0 
+           WHEN date(DATE_ADD(attendance_date, INTERVAL 1 DAY)) < date(now()) THEN -1
+      ELSE 1 END 
+    ELSE 0 END attendance_done
+    , current_result
+    , day_seq current_day_seq
+    , fn_get_next_day_seq(attendance_id, day_seq) next_day_seq
+    FROM user_continuous_attendance 
+    WHERE attendance_no = fn_get_max_attendance_id(?, 'user')
+    AND is_attendance = 1;`, [userkey]);
+    if(result.state && result.row.length > 0){
+      const { attendance_done, current_result, current_day_seq, next_day_seq, } = result.row[0]; 
+      if(attendance_done === 0){ //금일 연속 출석 안하는 경우
+        if(current_day_seq <= current_result){ //보상 일자(3,7,10,14일) 충족하는 경우 다음 보상일자 insert
+          currentQuery = `INSERT INTO user_continuous_attendance(attendance_id, userkey, day_seq, current_result, start_date, end_date) VALUES(?, ?, ?, ?, ?, ?);`;
+          updateQuery += mysql.format(currentQuery, [continuous_attendance_id, userkey, next_day_seq, (current_result+1), start_date, end_date]);
+        }else{ //현재 출석일수, 출석일만 업데이트
+          currentQuery = `
+          UPDATE user_continuous_attendance 
+          SET current_result = current_result + 1
+          , attendance_date = now()
+          WHERE attendance_no = ?;`;
+          updateQuery += mysql.format(currentQuery, [attendance_no]);
+        }
+      }else if(attendance_done === -1){ //연속 출석을 실패한 경우 
+        currentQuery = `
+        UPDATE user_continuous_attendance
+        is_attendance = 0 
+        WHERE attendance_no = ?;
+        `;
+        updateQuery += mysql.format(currentQuery, [attendance_no]);
+      }
+    }
+  }
+
   result = await transactionDB(updateQuery);
   if (!result.state) {
     logger.error(`sendAttendanceReward Error 4 ${result.error}`);
@@ -218,6 +324,8 @@ export const sendAttendanceReward = async (req, res) => {
   }
 
   responseData.day_seq = day_seq;
+
+  
 
   //* 안 읽은 메일 건수
   const unreadMailResult = await DB(
@@ -229,6 +337,268 @@ export const sendAttendanceReward = async (req, res) => {
   if (unreadMailResult.state && unreadMailResult.row.length > 0)
     responseData.unreadMailCount = unreadMailResult.row[0].cnt;
 
+
+  result = await getContinuousAttendanceList(userkey);
+
+  responseData = {
+    ...responseData,
+    user_info: result.user_info,
+    continuous_attendance: result.continuous_attendance,
+    attendance: result.attendance,
+  };
+
   res.status(200).json(responseData);
   logAction(userkey, "attendance", req.body);
+};
+
+//? 이프유 플레이 시작
+
+//! 출석 미션 리스트 
+export const requestAttendanceMission = async(req, res) =>{
+   
+  const {
+    body: {
+      userkey, 
+    }
+  } = req;
+
+  //유저정보, 연속 출석, 기존 출석 리스트
+  const result = await getContinuousAttendanceList(userkey); 
+
+  res.status(200).json(result);
+};
+
+//! 연속 출석 보상 받기
+export const receiveAttendanceMissionReward = async(req, res) =>{
+  
+  const {
+    body:{
+      userkey,
+      request_day = 0,
+    }
+  } = req;
+
+  let result = ``;
+  let currentQuery = ``;
+  let updateQuery = ``; 
+
+  let responseData = {}; 
+ 
+  //유효성 검사 체크 
+  if(request_day < 1){
+    logger.error(`receiveAttendanceMissionReward Error 1`);
+    respondDB(res, 80019, 'unvalid value');
+    return;
+  }
+
+  //보상 리스트 확인
+  result = await DB(`
+  SELECT
+  attendance_no
+  , currency
+  , quantity
+  , uca.current_result attendance_day
+  , cad.day_seq
+  FROM user_continuous_attendance uca, com_attendance_daily cad
+  WHERE uca.attendance_id = cad.attendance_id
+  AND userkey = ?
+  AND cad.day_seq = ?
+  AND uca.day_seq = cad.day_seq
+  AND now() BETWEEN start_date AND end_date
+  AND reward_date IS NULL;
+  `, [userkey, request_day]);
+  if(!result.state || result.row.length === 0){
+
+    logger.error(`receiveAttendanceMissionReward Error 2`);
+    respondDB(res, 80025, 'already received');
+    return;
+
+  }else{
+
+    const {
+      attendance_no,
+      currency, 
+      quantity, 
+      attendance_day,
+      day_seq,
+    } = result.row[0];
+
+    //연속 출석일수가 충족하지 않은 경우
+    if(attendance_day < day_seq){
+      logger.error(`receiveAttendanceMissionReward Error 3`);
+      respondDB(res, 80120, 'dismatch attendance day');
+      return;
+    }
+
+    // 메일 발송
+    currentQuery = `INSERT INTO user_mail(userkey, mail_type, currency, quantity, expire_date, connected_project) 
+    VALUES(?, 'continuous_attendance', ?, ?, DATE_ADD(NOW(), INTERVAL 1 YEAR), -1);`;
+    updateQuery += mysql.format(currentQuery, [userkey, currency, quantity]);
+
+    // 히스토리 누적 처리
+    currentQuery = `UPDATE user_continuous_attendance SET reward_date = now() WHERE attendance_no = ?;`; 
+    updateQuery += mysql.format(currentQuery, [attendance_no]);
+
+     result = await transactionDB(updateQuery);
+     if (!result.state) {
+       logger.error(`sendAttendanceReward Error 4 ${result.error}`);
+       respondDB(res, 80026, result.error);
+       return;  
+     }
+
+  }
+
+  // 안 읽은 메일 건수
+  const unreadMailResult = await DB(
+  `SELECT fn_get_user_unread_mail_count(?) cnt FROM dual;`,
+  [userkey]
+  );
+    
+  responseData.unreadMailCount = 0;
+  if (unreadMailResult.state && unreadMailResult.row.length > 0)
+    responseData.unreadMailCount = unreadMailResult.row[0].cnt;
+
+  //출석 미션 가져오기 
+  result = await getContinuousAttendanceList(userkey); 
+  responseData = {
+    ...responseData,
+    user_info: result.user_info,
+    continuous_attendance: result.continuous_attendance,
+    attendance: result.attendance,
+  };
+
+  res.status(200).json(responseData);
+  logAction(userkey, "continuous_attendance", req.body);
+};
+
+//! 연속 출석 보충 처리 
+export const resetAttendanceMission = async (req, res) => {
+  const {
+    body:{
+      userkey,
+    }
+  } = req;
+
+  let result = ``;
+  let currentQuery = ``;
+  let updateQuery = ``;
+
+  let responseData = {}; 
+
+  result = await DB(`
+  SELECT  
+  attendance_id
+  , is_attendance
+  , DATEDIFF(now(), start_date)+1-current_result reset_day
+  , DATE_FORMAT(start_date, '%Y-%m-%d %T') start_date
+  , DATE_FORMAT(end_date, '%Y-%m-%d %T') end_date
+  FROM user_continuous_attendance 
+  WHERE attendance_no = fn_get_max_attendance_id(?, 'user');
+  `, [userkey]);
+
+  //유효성 검사 체크
+  if(!result.state || result.row.length === 0 || (result.row.length > 0 && result.row[0].is_attendance === 1)){
+    logger.error(`resetAttendanceMission Error 1`);
+    respondDB(res, 80019, 'unvalid value');
+    return;    
+  }
+
+  const { attendance_id, reset_day, start_date, end_date, } = result.row[0]; 
+
+  //구매 가능한지 확인
+  const restCoin = reset_day*100;
+  const userCoin = await getCurrencyQuantity(userkey, "coin");
+  if (userCoin < restCoin) {
+    logger.error(`resetAttendanceMission Error 2`);
+    respondDB(res, 80013, 'not enough coin');
+    return;
+  }
+
+  //구매 처리 
+  currentQuery = `CALL sp_use_user_property(?, 'coin', ?, 'reset_attendance', ?);`;
+  updateQuery += mysql.format(currentQuery, [userkey, restCoin, -1]);
+
+  //보상 리스트 확인
+  result = await DB(`
+  SELECT 
+  ifnull(attendance_no, 0) attendance_no
+  , currency
+  , quantity
+  , cad.day_seq
+  , DATEDIFF(now(), ?)+1 reset_result
+  FROM com_attendance_daily cad 
+  LEFT OUTER JOIN user_continuous_attendance uca
+  ON uca.attendance_id = cad.attendance_id 
+  AND userkey = ?
+  AND now() BETWEEN start_date AND end_date
+  AND cad.day_seq = uca.day_seq
+  WHERE cad.attendance_id = ?
+  AND cad.day_seq <= DATEDIFF(now(), ?)+1
+  AND reward_date IS NULL;
+  `, [start_date, userkey, attendance_id, start_date]);
+  if(result.state && result.row.length > 0){
+
+    // eslint-disable-next-line no-restricted-syntax
+    for(const item of result.row){
+      const { attendance_no, currency, quantity, day_seq, reset_result, } = item;
+
+      //메일 발송
+      currentQuery = `INSERT INTO user_mail(userkey, mail_type, currency, quantity, expire_date, connected_project) 
+      VALUES(?, 'reset_attendance', ?, ?, DATE_ADD(NOW(), INTERVAL 1 YEAR), -1);`;
+      updateQuery += mysql.format(currentQuery, [userkey, currency, quantity]);
+
+      //히스토리 누적 생성/업데이트 
+      if(attendance_no === 0){
+        currentQuery = `
+        INSERT INTO user_continuous_attendance(attendance_id, userkey, day_seq, current_result, reward_date, start_date, end_date) 
+        VALUES(?,?,?,?,now(),?,?);
+        `;
+        updateQuery += mysql.format(currentQuery, [attendance_id, userkey, day_seq, reset_result, start_date, end_date]);
+      }else{
+        currentQuery = `
+        UPDATE user_continuous_attendance 
+        SET attendance_date = now()
+        , reward_date = now()
+        , is_attendance = 1
+        , current_result = ?
+        WHERE attendance_no = ?;
+        `;
+        updateQuery += mysql.format(currentQuery, [reset_result, attendance_no]);
+      }
+    }
+
+    result = await transactionDB(updateQuery);
+    if(!result.state){
+      logger.error(`resetAttendanceMission Error ${result.error}`);
+      respondDB(res, 80026, result.error);
+      return;       
+    }
+
+  }
+
+  //뱅크 정보
+  responseData.bank = await getUserBankInfo(req.body);
+
+  //* 안 읽은 메일 건수
+  const unreadMailResult = await DB(
+    `SELECT fn_get_user_unread_mail_count(?) cnt FROM dual;`,
+    [userkey]
+  );
+      
+  responseData.unreadMailCount = 0;
+  if (unreadMailResult.state && unreadMailResult.row.length > 0)
+    responseData.unreadMailCount = unreadMailResult.row[0].cnt;  
+
+  //출석 미션 리스트
+  result = await getContinuousAttendanceList(userkey); 
+  responseData = {
+    ...responseData,
+    user_info: result.user_info,
+    continuous_attendance: result.continuous_attendance, 
+    attendance: result.attendance,
+  };
+
+  res.status(200).json(responseData);
+  logAction(userkey, "reset_attendance", req.body);
+
 };
