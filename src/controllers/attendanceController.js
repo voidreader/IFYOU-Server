@@ -9,7 +9,7 @@ import { getUserBankInfo, getCurrencyQuantity } from "./bankController";
 dotenv.config();
 
 let { CURRENT_UPDATE } = process.env;
-if(!CURRENT_UPDATE) CURRENT_UPDATE = 0;
+if (!CURRENT_UPDATE) CURRENT_UPDATE = 0;
 
 const getAttendanceList = async (userkey) => {
   const responseData = {};
@@ -271,10 +271,9 @@ export const sendAttendanceReward = async (req, res) => {
     VALUES(?, 'attendance', ?, ?, DATE_ADD(NOW(), INTERVAL 1 YEAR), -1);`;
   updateQuery += mysql.format(currentQuery, [userkey, currency, quantity]);
 
-
   // 연속 출석 처리
   // 라이브 서버 업데이트 방지용으로 CURRENT_UPDATE 추가
-  if(CURRENT_UPDATE > 0){
+  if (CURRENT_UPDATE > 0) {
     result = await DB(
       `
     SELECT 
@@ -324,8 +323,12 @@ export const sendAttendanceReward = async (req, res) => {
         [userkey]
       );
       if (result.state && result.row.length > 0) {
-        const { attendance_done, current_result, current_day_seq, next_day_seq } =
-          result.row[0];
+        const {
+          attendance_done,
+          current_result,
+          current_day_seq,
+          next_day_seq,
+        } = result.row[0];
         if (attendance_done === 0) {
           //금일 연속 출석 안하는 경우
           if (current_day_seq <= current_result) {
@@ -360,7 +363,7 @@ export const sendAttendanceReward = async (req, res) => {
       }
     }
   }
- 
+
   result = await transactionDB(updateQuery);
   if (!result.state) {
     logger.error(`sendAttendanceReward Error 4 ${result.error}`);
@@ -557,8 +560,6 @@ export const resetAttendanceMission = async (req, res) => {
     `
   SELECT 
   ifnull(attendance_no, 0) attendance_no
-  , currency
-  , quantity
   , cad.day_seq
   , DATEDIFF(now(), ?)+1 reset_result
   FROM com_attendance_daily cad 
@@ -576,18 +577,13 @@ export const resetAttendanceMission = async (req, res) => {
   if (result.state && result.row.length > 0) {
     // eslint-disable-next-line no-restricted-syntax
     for (const item of result.row) {
-      const { attendance_no, currency, quantity, day_seq, reset_result } = item;
-
-      //메일 발송
-      currentQuery = `INSERT INTO user_mail(userkey, mail_type, currency, quantity, expire_date, connected_project) 
-      VALUES(?, 'reset_attendance', ?, ?, DATE_ADD(NOW(), INTERVAL 1 YEAR), -1);`;
-      updateQuery += mysql.format(currentQuery, [userkey, currency, quantity]);
+      const { attendance_no, day_seq, reset_result } = item;
 
       //히스토리 누적 생성/업데이트
       if (attendance_no === 0) {
         currentQuery = `
         INSERT INTO user_continuous_attendance(attendance_id, userkey, day_seq, current_result, reward_date, start_date, end_date) 
-        VALUES(?,?,?,?,now(),?,?);
+        VALUES(?,?,?,?,null,?,?);
         `;
         updateQuery += mysql.format(currentQuery, [
           attendance_id,
@@ -601,7 +597,6 @@ export const resetAttendanceMission = async (req, res) => {
         currentQuery = `
         UPDATE user_continuous_attendance 
         SET attendance_date = now()
-        , reward_date = now()
         , is_attendance = 1
         , current_result = ?
         WHERE attendance_no = ?;
