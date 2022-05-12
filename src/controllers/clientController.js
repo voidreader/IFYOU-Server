@@ -161,6 +161,11 @@ import {
   requestCompleteEpisode,
   requestEpisodeFirstClear,
 } from "./playingStoryAPI";
+import {
+  requestIfyouPlayList,
+  requestDailyMissionReward,
+  increaseDailyMissionCount,
+} from "./ifyouController";
 
 dotenv.config();
 
@@ -1470,6 +1475,9 @@ export const clientHome = (req, res) => {
   else if (func === "requestAttendanceMission") requestAttendanceMission(req, res); //연속 출석 미션
   else if (func === "receiveAttendanceMissionReward") receiveAttendanceMissionReward(req, res); //연속 출석 미션 보상 받기
   else if (func === "resetAttendanceMission") resetAttendanceMission(req, res); //연속 출석 미션 보충
+  else if (func === "requestIfyouPlayList") requestIfyouPlayList(req, res); //이프유 플레이 리스트
+  else if (func === "requestDailyMissionReward") requestDailyMissionReward(req, res); //일일 미션 보상 받기
+  else if (func === "requestDailyMissionCount") increaseDailyMissionCount(req, res); //일일미션 누적처리
   else {
     //  res.status(400).send(`Wrong Func : ${func}`);
     logger.error(`clientHome Error ${func}`);

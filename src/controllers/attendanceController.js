@@ -79,7 +79,8 @@ const getAttendanceList = async (userkey) => {
 };
 
 //! 연속 출석 리스트
-const getContinuousAttendanceList = async (userkey) => {
+export const getContinuousAttendanceList = async (userkey) =>{
+
   const responseData = {};
 
   //유저 정보
