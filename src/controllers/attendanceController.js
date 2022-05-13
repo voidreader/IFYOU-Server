@@ -142,7 +142,7 @@ export const sendAttendanceReward = async (req, res) => {
     body: { userkey, attendance_id = 0, day_seq = 0 },
   } = req;
 
-  let responseData = {};
+  const responseData = {};
 
   //* 유효한지 확인
   let result = await DB(
@@ -383,14 +383,14 @@ export const sendAttendanceReward = async (req, res) => {
   if (unreadMailResult.state && unreadMailResult.row.length > 0)
     responseData.unreadMailCount = unreadMailResult.row[0].cnt;
 
-  result = await getContinuousAttendanceList(userkey);
+  /*result = await getContinuousAttendanceList(userkey);
 
   responseData = {
     ...responseData,
     user_info: result.user_info,
     continuous_attendance: result.continuous_attendance,
     attendance: result.attendance,
-  };
+  };*/
 
   res.status(200).json(responseData);
   logAction(userkey, "attendance", req.body);
