@@ -506,7 +506,7 @@ export const updateUserAchievement = async (req, res) => {
   responseData.experience_info = {
     grade_experience: result.row[0].grade_experience, //기존 경험치
     get_experience: experience, //획득한 경험치
-    total_exp: experience + result.row[0].grade_experience,
+    total_exp: experience + result.row[0].grade_experience, // 획득한 경험치를 반영한 경험치
   };
 
   let currentGrade = result.row[0].grade; // * 현재 등급
@@ -540,6 +540,7 @@ export const updateUserAchievement = async (req, res) => {
 
   const maxExp = maxExpResult.row[0].upgrade_point; // max exp
   const currentExp = responseData.experience_info.total_exp; // 현재 상태의 exp
+  // responseData.grade_info.upgrade_point = maxExp;
 
   // 현재 경험치가 맥스 이상이되었음. => 등급업.
   if (currentExp >= maxExp) {
@@ -554,6 +555,10 @@ export const updateUserAchievement = async (req, res) => {
     if (!upgradeResult.state) {
       logger.error(upgradeResult.error);
     }
+
+    // 등급 오른 경우 total_exp 갱신
+    const preTotalExp = responseData.experience_info.total_exp;
+    responseData.experience_info.total_exp = preTotalExp - maxExp;
   }
 
   responseData.list = await requestUserGradeInfo(userkey, lang);
