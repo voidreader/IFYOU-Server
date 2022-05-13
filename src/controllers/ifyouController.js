@@ -18,7 +18,7 @@ const getDailyMissionList = async (userkey, lang) =>{
     let result = await DB(`
     SELECT
     cdm.mission_no
-    , DATE_FORMAT(timediff(concat(DATE_FORMAT(now(), '%Y-%m-%d'), ' 23:59:59'), now()), '%T') remain_time
+    , concat(DATE_FORMAT(now(), '%Y-%m-%d'), ' 23:59:59') end_date
     , ifnull(current_result, 0) current_result
     , limit_count
     , cdm.currency
@@ -37,6 +37,11 @@ const getDailyMissionList = async (userkey, lang) =>{
     WHERE cdm.mission_no = 1
     AND is_active > 0;
     `, [userkey]); 
+    if(result.state && result.row.length > 0){
+        const { end_date } = result.row[0];
+        const endDate = new Date(end_date);
+        result.row[0].end_date_tick = endDate.getTime(); // tick 넣어주기!
+    }
     responseData.all = result.row;
 
     //일일 미션 리스트
