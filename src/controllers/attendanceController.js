@@ -79,8 +79,7 @@ const getAttendanceList = async (userkey) => {
 };
 
 //! 연속 출석 리스트
-export const getContinuousAttendanceList = async (userkey) =>{
-
+export const getContinuousAttendanceList = async (userkey) => {
   const responseData = {};
 
   //유저 정보
@@ -143,7 +142,7 @@ export const sendAttendanceReward = async (req, res) => {
     body: { userkey, attendance_id = 0, day_seq = 0 },
   } = req;
 
-  const responseData = {};
+  let responseData = {};
 
   //* 유효한지 확인
   let result = await DB(
@@ -273,94 +272,88 @@ export const sendAttendanceReward = async (req, res) => {
   updateQuery += mysql.format(currentQuery, [userkey, currency, quantity]);
 
   // 연속 출석 처리
-  // 라이브 서버 업데이트 방지용으로 CURRENT_UPDATE 추가
-  if (CURRENT_UPDATE > 0) {
+
+  result = await DB(
+    `
+  SELECT 
+  DATE_FORMAT(start_date, '%Y-%m-%d %T') start_date
+  , DATE_FORMAT(end_date, '%Y-%m-%d %T') end_date
+  , CASE WHEN date(start_date) = date(now()) THEN 1 ELSE 0 END start_check
+  , fn_get_max_attendance_id(-1, 'com') continuous_attendance_id
+  , ifnull(fn_get_max_attendance_id(?, 'user'), 0) attendance_no
+  FROM com_attendance_season
+  WHERE season_no = 0;`,
+    [userkey, userkey]
+  );
+  const {
+    start_date,
+    end_date,
+    start_check,
+    continuous_attendance_id,
+    attendance_no,
+  } = result.row[0];
+  if (attendance_no === 0) {
+    //시즌 시작일
+    if (start_check === 1) {
+      currentQuery = `INSERT INTO user_continuous_attendance(attendance_id, userkey, current_result, start_date, end_date) VALUES(?, ?, 1, ?, ?);`;
+      updateQuery += mysql.format(currentQuery, [
+        continuous_attendance_id,
+        userkey,
+        start_date,
+        end_date,
+      ]);
+    }
+  } else {
+    //시즌 시작 그 이후에
     result = await DB(
       `
-    SELECT 
-    DATE_FORMAT(start_date, '%Y-%m-%d %T') start_date
-    , DATE_FORMAT(end_date, '%Y-%m-%d %T') end_date
-    , CASE WHEN date(start_date) = date(now()) THEN 1 ELSE 0 END start_check
-    , fn_get_max_attendance_id(-1, 'com') continuous_attendance_id
-    , ifnull(fn_get_max_attendance_id(?, 'user'), 0) attendance_no
-    FROM com_attendance_season
-    WHERE season_no = 0;`,
-      [userkey, userkey]
+    SELECT
+    CASE WHEN attendance_date IS NOT NULL THEN 
+      CASE WHEN date(DATE_ADD(attendance_date, INTERVAL 1 DAY)) = date(now()) THEN 0 
+           WHEN date(DATE_ADD(attendance_date, INTERVAL 1 DAY)) < date(now()) THEN -1
+      ELSE 1 END 
+    ELSE 0 END attendance_done
+    , current_result
+    , day_seq current_day_seq
+    , fn_get_next_day_seq(attendance_id, day_seq) next_day_seq
+    FROM user_continuous_attendance 
+    WHERE attendance_no = fn_get_max_attendance_id(?, 'user')
+    AND is_attendance = 1;`,
+      [userkey]
     );
-    const {
-      start_date,
-      end_date,
-      start_check,
-      continuous_attendance_id,
-      attendance_no,
-    } = result.row[0];
-    if (attendance_no === 0) {
-      //시즌 시작일
-      if (start_check === 1) {
-        currentQuery = `INSERT INTO user_continuous_attendance(attendance_id, userkey, current_result, start_date, end_date) VALUES(?, ?, 1, ?, ?);`;
-        updateQuery += mysql.format(currentQuery, [
-          continuous_attendance_id,
-          userkey,
-          start_date,
-          end_date,
-        ]);
-      }
-    } else {
-      //시즌 시작 그 이후에
-      result = await DB(
-        `
-      SELECT
-      CASE WHEN attendance_date IS NOT NULL THEN 
-        CASE WHEN date(DATE_ADD(attendance_date, INTERVAL 1 DAY)) = date(now()) THEN 0 
-             WHEN date(DATE_ADD(attendance_date, INTERVAL 1 DAY)) < date(now()) THEN -1
-        ELSE 1 END 
-      ELSE 0 END attendance_done
-      , current_result
-      , day_seq current_day_seq
-      , fn_get_next_day_seq(attendance_id, day_seq) next_day_seq
-      FROM user_continuous_attendance 
-      WHERE attendance_no = fn_get_max_attendance_id(?, 'user')
-      AND is_attendance = 1;`,
-        [userkey]
-      );
-      if (result.state && result.row.length > 0) {
-        const {
-          attendance_done,
-          current_result,
-          current_day_seq,
-          next_day_seq,
-        } = result.row[0];
-        if (attendance_done === 0) {
-          //금일 연속 출석 안하는 경우
-          if (current_day_seq <= current_result) {
-            //보상 일자(3,7,10,14일) 충족하는 경우 다음 보상일자 insert
-            currentQuery = `INSERT INTO user_continuous_attendance(attendance_id, userkey, day_seq, current_result, start_date, end_date) VALUES(?, ?, ?, ?, ?, ?);`;
-            updateQuery += mysql.format(currentQuery, [
-              continuous_attendance_id,
-              userkey,
-              next_day_seq,
-              current_result + 1,
-              start_date,
-              end_date,
-            ]);
-          } else {
-            //현재 출석일수, 출석일만 업데이트
-            currentQuery = `
-            UPDATE user_continuous_attendance 
-            SET current_result = current_result + 1
-            , attendance_date = now()
-            WHERE attendance_no = ?;`;
-            updateQuery += mysql.format(currentQuery, [attendance_no]);
-          }
-        } else if (attendance_done === -1) {
-          //연속 출석을 실패한 경우
+    if (result.state && result.row.length > 0) {
+      const { attendance_done, current_result, current_day_seq, next_day_seq } =
+        result.row[0];
+      if (attendance_done === 0) {
+        //금일 연속 출석 안하는 경우
+        if (current_day_seq <= current_result) {
+          //보상 일자(3,7,10,14일) 충족하는 경우 다음 보상일자 insert
+          currentQuery = `INSERT INTO user_continuous_attendance(attendance_id, userkey, day_seq, current_result, start_date, end_date) VALUES(?, ?, ?, ?, ?, ?);`;
+          updateQuery += mysql.format(currentQuery, [
+            continuous_attendance_id,
+            userkey,
+            next_day_seq,
+            current_result + 1,
+            start_date,
+            end_date,
+          ]);
+        } else {
+          //현재 출석일수, 출석일만 업데이트
           currentQuery = `
-          UPDATE user_continuous_attendance
-          is_attendance = 0 
-          WHERE attendance_no = ?;
-          `;
+          UPDATE user_continuous_attendance 
+          SET current_result = current_result + 1
+          , attendance_date = now()
+          WHERE attendance_no = ?;`;
           updateQuery += mysql.format(currentQuery, [attendance_no]);
         }
+      } else if (attendance_done === -1) {
+        //연속 출석을 실패한 경우
+        currentQuery = `
+        UPDATE user_continuous_attendance
+        is_attendance = 0 
+        WHERE attendance_no = ?;
+        `;
+        updateQuery += mysql.format(currentQuery, [attendance_no]);
       }
     }
   }
@@ -384,14 +377,14 @@ export const sendAttendanceReward = async (req, res) => {
   if (unreadMailResult.state && unreadMailResult.row.length > 0)
     responseData.unreadMailCount = unreadMailResult.row[0].cnt;
 
-  /*result = await getContinuousAttendanceList(userkey);
+  result = await getContinuousAttendanceList(userkey);
 
   responseData = {
     ...responseData,
     user_info: result.user_info,
     continuous_attendance: result.continuous_attendance,
     attendance: result.attendance,
-  };*/
+  };
 
   res.status(200).json(responseData);
   logAction(userkey, "attendance", req.body);
