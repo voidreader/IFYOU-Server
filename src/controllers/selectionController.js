@@ -80,7 +80,7 @@ export const purchaseSelection = async (req, res) => {
     ) script_count
     FROM DUAL;`, [userkey, userkey, project_id, episode_id, selection_group, selection_no, lang]);
     if(result.state && result.row.length > 0){
-      const { admin, free_check, script_count, } = result.row[0];
+      const { admin, free_check, script_count=0, } = result.row[0];
       if(admin === 0 || !free_check || script_count === 0){
         logger.error(`Error in purchaseSelection ${JSON.stringify(req.body)}`);
         respondDB(res, 80121, "Error in selection purcharse");
