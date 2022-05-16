@@ -32,7 +32,7 @@ const getDailyMissionList = async (userkey, lang) => {
     INNER JOIN com_currency cc ON cdm.currency = cc.currency 
     LEFT OUTER JOIN user_daily_mission udm 
     ON userkey = ? 
-    AND udm.create_date BETWEEN now() AND concat(DATE_FORMAT(now(), '%Y-%m-%d'), ' 23:59:59')
+    AND udm.create_date BETWEEN concat(DATE_FORMAT(now(), '%Y-%m-%d'), ' 00:00:00') AND concat(DATE_FORMAT(now(), '%Y-%m-%d'), ' 23:59:59')
     AND cdm.mission_no = udm.mission_no
     WHERE cdm.mission_no = 1
     AND is_active > 0;
@@ -65,7 +65,7 @@ const getDailyMissionList = async (userkey, lang) => {
     INNER JOIN com_currency cc ON cdm.currency = cc.currency 
     LEFT OUTER JOIN user_daily_mission udm 
     ON userkey = ? 
-    AND udm.create_date BETWEEN now() AND concat(DATE_FORMAT(now(), '%Y-%m-%d'), ' 23:59:59')
+    AND udm.create_date BETWEEN concat(DATE_FORMAT(now(), '%Y-%m-%d'), ' 00:00:00') AND concat(DATE_FORMAT(now(), '%Y-%m-%d'), ' 23:59:59')
     AND cdm.mission_no = udm.mission_no
     WHERE is_active > 0
     AND cdm.mission_no <> 1;
