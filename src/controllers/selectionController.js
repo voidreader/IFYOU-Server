@@ -74,7 +74,7 @@ export const purchaseSelection = async (req, res) => {
     FROM DUAL;`, [userkey, userkey, project_id, userkey, project_id, episode_id, selection_group, selection_no, lang]);
     if(result.state && result.row.length > 0){
       const { admin, free_check, purchase_check, } = result.row[0];
-      if(( admin === 0 || !free_check ) && purchase_check === 0){
+      if( admin === 0 && !free_check  && purchase_check === 0){
         logger.error(`Error in purchaseSelection ${JSON.stringify(req.body)}`);
         respondDB(res, 80121, "Error in selection purcharse");
         return;
