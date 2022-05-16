@@ -26,7 +26,7 @@ const getDailyMissionList = async (userkey, lang) => {
     , fn_get_design_info(icon_image_id, 'key') icon_image_key
     , quantity
     , CASE WHEN isnull(reward_date) THEN 
-        CASE WHEN ifnull(current_result, 0) = limit_count THEN 1 ELSE 0 END 
+        CASE WHEN ifnull(current_result, 0) >= limit_count THEN 1 ELSE 0 END 
     ELSE 2 END state
     FROM com_daily_mission cdm
     INNER JOIN com_currency cc ON cdm.currency = cc.currency 
@@ -59,7 +59,7 @@ const getDailyMissionList = async (userkey, lang) => {
     , ifnull(current_result, 0) current_result
     , limit_count
     , CASE WHEN isnull(reward_date) THEN 
-        CASE WHEN ifnull(current_result, 0) = limit_count THEN 1 ELSE 0 END 
+        CASE WHEN ifnull(current_result, 0) >= limit_count THEN 1 ELSE 0 END 
     ELSE 2 END state
     FROM com_daily_mission cdm
     INNER JOIN com_currency cc ON cdm.currency = cc.currency 
@@ -171,7 +171,7 @@ export const increaseDailyMissionCount = async (req, res) => {
     respondDB(res, 80078, "already done");
     return;
   } else {
-    result = await DB(`CALL pier.sp_update_user_daily_mission(?, ?);`, [
+    result = await DB(`CALL pier.sp_update_user_daily_mission(?, ?, 1);`, [
       userkey,
       mission_no,
     ]);
