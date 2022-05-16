@@ -61,6 +61,7 @@ export const purchaseSelection = async (req, res) => {
   let result;
   let currentQuery = ``;
   let purchaseQuery = ``;
+  let purchaseCheck = 0;
   const responseData = {};
 
   //변조 apk 막기
@@ -69,78 +70,58 @@ export const purchaseSelection = async (req, res) => {
     SELECT 
     ( SELECT admin FROM table_account ta WHERE userkey = ? ) admin
     , ( SELECT currency FROM user_property up WHERE userkey = ? AND currency = concat('Free', '${project_id}') ) free_check
-    , ( SELECT 
-        CASE WHEN concat('스타=', '${price}') = control THEN 1 ELSE 0 END 
-        FROM list_script
-        WHERE project_id = ?
-        AND episode_id = ?
-        AND selection_group = ?
-        AND selection_no = ? 
-        AND lang = ? 
-    ) script_count
-    FROM DUAL;`, [userkey, userkey, project_id, episode_id, selection_group, selection_no, lang]);
+    , ( SELECT ifnull(count(*), 0) FROM user_selection_purchase WHERE userkey = ? AND project_id = ? AND episode_id = ? AND selection_group = ? AND selection_no = ?) purchase_check
+    FROM DUAL;`, [userkey, userkey, project_id, userkey, project_id, episode_id, selection_group, selection_no, lang]);
     if(result.state && result.row.length > 0){
-      const { admin, free_check, script_count=0, } = result.row[0];
-      if(admin === 0 || !free_check || script_count === 0){
+      const { admin, free_check, purchase_check, } = result.row[0];
+      if(( admin === 0 || !free_check ) && purchase_check === 0){
         logger.error(`Error in purchaseSelection ${JSON.stringify(req.body)}`);
         respondDB(res, 80121, "Error in selection purcharse");
         return;
       }
+      purchaseCheck = purchase_check;
     }   
   }
 
-  //구매한 선택지인지 확인
-  result = await DB(`
-  SELECT * 
-  FROM user_selection_purchase 
-  WHERE userkey = ? 
-  AND project_id = ? 
-  AND episode_id = ? 
-  AND selection_group = ? 
-  AND selection_no = ?;
-  `, [userkey, project_id, episode_id, selection_group, selection_no]);
-  if(result.state && result.row.length > 0){
-    logger.error(`purchaseSelection error already purchased`);
-    respondDB(res, 80122, 'already purchased');
-    return;    
-  }
+  // 첫 구매자만 결제 처리
+  if(purchaseCheck === 0){
+    //보유 스타 수 확인
+    const userStar = await getCurrencyQuantity(userkey, "gem"); // 유저 보유 코인수
+    if (userStar < parseInt(price, 10)) {
+      logger.error(`purchaseSelection error`);
+      respondDB(res, 80102);
+      return;
+    }
 
-  //보유 스타 수 확인
-  const userStar = await getCurrencyQuantity(userkey, "gem"); // 유저 보유 코인수
-  if (userStar < parseInt(price, 10)) {
-    logger.error(`purchaseSelection error`);
-    respondDB(res, 80102);
-    return;
-  }
+    //스타 사용
+    currentQuery = `CALL pier.sp_use_user_property(?, ?, ?, ?, ?);`;
+    purchaseQuery += mysql.format(currentQuery, [
+      userkey,
+      "gem",
+      price,
+      "selection_purchase",
+      project_id,
+    ]);
 
-  //스타 사용
-  currentQuery = `CALL pier.sp_use_user_property(?, ?, ?, ?, ?);`;
-  purchaseQuery += mysql.format(currentQuery, [
-    userkey,
-    "gem",
-    price,
-    "selection_purchase",
-    project_id,
-  ]);
+    //구매내역 히스토리 쌓기
+    currentQuery = `
+      INSERT INTO user_selection_purchase(userkey, project_id, episode_id, selection_group, selection_no, price) 
+      VALUES(?, ?, ?, ?, ?, ?);`;
+    purchaseQuery += mysql.format(currentQuery, [
+      userkey,
+      project_id,
+      episode_id,
+      selection_group,
+      selection_no,
+      price,
+    ]);
 
-  //구매내역 히스토리 쌓기
-  currentQuery = `
-    INSERT INTO user_selection_purchase(userkey, project_id, episode_id, selection_group, selection_no, price) 
-    VALUES(?, ?, ?, ?, ?, ?);`;
-  purchaseQuery += mysql.format(currentQuery, [
-    userkey,
-    project_id,
-    episode_id,
-    selection_group,
-    selection_no,
-    price,
-  ]);
-
-  result = await transactionDB(purchaseQuery);
-  if (!result.state) {
-    logger.error(`purchaseSelection error ${result.error}`);
-    respondDB(res, 80026, result.error);
-    return;
+    result = await transactionDB(purchaseQuery);
+    if (!result.state) {
+      logger.error(`purchaseSelection error ${result.error}`);
+      respondDB(res, 80026, result.error);
+      return;
+    }
   }
 
   //구매내역 전달
