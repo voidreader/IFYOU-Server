@@ -517,6 +517,7 @@ export const resetAttendanceMission = async (req, res) => {
   , DATEDIFF(now(), start_date)+1-current_result reset_day
   , DATE_FORMAT(start_date, '%Y-%m-%d %T') start_date
   , DATE_FORMAT(end_date, '%Y-%m-%d %T') end_date
+  , DATEDIFF(now(), start_date)+1 reset_result
   FROM user_continuous_attendance 
   WHERE attendance_no = fn_get_max_attendance_id(?, 'user');
   `,
@@ -534,7 +535,7 @@ export const resetAttendanceMission = async (req, res) => {
     return;
   }
 
-  const { attendance_id, reset_day, start_date, end_date } = result.row[0];
+  const { attendance_id, reset_day, start_date, end_date, reset_result, } = result.row[0];
 
   //구매 가능한지 확인
   const restCoin = reset_day * 100;
@@ -549,13 +550,24 @@ export const resetAttendanceMission = async (req, res) => {
   currentQuery = `CALL sp_use_user_property(?, 'coin', ?, 'reset_attendance', ?);`;
   updateQuery += mysql.format(currentQuery, [userkey, restCoin, -1]);
 
+  //현재일자 기준으로 보상일자 셋팅
+  let setDaySeq = 0;
+  if(reset_result <= 3){
+    setDaySeq = 3;
+  }else if(reset_result >= 4 && reset_result <= 7){
+    setDaySeq = 7;
+  }else if(reset_result >= 8 && reset_result <= 10){
+    setDaySeq = 10;
+  }else if(reset_result >= 11 && reset_result <= 14){
+    setDaySeq = 14;
+  }
+
   //보상 리스트 확인
   result = await DB(
     `
   SELECT 
   ifnull(attendance_no, 0) attendance_no
   , cad.day_seq
-  , DATEDIFF(now(), ?)+1 reset_result
   FROM com_attendance_daily cad 
   LEFT OUTER JOIN user_continuous_attendance uca
   ON uca.attendance_id = cad.attendance_id 
@@ -563,15 +575,15 @@ export const resetAttendanceMission = async (req, res) => {
   AND now() BETWEEN start_date AND end_date
   AND cad.day_seq = uca.day_seq
   WHERE cad.attendance_id = ?
-  AND cad.day_seq <= DATEDIFF(now(), ?)+1
+  AND cad.day_seq <= ?
   AND reward_date IS NULL;
   `,
-    [start_date, userkey, attendance_id, start_date]
+    [userkey, attendance_id, setDaySeq]
   );
   if (result.state && result.row.length > 0) {
     // eslint-disable-next-line no-restricted-syntax
     for (const item of result.row) {
-      const { attendance_no, day_seq, reset_result } = item;
+      const { attendance_no, day_seq } = item;
 
       //히스토리 누적 생성/업데이트
       if (attendance_no === 0) {
