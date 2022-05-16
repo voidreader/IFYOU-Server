@@ -166,17 +166,13 @@ export const increaseDailyMissionCount = async (req, res) => {
   }
 
   const { mission_done } = result.row[0];
-  if (mission_done === 1) {
-    logger.error(`increaseDailyMissionCount Error 2-1`);
-    respondDB(res, 80078, "already done");
-    return;
-  } else {
+  if (mission_done === 0) {
     result = await DB(`CALL pier.sp_update_user_daily_mission(?, ?, 1);`, [
       userkey,
       mission_no,
     ]);
     if (!result.state) {
-      logger.error(`increaseDailyMissionCount Error 2-2 ${result.error}`);
+      logger.error(`increaseDailyMissionCount Error 2 ${result.error}`);
       respondDB(res, 80026, result.error);
       return;
     }
