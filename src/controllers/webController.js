@@ -87,15 +87,15 @@ WHERE cl.id BETWEEN 6400 AND 6425
 
 export const receiveInquiry = async (req, res) => {
   const {
-    body: { client, company, tel, email, contents },
+    body: { client, company, tel, email, contents, kind ='ifyou', },
   } = req;
 
   const result = await DB(
     `
-  INSERT INTO user_inquiry (client, company, tel, email, contents) 
-  VALUES (?, ?, ?, ?, ?);
+  INSERT INTO user_inquiry (client, company, tel, email, contents, kind) 
+  VALUES (?, ?, ?, ?, ?, ?);
   `,
-    [client, company, tel, email, contents]
+    [client, company, tel, email, contents, kind]
   );
 
   if (!result.state) {
