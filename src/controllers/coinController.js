@@ -697,14 +697,22 @@ export const userCoinPurchase = async (req, res) => {
   achievementQuery += await getAchievementQuery(userkey, 21);
 
   //스탠딩 구매 업적
-  if (currency_type === "standing") achievementQuery += await getLevelQuery(userkey, 19);
+  if (currency_type === "standing")
+    achievementQuery += await getLevelQuery(userkey, 19);
 
   //일일 미션 처리
-  result = await DB(`
+  result = await DB(
+    `
   SELECT 
   fn_check_daily_mission_done(?, 4) mission_done
-  FROM DUAL;`, [userkey]);
-  if(result.row[0].mission_done === 0) dailyMissionQuery = mysql.format(`CALL pier.sp_update_user_daily_mission(?, 4);`, [userkey]);    
+  FROM DUAL;`,
+    [userkey]
+  );
+  if (result.row[0].mission_done === 0)
+    dailyMissionQuery = mysql.format(
+      `CALL pier.sp_update_user_daily_mission(?, 4, 1);`,
+      [userkey]
+    );
 
   const purchaseResult = await transactionDB(`
     ${purchaseQuery}
