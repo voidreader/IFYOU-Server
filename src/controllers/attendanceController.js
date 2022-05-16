@@ -350,7 +350,7 @@ export const sendAttendanceReward = async (req, res) => {
         //연속 출석을 실패한 경우
         currentQuery = `
         UPDATE user_continuous_attendance
-        is_attendance = 0 
+        SET is_attendance = 0 
         WHERE attendance_no = ?;
         `;
         updateQuery += mysql.format(currentQuery, [attendance_no]);
@@ -601,7 +601,7 @@ export const resetAttendanceMission = async (req, res) => {
         ]);
       }
     }
-
+    console.log(updateQuery);
     result = await transactionDB(updateQuery);
     if (!result.state) {
       logger.error(`resetAttendanceMission Error ${result.error}`);

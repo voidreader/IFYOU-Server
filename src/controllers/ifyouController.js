@@ -94,7 +94,7 @@ export const requestDailyMissionReward = async (req, res) => {
     AND userkey = ? 
     AND cdm.mission_no = ?
     AND now() BETWEEN create_date AND concat(DATE_FORMAT(now(), '%Y-%m-%d'), ' 23:59:59')
-    AND current_result = limit_count
+    AND current_result >= limit_count
     AND is_active > 0;`,
     [userkey, mission_no]
   );
