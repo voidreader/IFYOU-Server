@@ -2043,18 +2043,16 @@ export const loginClient = async (req, res) => {
         fail_check,
       } = continuousAttendanceResult.row[0];
   
-      //시즌 첫 시작
-      if(start_check === 1){
-        if(attendance_no === 0){  //아무것도 없는 경우에는 insert
-          await DB(`
-          INSERT INTO user_continuous_attendance(attendance_id, userkey, attendance_date, start_date, end_date) 
-          VALUES(?, ?, null, ?, ?);`, [ attendance_id, userInfo.userkey, start_date, end_date ]);
-        }
+      //시즌 첫 시작(아무것도 없는 경우에는 insert)
+      if(start_check === 1 && attendance_no === 0){
+        await DB(`
+        INSERT INTO user_continuous_attendance(attendance_id, userkey, attendance_date, start_date, end_date) 
+        VALUES(?, ?, null, ?, ?);`, [ attendance_id, userInfo.userkey, start_date, end_date ]);
       }
   
       //시즌 이후 처리
       if(start_check === 0){
-        if(attendance_no === 0){ //아직 시작안한 경우 fail && insert
+        if(attendance_no === 0){ //아직 시작안한 경우, 연속보충 상태로 insert
           await DB(`
           INSERT INTO user_continuous_attendance(attendance_id, userkey, is_attendance, attendance_date, start_date, end_date) 
           VALUES(?, ?, 0, null, ?, ?);`, [ attendance_id, userInfo.userkey, start_date, end_date ]);
