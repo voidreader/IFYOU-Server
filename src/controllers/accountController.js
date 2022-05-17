@@ -2020,50 +2020,6 @@ export const loginClient = async (req, res) => {
       userInfo.userkey,
     ]);
 
-    //연속 출석 미션 처리
-    const continuousAttendanceResult = await DB(`
-    SELECT 
-    DATE_FORMAT(start_date, '%Y-%m-%d %T') start_date
-    , DATE_FORMAT(end_date, '%Y-%m-%d %T') end_date
-    , CASE WHEN date(start_date) = date(now()) THEN 1 ELSE 0 END start_check
-    , fn_get_max_attendance_id(-1, 'com') attendance_id
-    , ifnull(fn_get_max_attendance_id(?, 'user'), 0) attendance_no
-    , fn_get_continuous_attendance(?, start_date, end_date, 0, 'check') is_attendance
-    , CASE WHEN date(DATE_ADD(fn_get_continuous_attendance_date(?), INTERVAL 1 DAY)) < date(now()) THEN -1 ELSE 0 END fail_check
-    FROM com_attendance_season
-    WHERE season_no = 0;`, [userInfo.userkey, userInfo.userkey, userInfo.userkey]);
-    if(continuousAttendanceResult.state && continuousAttendanceResult.row.length > 0){
-      const {
-        start_date,
-        end_date,
-        start_check,
-        attendance_id,
-        attendance_no,
-        is_attendance,
-        fail_check,
-      } = continuousAttendanceResult.row[0];
-  
-      //시즌 첫 시작(아무것도 없는 경우에는 insert)
-      if(start_check === 1 && attendance_no === 0){
-        await DB(`
-        INSERT INTO user_continuous_attendance(attendance_id, userkey, attendance_date, start_date, end_date) 
-        VALUES(?, ?, null, ?, ?);`, [ attendance_id, userInfo.userkey, start_date, end_date ]);
-      }
-  
-      //시즌 이후 처리
-      if(start_check === 0){
-        if(attendance_no === 0){ //아직 시작안한 경우, 연속보충 상태로 insert
-          await DB(`
-          INSERT INTO user_continuous_attendance(attendance_id, userkey, is_attendance, attendance_date, start_date, end_date) 
-          VALUES(?, ?, 0, null, ?, ?);`, [ attendance_id, userInfo.userkey, start_date, end_date ]);
-        }else if(fail_check === -1 && is_attendance === 1){ //시작했으나, 연속 출석 실패한 경우(이미 실패한 경우 제외)
-          await DB(`UPDATE user_continuous_attendance SET is_attendance = 0 WHERE attendance_no = ?;`, [attendance_no]);
-        }
-      }
-    }
-
-
-
     // 로그 쌓기
     logAction(userInfo.userkey, "login", accountInfo.account);
   } // ? 로그인 끝
