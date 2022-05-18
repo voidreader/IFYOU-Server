@@ -835,3 +835,18 @@ export const Q_UPDATE_PROJECT_EXAMPLE = ``;
 export const Q_DELETE_PROJECT_EXAMPLE = ``;
 // 템플릿 끝
 // ===================================
+
+// 코인 환전
+export const Q_SELECT_COIN_EXCHANGE = `
+SELECT 
+a.exchange_product_id
+, a.star_quantity
+, a.coin_quantity
+, a.bonus_quantity
+, CASE WHEN a.daily_purchase_cnt < 0 THEN 1
+ELSE 
+    CASE WHEN a.daily_purchase_cnt <= fn_get_user_coin_exchange(?, a.exchange_product_id) THEN 0 ELSE 1 END 
+END exchange_check
+FROM com_coin_exchange_product a
+WHERE is_service > 0;
+`;
