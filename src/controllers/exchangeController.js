@@ -2,27 +2,14 @@ import mysql from "mysql2/promise";
 import { response } from "express";
 import { DB, logAction, transactionDB } from "../mysqldb";
 import { logger } from "../logger";
-import { respondDB } from "../respondent";
+import { respondDB, } from "../respondent";
+import { Q_SELECT_COIN_EXCHANGE, } from "../QStore";
 import { getUserBankInfo, getCurrencyQuantity } from "./bankController";
 
 //! 판매 중인 코인 환전상품 리스트
 export const getCoinExchangeProductList = async (req, res) => {
-  const result = await DB(
-    `
-    SELECT 
-    a.exchange_product_id
-    , a.star_quantity
-    , a.coin_quantity
-    , a.bonus_quantity
-    , CASE WHEN a.daily_purchase_cnt < 0 THEN 1
-    ELSE 
-        CASE WHEN a.daily_purchase_cnt <= fn_get_user_coin_exchange(?, a.exchange_product_id) THEN 0 ELSE 1 END 
-    END exchange_check
-    FROM com_coin_exchange_product a
-    WHERE is_service > 0 ;
-    `,
-    [req.body.userkey]
-  );
+
+  const result = await DB(Q_SELECT_COIN_EXCHANGE, [req.body.userkey]);
 
   res.status(200).json(result.row);
 };
@@ -30,12 +17,12 @@ export const getCoinExchangeProductList = async (req, res) => {
 //! 환전
 export const coinExchangePurchase = async (req, res) => {
   const {
-    body: { userkey, exchange_product_id = 0 },
+    body: { userkey, exchange_product_id = 0, lang = "KO" },
   } = req;
 
   if (exchange_product_id === 0) {
     logger.error(`coinExchangePurchase error 1`);
-    respondDB(res, 80019);
+    respondDB(res, 80019, '', lang);
     return;
   }
 
@@ -60,7 +47,7 @@ export const coinExchangePurchase = async (req, res) => {
   // * 실패시..
   if (!result.state || result.row.length === 0) {
     logger.error(`coinExchangePurchase error 2`);
-    respondDB(res, 80097);
+    respondDB(res, 80097, '', lang);
     return;
   }
 
@@ -73,7 +60,7 @@ export const coinExchangePurchase = async (req, res) => {
   if (exchange_check === 0) {
     // 교환 여부
     logger.error(`coinExchangePurchase error 3`);
-    respondDB(res, 80025);
+    respondDB(res, 80025, '', lang);
     return;
   }
 
@@ -81,7 +68,7 @@ export const coinExchangePurchase = async (req, res) => {
   const userStar = await getCurrencyQuantity(userkey, "gem"); // 유저 보유 스타수
   if (userStar < star_quantity) {
     logger.error(`coinExchangePurchase error 4`);
-    respondDB(res, 80102);
+    respondDB(res, 80102, '', lang);
     return;
   }
 
@@ -98,7 +85,7 @@ export const coinExchangePurchase = async (req, res) => {
         consumeResult.state.error
       )}`
     );
-    respondDB(res, 80102);
+    respondDB(res, 80102, '', lang);
     return;
   }
 
@@ -156,7 +143,7 @@ export const coinExchangePurchase = async (req, res) => {
 
     if (!result.state) {
       logger.error(`coinExchangePurchase error 5 ${result.error}`);
-      respondDB(res, 80026, result.error);
+      respondDB(res, 80026, result.error, lang);
 
       // ! 선 소모 처리하기때문에 여기서 오류 났으면 소모된 스타 복구시켜야한다.
       // 복구 해준다... ㅠ
