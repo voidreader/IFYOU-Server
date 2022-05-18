@@ -96,7 +96,7 @@ import { getUserSelectionPurchaseInfo } from "./selectionController";
 dotenv.config();
 
 let { CURRENT_UPDATE } = process.env;
-if(!CURRENT_UPDATE) CURRENT_UPDATE = 0;
+if (!CURRENT_UPDATE) CURRENT_UPDATE = 0;
 
 //! 현재 선택지 로그
 export const getUserStorySelectionHistory = async (userInfo) => {
@@ -342,103 +342,6 @@ const getUserUnreadMailCount = async (userkey) => {
 };
 
 // ? /////////////////////////////////////////////////////////////////////////////////////////////////
-
-// ? 유저 수집요소 달성율
-// 작품상세화면 View
-const getUserCollectionProgress = async (userInfo) => {
-  // 갤러리
-  // 미션
-  // 엔딩
-  let missionProgress = 0;
-  let endingProgress = 0;
-  let galleryProgress = 0;
-
-  // ! 갤러리 겁나 빡셈!
-  // 공개된 음성, 공개된 라이브오브제+미니컷, 모든 일러스트, 라이브일러스트
-  const userGallery = await DB(
-    `
-  SELECT fn_get_user_gallery_count(?, ?) cnt
-  FROM DUAL;
-  `,
-    [userInfo.userkey, userInfo.project_id]
-  );
-
-  const projectGallery = await DB(
-    `
-  SELECT fn_get_project_gallery_count(?) cnt
-  FROM DUAL; 
-  `,
-    [userInfo.project_id]
-  );
-
-  if (projectGallery.row[0].cnt === 0 || userGallery.row[0].cnt === 0) {
-    // 0 나누기 방지
-    galleryProgress = 0;
-  } else {
-    galleryProgress =
-      parseFloat(userGallery.row[0].cnt) /
-      parseFloat(projectGallery.row[0].cnt);
-  }
-
-  // 미션
-  // 유저 미션
-  const userMission = await DB(
-    `
-  SELECT count(um.mission_id) cnt
-  FROM user_mission um
-     , list_mission lm
- WHERE lm.mission_id = um.mission_id  
-   AND lm.project_id = ?
-   AND um.userkey = ?;
-  `,
-    [userInfo.project_id, userInfo.userkey]
-  );
-
-  // ? 프로젝트 미션
-  const projectMission = await DB(
-    `
-  SELECT count(*) cnt FROM list_mission lm WHERE project_id = ?;
-  `,
-    [userInfo.project_id]
-  );
-
-  if (projectMission.row[0].cnt === 0 || userMission.row[0].cnt === 0) {
-    // 0 나누기 방지
-    missionProgress = 0;
-  } else {
-    missionProgress =
-      parseFloat(userMission.row[0].cnt) /
-      parseFloat(projectMission.row[0].cnt);
-  }
-  // ? 미션 끝
-
-  // ? 엔딩
-  const projectEnding = await DB(Q_PROJECT_ENDING_COUNT, [userInfo.project_id]);
-  const userEnding = await DB(Q_USER_ENDING_COUNT, [
-    userInfo.project_id,
-    userInfo.userkey,
-    userInfo.lang,
-  ]);
-
-  if (userEnding.row[0].cnt === 0 || projectEnding.row[0].cnt === 0) {
-    endingProgress = 0;
-  } else {
-    endingProgress =
-      parseFloat(userEnding.row[0].cnt) / parseFloat(projectEnding.row[0].cnt);
-  }
-  // ? 엔딩 끝
-
-  const progress = {};
-  progress.mission = missionProgress;
-  progress.ending = endingProgress;
-  progress.gallery = galleryProgress;
-
-  logger.info(
-    `Progress gallery : [${userGallery.row[0].cnt}/${projectGallery.row[0].cnt}], mission : [${userMission.row[0].cnt}/${projectMission.row[0].cnt}], ending : [${userEnding.row[0].cnt}/${projectEnding.row[0].cnt}]`
-  );
-
-  return progress;
-};
 
 // 유저 도전과제 히스토리 업데이트
 export const updateUserMissionHistory = async (req, res) => {
@@ -778,11 +681,21 @@ ORDER BY a.episode_type, a.sortkey;
 
 // * 프로젝트에 연결된 말풍선 세트 ID 조회
 const getProjectBubbleSetVersionID = async (userInfo) => {
-  // console.log(getProjectBubbleSetVersionID);
-
+  // * 2022.05.18 말풍선 추가 옵션
+  // 폰트 사이즈 및 정렬 방식, 네임태그 설정에 대한 정보 추가
   const result = await DB(
     `
-    SELECT lp.bubble_set_id, cbm.bubble_ver
+    SELECT lp.bubble_set_id
+         , cbm.bubble_ver
+         , cbm.normal_font_size
+         , cbm.big_font_size
+         , cbm.line_space
+         , cbm.tag_color_affect
+         , cbm.tag_align_type
+         , cbm.tag_textarea_left
+         , cbm.tag_textarea_right
+         , cbm.tag_textarea_top
+         , cbm.tag_textarea_bottom
     FROM list_project_master lp
        , com_bubble_master cbm 
    WHERE lp.project_id = ?
@@ -792,14 +705,21 @@ const getProjectBubbleSetVersionID = async (userInfo) => {
   );
 
   // 마스터 정보
-  const bubbleMaster = { bubbleID: 25, bubble_ver: 1 };
+  let bubbleMaster = { bubbleID: 25, bubble_ver: 1 };
 
   // 리턴
   if (result.state && result.row.length > 0) {
+    bubbleMaster = result.row[0]; // row 정보를 그대로 가져오고
+
+    // 추가 변수 세팅
     bubbleMaster.bubbleID = result.row[0].bubble_set_id;
     bubbleMaster.bubble_ver = result.row[0].bubble_ver;
+
     return bubbleMaster;
-  } else return bubbleMaster;
+  } else {
+    logger.error(`NO BUBBLE SET ${JSON.stringify(userInfo)}`);
+    return bubbleMaster;
+  }
 }; // ? END
 
 // 프로젝트 말풍선 세트 정보 조회
@@ -2902,8 +2822,6 @@ export const getUserSelectedStory = async (req, res) => {
   storyInfo.loading = currentLoadingData.loading;
   storyInfo.loadingDetail = currentLoadingData.loadingDetail;
 
-  storyInfo.userProperty = {}; // 삭제대상 노드
-
   const projectResources = await getProjectResources(
     userInfo.project_id,
     userInfo.lang,
@@ -2948,7 +2866,6 @@ export const getUserSelectedStory = async (req, res) => {
   const voiceData = await getUserVoiceHistory(userInfo);
   storyInfo.voiceHistory = voiceData.voiceHistory; // 화자별로 포장된 보이스
   storyInfo.rawVoiceHistory = voiceData.rawVoiceHistory; // 리스트 그대로 형태의 보이스
-  storyInfo.progress = await getUserCollectionProgress(userInfo); // 수집요소 진행률
   storyInfo.episodes = await requestMainEpisodeList(userInfo); // 유저의 정규 에피소드 리스트
 
   // 작품 기준정보
