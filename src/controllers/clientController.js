@@ -130,6 +130,7 @@ import {
   getCoinProductPurchaseList,
   requestTotalCoinShop,
   requestLocalizingCoinShop,
+  requestCoinExchangeListByCoinShop,
 } from "./coinController";
 
 import { getLevelList, updateUserLevelProcess } from "./levelController";
@@ -1478,6 +1479,7 @@ export const clientHome = (req, res) => {
   else if (func === "requestIfyouPlayList") requestIfyouPlayList(req, res); //이프유 플레이 리스트
   else if (func === "requestDailyMissionReward") requestDailyMissionReward(req, res); //일일 미션 보상 받기
   else if (func === "requestDailyMissionCount") increaseDailyMissionCount(req, res); //일일미션 누적처리
+  else if (func === "requestCoinExchangeListByCoinShop") requestCoinExchangeListByCoinShop(req, res); //환전 리스트(코인샵)
   else {
     //  res.status(400).send(`Wrong Func : ${func}`);
     logger.error(`clientHome Error ${func}`);

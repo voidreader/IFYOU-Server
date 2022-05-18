@@ -656,27 +656,14 @@ export const checkUserIdValidation = async (req, res) => {
     return;
   }
 
-  const profileResult = await DB(
-    `
-  SELECT currency_type
-  , fn_get_design_info(icon_image_id, 'url') icon_image_url
-  , fn_get_design_info(icon_image_id, 'key') icon_image_key
-  FROM user_profile_currency a, com_currency b 
-  WHERE a.currency = b.currency 
-  AND userkey =?
-  AND currency_type IN ( 'portrait', 'frame' );
-  `,
-    [userkey]
-  );
-
   // uid, userkey를 전달.
   const responseData = {};
   responseData.userkey = validationResult.row[0].userkey;
   responseData.uid = validationResult.row[0].uid;
   responseData.nickname = validationResult.row[0].nickname;
   responseData.coin = await getCurrencyQuantity(responseData.userkey, "coin");
-  responseData.profile = profileResult.row;
-
+  responseData.gem = await getCurrencyQuantity(responseData.userkey, 'gem');
+  
   res.status(200).json(responseData);
 };
 

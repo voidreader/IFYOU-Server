@@ -2,9 +2,10 @@ import mysql from "mysql2/promise";
 import { response } from "express";
 import { DB, logAction, transactionDB } from "../mysqldb";
 import { logger } from "../logger";
-import { respondDB, responDBCoinShop } from "../respondent";
+import { respondDB, } from "../respondent";
 import { getUserBankInfo, getCurrencyQuantity } from "./bankController";
 import { getLevelQuery, getAchievementQuery } from "./achievementController";
+import { Q_SELECT_COIN_EXCHANGE, } from "../QStore";
 import { getInConditionQuery } from "../com/com";
 
 const coinProductListQuery = `
@@ -384,7 +385,7 @@ export const getCoinProductSearchDetail = async (req, res) => {
 
   if (!whereQuery) {
     logger.info(`getCoinProductSearchDetail search no`);
-    responDBCoinShop(res, 80098, lang);
+    respondDB(res, 80098, '', lang);
     return;
   }
 
@@ -491,7 +492,7 @@ export const coinProductSearchDelete = async (req, res) => {
     ]);
     if (!result.state) {
       logger.error(`coinProductSearchDelete Error 1 ${result.error}`);
-      responDBCoinShop(res, 80026, lang, result.error);
+      respondDB(res, 80026, result.error, lang);
       return;
     }
   } else {
@@ -501,7 +502,7 @@ export const coinProductSearchDelete = async (req, res) => {
     );
     if (!result.state || result.row.length === 0) {
       logger.error(`coinProductSearchDelete Error 2`);
-      responDBCoinShop(res, 80019, lang);
+      respondDB(res, 80019, '', lang);
       return;
     }
 
@@ -511,7 +512,7 @@ export const coinProductSearchDelete = async (req, res) => {
     );
     if (!result.state) {
       logger.error(`coinProductSearchDelete Error 3 ${result.error}`);
-      responDBCoinShop(res, 80026, lang, result.error);
+      respondDB(res, 80026, result.error, lang);
       return;
     }
   }
@@ -589,7 +590,7 @@ export const userCoinPurchase = async (req, res) => {
 
   if (userkey === 0 || coin_product_id === 0 || pay_price === 0 || !currency) {
     logger.error(`userCoinPurchase Error 1-1`);
-    responDBCoinShop(res, 80019, lang, req.body);
+    respondDB(res, 80019, req.body, lang);
     return;
   }
 
@@ -621,7 +622,7 @@ export const userCoinPurchase = async (req, res) => {
   );
   if (!result.state || result.row.length === 0) {
     logger.error(`userCoinPurchase Error 1-2`);
-    responDBCoinShop(res, 80097, lang);
+    respondDB(res, 80097, '', lang);
     return;
   }
 
@@ -644,7 +645,7 @@ export const userCoinPurchase = async (req, res) => {
 
   if (is_unique > 0 && quantity > 0) {
     logger.error(`userCoinPurchase Error 2`);
-    responDBCoinShop(res, 80025, lang);
+    respondDB(res, 80025, '', lang);
     return;
   }
 
@@ -662,7 +663,7 @@ export const userCoinPurchase = async (req, res) => {
 
   if (userCoin < valid_pay_price) {
     logger.error(`userCoinPurchase Error 3`);
-    responDBCoinShop(res, 80013, lang);
+    respondDB(res, 80013, '', lang);
     return;
   }
 
@@ -724,7 +725,7 @@ export const userCoinPurchase = async (req, res) => {
 
   if (!purchaseResult.state) {
     logger.error(`userCoinPurchase Error 4 ${purchaseResult.error}`);
-    responDBCoinShop(res, 80026, lang, purchaseResult.error);
+    respondDB(res, 80026, purchaseResult.error, lang);
     return;
   }
 
@@ -918,9 +919,103 @@ export const requestLocalizingCoinShop = async (req, res) => {
   id
   , ${lang} message 
   FROM com_localize
-  WHERE id IN (7015,7018,7006,7007,7021,6017,7003,7010,7011,7012,7017,7004,7005,7019,7020,7000,7001,7002,7022,7023);`);
+  WHERE id IN (7015,7018,7006,7007,7021,6017,7003,7010,7011,7012,7017,7004,7005,7019,7020,7000,7001,7002,7022,7023,2001,6204,80102);`);
 
   res.status(200).json(result.row);
+};
+
+//! 코인 환전 리스트
+export const requestCoinExchangeListByCoinShop = async (req, res) =>{
+  const {
+    body:{
+      userkey, 
+      lang = "KO",
+      project_id = -1,
+    }
+  } = req;
+  
+  const responseData = {}; 
+
+  let result = await DB(Q_SELECT_COIN_EXCHANGE, [userkey]);
+  responseData.exchange_coin = result.row;
+
+  //계정 연동 정보
+  result = await checkAccountLink(userkey);
+  responseData.account_link = result.account_link;
+
+  //스탠딩
+  result = await DB(
+    `${coinProductListQuery} ORDER BY a.price DESC, rand() LIMIT 5;`,
+    [
+      lang,
+      lang,
+      userkey,
+      project_id,
+      lang,
+      lang,
+      lang,
+      userkey,
+      project_id,
+      "standing",
+    ]
+  );
+  responseData.character = await getCoinProductListSort(result.row, 1);
+
+  //배경
+  result = await DB(
+    `${coinProductListQuery} ORDER BY price DESC, rand() LIMIT 5;`,
+    [
+      lang,
+      lang,
+      userkey,
+      project_id,
+      lang,
+      lang,
+      lang,
+      userkey,
+      project_id,
+      "wallpaper",
+    ]
+  );
+  responseData.wallpaper = await getCoinProductListSort(result.row, 1);
+
+  //스티커
+  result = await DB(
+    `${coinProductListQuery} ORDER BY price DESC, rand() LIMIT 5;`,
+    [
+      lang,
+      lang,
+      userkey,
+      project_id,
+      lang,
+      lang,
+      lang,
+      userkey,
+      project_id,
+      "sticker",
+    ]
+  );
+  responseData.sticker = await getCoinProductListSort(result.row, 1);
+
+  //대사
+  result = await DB(
+    `${coinProductListQuery} ORDER BY price DESC, rand() LIMIT 5;`,
+    [
+      lang,
+      lang,
+      userkey,
+      project_id,
+      lang,
+      lang,
+      lang,
+      userkey,
+      project_id,
+      "bubble",
+    ]
+  );
+  responseData.line = await getCoinProductListSort(result.row, 1);
+
+  res.status(200).json(responseData);
 };
 
 //// 차후에 삭제할 예정
