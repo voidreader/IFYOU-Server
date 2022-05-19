@@ -15,8 +15,8 @@ import adminRouter from "./routers/adminRouter";
 
 import {
   scheduleMail,
-  scheduleStatInsert,
   scheduleGrade,
+  scheduleContinuousAttendance,
 } from "./schedule";
 
 const app = express();
