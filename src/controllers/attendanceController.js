@@ -89,7 +89,8 @@ export const getContinuousAttendanceList = async (userkey) => {
   SELECT attendance_no
   , CASE WHEN date(DATE_ADD(attendance_date, INTERVAL 1 DAY)) < date(now()) THEN -1 ELSE 0 END attendance_check
   FROM user_continuous_attendance
-  WHERE attendance_no = fn_get_max_attendance_id(?, 'user');
+  WHERE attendance_no = fn_get_max_attendance_id(?, 'user')
+  AND is_attendance = 1;
   `, [userkey]);
   if(result.state && result.row.length > 0){
     const { attendance_no, attendance_check, } = result.row[0];
