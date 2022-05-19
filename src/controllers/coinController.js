@@ -594,7 +594,7 @@ export const userCoinPurchase = async (req, res) => {
   }
 
   //* 판매 중인 상품인지 확인
-  const result = await DB(
+  let result = await DB(
     `SELECT ifnull(fn_get_currency_info(a.currency, 'type'), 'set') currency_type
     , CASE WHEN a.currency = '' THEN 
       fn_get_currency_set(coin_product_id)
@@ -688,6 +688,7 @@ export const userCoinPurchase = async (req, res) => {
   );
 
   let achievementQuery = ``;
+  let dailyMissionQuery = ``;
 
   //비기너 코인샵 구매 업적
   achievementQuery = await getAchievementQuery(userkey, 3);
@@ -699,11 +700,26 @@ export const userCoinPurchase = async (req, res) => {
   if (currency_type === "standing")
     achievementQuery += await getLevelQuery(userkey, 19);
 
+  //일일 미션 처리
+  result = await DB(
+    `
+  SELECT 
+  fn_check_daily_mission_done(?, 4) mission_done
+  FROM DUAL;`,
+    [userkey]
+  );
+  if (result.row[0].mission_done === 0)
+    dailyMissionQuery = mysql.format(
+      `CALL pier.sp_update_user_daily_mission(?, 4, 1);`,
+      [userkey]
+    );
+
   const purchaseResult = await transactionDB(`
     ${purchaseQuery}
     ${insertQuery}
     ${userHistoryQuery}   
     ${achievementQuery}
+    ${dailyMissionQuery}
   `);
 
   if (!purchaseResult.state) {
