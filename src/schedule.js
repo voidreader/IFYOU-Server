@@ -386,9 +386,9 @@ export const scheduleContinuousAttendance  = schedule.scheduleJob(
   async () => {
     const isMail = process.env.MAIL_SCHEDULE;
 
-    if (isMail < 1) return;
-
     logger.info(`scheduleContinuousAttendance Start [${isMail}]`);
+    
+    if (isMail < 1) return;
 
     //시즌 갱신
     const result = await DB(`
