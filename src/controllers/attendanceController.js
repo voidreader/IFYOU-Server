@@ -366,6 +366,7 @@ export const sendAttendanceReward = async (req, res) => {
     }
   }
 
+
   result = await transactionDB(updateQuery);
   if (!result.state) {
     logger.error(`sendAttendanceReward Error 4 ${result.error}`);
@@ -539,7 +540,8 @@ export const resetAttendanceMission = async (req, res) => {
     return;
   }
 
-  const { attendance_id, reset_day, start_date, end_date, reset_result, } = result.row[0];
+  const { attendance_id, reset_day, start_date, end_date, reset_result } =
+    result.row[0];
 
   //구매 가능한지 확인
   const restCoin = reset_day * 100;
@@ -556,13 +558,13 @@ export const resetAttendanceMission = async (req, res) => {
 
   //현재일자 기준으로 보상일자 셋팅
   let setDaySeq = 0;
-  if(reset_result <= 3){
+  if (reset_result <= 3) {
     setDaySeq = 3;
-  }else if(reset_result >= 4 && reset_result <= 7){
+  } else if (reset_result >= 4 && reset_result <= 7) {
     setDaySeq = 7;
-  }else if(reset_result >= 8 && reset_result <= 10){
+  } else if (reset_result >= 8 && reset_result <= 10) {
     setDaySeq = 10;
-  }else if(reset_result >= 11 && reset_result <= 14){
+  } else if (reset_result >= 11 && reset_result <= 14) {
     setDaySeq = 14;
   }
 
