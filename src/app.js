@@ -16,6 +16,7 @@ import adminRouter from "./routers/adminRouter";
 import {
   scheduleMail,
   scheduleGrade,
+  scheduleStatInsert,
   scheduleContinuousAttendance,
 } from "./schedule";
 

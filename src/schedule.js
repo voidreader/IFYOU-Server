@@ -335,25 +335,25 @@ export const scheduleStatInsert = schedule.scheduleJob(
   async () => {
     const isMail = process.env.MAIL_SCHEDULE;
 
-    const now = new Date();
-    const yesterday = new Date(now.setDate(now.getDate() - 1));
-    const year = yesterday.getFullYear();
-    const month = String(yesterday.getMonth() + 1).padStart(2, "0");
-    const day = String(yesterday.getDate()).padStart(2, "0");
-    const setDay = `${year}-${month}-${day}`; //어제 날짜 셋팅
+    // const now = new Date();
+    // const yesterday = new Date(now.setDate(now.getDate() - 1));
+    // const year = yesterday.getFullYear();
+    // const month = String(yesterday.getMonth() + 1).padStart(2, "0");
+    // const day = String(yesterday.getDate()).padStart(2, "0");
+    // const setDay = `${year}-${month}-${day}`; //어제 날짜 셋팅
 
-    logger.info(`scheduleStatInsert [${setDay} : ${isMail}]`);
+    // logger.info(`scheduleStatInsert [${setDay} : ${isMail}]`);
 
     if (isMail < 1) return;
 
-    await getStatIfyouList(setDay);
-    await getStatTutorialList(setDay);
-    await getStatProjectList(setDay);
-    await getStatEpisodePlayList(setDay);
-    await getStatEpisodeActionList(setDay);
-    await getStatPropertyList(setDay);
-    await getStatInappList(setDay);
-    await getStatCoinList(setDay);
+    // await getStatIfyouList(setDay);
+    // await getStatTutorialList(setDay);
+    // await getStatProjectList(setDay);
+    // await getStatEpisodePlayList(setDay);
+    // await getStatEpisodeActionList(setDay);
+    // await getStatPropertyList(setDay);
+    // await getStatInappList(setDay);
+    // await getStatCoinList(setDay);
     await updateProjectViewCnt();
 
     logger.info(`scheduleStatInsert End`);
