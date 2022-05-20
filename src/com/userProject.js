@@ -1,7 +1,7 @@
 import mysql from "mysql2/promise";
 import { DB, logAction, transactionDB } from "../mysqldb";
 import { logger } from "../logger";
-import { respondDB } from "../respondent";
+import { respond, respondDB } from "../respondent";
 import {
   getCurrencyQuantity,
   getUserBankInfo,
@@ -111,6 +111,7 @@ export const getUserProjectCurrent = async (userInfo) => {
   console.log(`getUserProjectCurrent `, userInfo);
   let currentInfo = [];
 
+  // list_episode 조인 추가 2022.05.20
   const result = await DB(
     `
     SELECT a.project_id
@@ -121,9 +122,13 @@ export const getUserProjectCurrent = async (userInfo) => {
     , fn_check_episode_is_ending(a.episode_id) is_ending
     , a.is_final
     , date_format(ifnull(a.next_open_time, date_add(now(), INTERVAL -1 hour)), '%Y-%m-%d %T') next_open_time -- utc 변환 
+    , le.chapter_number 
     FROM user_project_current a
+       , list_episode le
     WHERE a.userkey = ?
     AND a.project_id = ?
+    AND le.project_id = a.project_id 
+    AND le.episode_id = a.episode_id 
     ORDER BY a.is_special;
   `,
     [userInfo.userkey, userInfo.project_id]
@@ -662,8 +667,8 @@ export const checkUserIdValidation = async (req, res) => {
   responseData.uid = validationResult.row[0].uid;
   responseData.nickname = validationResult.row[0].nickname;
   responseData.coin = await getCurrencyQuantity(responseData.userkey, "coin");
-  responseData.gem = await getCurrencyQuantity(responseData.userkey, 'gem');
-  
+  responseData.gem = await getCurrencyQuantity(responseData.userkey, "gem");
+
   res.status(200).json(responseData);
 };
 
@@ -1231,3 +1236,30 @@ export const requestWaitingEpisodeWithCoin = async (req, res) => {
 
   logAction(userkey, "waitingOpenCoin", req.body);
 }; // ? requestWaitingEpisodeWithCoin END
+
+// * 유저의 작품 알림 설정하기
+export const setUserProjectNotification = async (req, res) => {
+  const {
+    body: { userkey, project_id, is_notify },
+  } = req;
+
+  // 데이터가 없으면 insert, 있으면 update 해주기
+  const result = await DB(`
+  INSERT INTO user_project_notification (userkey, project_id, is_notify, last_modified)
+  VALUES (${userkey}, ${project_id}, ${is_notify}, now()) ON DUPLICATE KEY 
+  UPDATE is_notify = ${is_notify}, last_modified = now();   
+  `);
+
+  if (!result.state) {
+    logger.error(`${JSON.stringify(result.error)}`);
+    respondDB(res, 80019, result.error);
+    return;
+  }
+
+  // 입력 완료 후, 대상 작품의 user_project_current 주기
+  const responseData = {};
+  responseData.projectCurrent = await getUserProjectCurrent(req.body);
+  responseData.is_notify = is_notify; // 결과값
+
+  res.status(200).json(responseData);
+};
