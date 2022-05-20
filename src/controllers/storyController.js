@@ -4,21 +4,12 @@ import { response } from "express";
 import { DB, transactionDB } from "../mysqldb";
 import {
   Q_SCRIPT_CHARACTER_EXPRESSION_DROPDOWN,
-  Q_UPDATE_EPISODE_SORTKEY,
   Q_SELECT_PROJECT_MODEL,
-  Q_SELECT_PROJECT_EPISODES_FOR_UNLOCK,
   Q_SELECT_PROJECT_SCENES_FOR_UNLOCK,
   Q_SELECT_COUPONS_FOR_UNLOCK,
 } from "../QStore";
 import { logger } from "../logger";
-import {
-  respond,
-  respondRedirect,
-  respondDB,
-  adminLogInsert,
-  respondAdminSuccess,
-} from "../respondent";
-import { postSelectProjectEpisodeList } from "./episodeController";
+import { respond, respondRedirect, respondDB } from "../respondent";
 
 // * 작품의 현재 프리미엄 패스 가격
 export const getCurrentProjectPassPrice = async ({ userkey, project_id }) => {
@@ -38,36 +29,6 @@ export const getCurrentProjectPassPrice = async ({ userkey, project_id }) => {
   const responseData = { origin_price, sale_price, discount };
 
   return responseData;
-};
-
-// * 작품의 프리패스 가격 조회 (2022.03.17 사용안함)
-export const getProjectFreepassPrice = async ({ userkey, project_id }) => {
-  // 영구 구매된 것들을 제외하고의 모든 sale_price를 합치고, 10% 할인이 들어간다.
-  const result = await DB(`
-  SELECT sum(a.sale_price) origin_freepass_price
-     , floor(sum(a.sale_price) - sum(a.sale_price) * 0.1) sale_freepass_price 
-  FROM list_episode a
-     LEFT OUTER JOIN user_episode_purchase uep ON a.episode_id = uep.episode_id  AND uep.userkey = ${userkey}
- WHERE a.project_id = ${project_id}
-   AND a.episode_type = 'chapter'
-   AND (uep.permanent  IS NULL OR uep.permanent = 0 )
-;
-  `);
-
-  if (!result.state || result.row.length === 0) {
-    return {};
-  }
-
-  // * 최소 가격을 스타 3으로 변경한다.
-  if (result.row[0].origin_freepass_price < 3) {
-    result.row[0].origin_freepass_price = 3;
-  }
-
-  if (result.row[0].sale_freepass_price < 3) {
-    result.row[0].sale_freepass_price = 3;
-  }
-
-  return result.row[0];
 };
 
 // ! 스페셜 에피소드 해금 체크 -  에피소드 조건 -
