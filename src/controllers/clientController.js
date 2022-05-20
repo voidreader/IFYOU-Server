@@ -94,6 +94,7 @@ import {
   requestRemoveCurrentAD,
   setProjectProgressOrder,
   purchaseEpisodeType2,
+  setUserProjectNotification,
 } from "../com/userProject";
 import {
   getAllProductList,
@@ -139,7 +140,7 @@ import {
   getCoinExchangeProductList,
   coinExchangePurchase,
 } from "./exchangeController";
-import { 
+import {
   attendanceList,
   sendAttendanceReward,
   requestAttendanceMission,
@@ -544,6 +545,7 @@ const getIfYouProjectList = async (req, res) => {
   , ifnull(a.serial_day, -1) serial_day
   , ifnull(fn_get_origin_pass_price (a.project_id), 100) pass_price
   , ROUND(fn_get_current_pass_price(${userkey}, a.project_id), 2) pass_discount
+  , fn_get_user_project_notification(${userkey}, a.project_id) is_notify
   FROM list_project_master a
   LEFT OUTER JOIN list_project_detail b ON b.project_id = a.project_id AND b.lang ='${lang}'
   WHERE a.is_public > 0
@@ -1473,13 +1475,28 @@ export const clientHome = (req, res) => {
     requestLocalizingCoinShop(req, res);
   //코인샵 다국어
   else if (func === "normalizeResource") normalizeResource(req, res);
-  else if (func === "requestAttendanceMission") requestAttendanceMission(req, res); //연속 출석 미션
-  else if (func === "receiveAttendanceMissionReward") receiveAttendanceMissionReward(req, res); //연속 출석 미션 보상 받기
-  else if (func === "resetAttendanceMission") resetAttendanceMission(req, res); //연속 출석 미션 보충
-  else if (func === "requestIfyouPlayList") requestIfyouPlayList(req, res); //이프유 플레이 리스트
-  else if (func === "requestDailyMissionReward") requestDailyMissionReward(req, res); //일일 미션 보상 받기
-  else if (func === "requestDailyMissionCount") increaseDailyMissionCount(req, res); //일일미션 누적처리
-  else if (func === "requestCoinExchangeListByCoinShop") requestCoinExchangeListByCoinShop(req, res); //환전 리스트(코인샵)
+  else if (func === "requestAttendanceMission")
+    requestAttendanceMission(req, res);
+  //연속 출석 미션
+  else if (func === "receiveAttendanceMissionReward")
+    receiveAttendanceMissionReward(req, res);
+  //연속 출석 미션 보상 받기
+  else if (func === "resetAttendanceMission") resetAttendanceMission(req, res);
+  //연속 출석 미션 보충
+  else if (func === "requestIfyouPlayList") requestIfyouPlayList(req, res);
+  //이프유 플레이 리스트
+  else if (func === "requestDailyMissionReward")
+    requestDailyMissionReward(req, res);
+  //일일 미션 보상 받기
+  else if (func === "requestDailyMissionCount")
+    increaseDailyMissionCount(req, res);
+  //일일미션 누적처리
+  else if (func === "requestCoinExchangeListByCoinShop")
+    requestCoinExchangeListByCoinShop(req, res);
+  //환전 리스트(코인샵)
+  else if (func === "setUserProjectNotification")
+    setUserProjectNotification(req, res);
+  // 유저 프로젝트 알림설정(2022.05.20)
   else {
     //  res.status(400).send(`Wrong Func : ${func}`);
     logger.error(`clientHome Error ${func}`);
