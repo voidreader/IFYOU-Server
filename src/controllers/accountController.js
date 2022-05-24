@@ -1884,6 +1884,11 @@ export const loginClient = async (req, res) => {
   } else {
     // * 로그인 완료 후 데이터 처리
     accountInfo.account = result.row[0];
+
+    // allpass_expiration 처리 추가 2022.05.23
+    const expireDate = new Date(accountInfo.account.allpass_expiration);
+    accountInfo.account.allpass_expire_tick = expireDate.getTime();
+
     const userInfo = { userkey: accountInfo.account.userkey };
     accountInfo.bank = await getUserBankInfo(userInfo);
     accountInfo.tutorial = await getUserTutorialCurrent(userInfo);
@@ -1913,7 +1918,7 @@ export const loginClient = async (req, res) => {
     // getProfileCurrencyCurrent
     // * 유저 Profile 정보 추가
     req.body.userkey = accountInfo.account.userkey;
-    accountInfo.profile = await getProfileCurrencyCurrent(req, res, false);
+    accountInfo.profile = []; // * 2022.05.23 삭제대상 노드.
 
     // * 응답 처리
     res.status(200).json(accountInfo);

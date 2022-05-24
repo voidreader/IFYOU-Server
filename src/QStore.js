@@ -214,6 +214,7 @@ SELECT ta.userkey
 , ifnull(t.tutorial_selection, 0) tutorial_selection
 , t.how_to_play
 , ta.intro_done
+, ifnull(ta.allpass_expiration, '2022-01-01') allpass_expiration 
 FROM table_account ta 
 LEFT OUTER JOIN user_tutorial t ON t.userkey = ta.userkey
 WHERE ta.gamebaseid  = ?;
@@ -238,6 +239,7 @@ SELECT ta.userkey
 , ifnull(t.tutorial_selection, 0) tutorial_selection
 , t.how_to_play
 , ta.intro_done
+, ifnull(ta.allpass_expiration, '2022-01-01') allpass_expiration 
 FROM table_account ta 
 LEFT OUTER JOIN user_tutorial t ON t.userkey = ta.userkey
 WHERE ta.userkey = ?;
