@@ -524,7 +524,7 @@ export const resetAttendanceMission = async (req, res) => {
   attendance_id
   , is_attendance
   , CASE WHEN is_attendance = 1 THEN 
-    DATEDIFF(now(), start_date)-current_result 
+    DATEDIFF(now(), start_date)
   ELSE 
     DATEDIFF(now(), start_date)+1-current_result
   END reset_day
@@ -549,8 +549,7 @@ export const resetAttendanceMission = async (req, res) => {
     return;
   }
 
-  const { attendance_id, is_attendance, reset_day, start_date, end_date, reset_result, action_date, } =
-    result.row[0];
+  const { attendance_id, is_attendance, reset_day, start_date, end_date, reset_result, action_date, } = result.row[0];
 
   //구매 가능한지 확인
   const restCoin = reset_day * 100;
@@ -607,7 +606,7 @@ export const resetAttendanceMission = async (req, res) => {
         setAttendanceResult = reset_result;
         setAttendanceDate = 'now()';   //출석 실패               
       }else if(action_date) {
-        setAttendanceResult = reset_result + 1;
+        setAttendanceResult = reset_result+1;
         setAttendanceDate = `'${action_date}'`; //일일 출석한 경우
       }else {
         setAttendanceResult = reset_result;
