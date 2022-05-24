@@ -529,26 +529,30 @@ export const getAllProductList = async (req, res) => {
     body: { lang = "KO" },
   } = req;
 
-  const bannerQuery = `(SELECT banner_id FROM list_product_lang WHERE master_id = a.product_master_id AND lang = '${lang}')`;
-  const detailImageQuery = `(SELECT detail_image_id FROM list_product_lang WHERE master_id = a.product_master_id AND lang = '${lang}')`;
-
   const result = await DB(
-    `SELECT product_master_id
-    , fn_get_design_info(${bannerQuery}, 'url') product_url
-    , fn_get_design_info(${bannerQuery}, 'key') product_key
-    , fn_get_design_info(${detailImageQuery}, 'url') product_detail_url
-    , fn_get_design_info(${detailImageQuery}, 'key') product_detail_key 
-    , product_id
-    , fn_get_standard_name('product', product_id) product_name
-    , ifnull(bonus_name, '') bonus_name
-    , product_type
-    , fn_get_standard_name('product_type', product_type) product_type_name 
-    , DATE_FORMAT(from_date, '%Y-%m-%d %T') from_date
-    , DATE_FORMAT(to_date, '%Y-%m-%d %T') to_date
-    , max_count
-    , case when to_date = '9999-12-31' THEN 0 ELSE 1 END is_event
-    FROM list_product_master a WHERE is_public = 1 AND sysdate() BETWEEN from_date AND to_date;`,
-    []
+    `    
+    SELECT a.product_master_id 
+    , a.product_id 
+    , fn_get_design_info(lang.banner_id, 'url') product_url
+    , fn_get_design_info(lang.banner_id, 'key') product_key
+    , fn_get_design_info(lang.detail_image_id, 'url') product_detail_url
+    , fn_get_design_info(lang.detail_image_id, 'key') product_detail_key
+    , lang.title product_name
+    , ifnull(a.bonus_name, '') bonus_name 
+    , a.product_type 
+    , fn_get_standard_name('product_type', a.product_type) product_type_name 
+   , DATE_FORMAT(a.from_date, '%Y-%m-%d %T') from_date
+   , DATE_FORMAT(a.to_date, '%Y-%m-%d %T') to_date
+   , a.max_count
+    , case when a.to_date = '9999-12-31' THEN 0 ELSE 1 END is_event
+  FROM list_product_master a
+      , list_product_lang lang
+  WHERE a.is_public = 1
+    AND lang.master_id = a.product_master_id 
+    AND lang.lang  = '${lang}'
+    AND now() BETWEEN a.from_date AND a.to_date
+  ORDER BY product_type, product_id;
+  `
   );
 
   //* 유효한 상품 리스트와 디테일 가져오기
@@ -610,15 +614,21 @@ export const getUserPurchaseList = async (req, res, isResponse = true) => {
   responseData.userPurchaseHistory = {};
 
   const result = await DB(
-    `SELECT purchase_no
-  , product_id 
-  , ifnull(fn_get_standard_name('product', product_id), '') product_name 
-  , receipt
-  , state
-  , DATE_FORMAT(purchase_date, '%Y-%m-%d %T') purchase_date
-  FROM user_purchase
+    `
+    SELECT up.purchase_no
+  , up.product_id 
+  , ifnull(fn_get_standard_name('product', up.product_id), '') product_name 
+  , up.receipt
+  , up.state
+  , DATE_FORMAT(up.purchase_date, '%Y-%m-%d %T') purchase_date
+  , lpm.product_master_id 
+  FROM user_purchase up
+     , list_product_master lpm 
   WHERE userkey = ?
-  ORDER BY purchase_no DESC;`,
+    AND lpm.product_id = up.product_id 
+    AND up.purchase_date BETWEEN lpm.from_date AND lpm.to_date 
+  ORDER BY purchase_no DESC;
+    `,
     [req.body.userkey]
   );
 
@@ -678,21 +688,48 @@ export const userPurchase = async (req, res) => {
     return;
   }
 
-  //* 구매 확정 메일 보내기
-  const sendResult = await DB(
-    `INSERT INTO user_mail(userkey, mail_type, currency, quantity, expire_date, connected_project, purchase_no) 
-    VALUES(?, 'inapp_origin', '', 0, DATE_ADD(NOW(), INTERVAL 1 YEAR), -1, ?);`,
-    [userkey, result.row.insertId]
-  );
+  // * 2022.05.23 올패스 상품에 대한 예외처리
+  // 올패스는 유저 메일로 구매 확정을 보내지 않음.
+  if (product_id.includes(`allpass`)) {
+    let addDay = 0;
+    // 1,3,7일차에 대한 처리
+    if (product_id === "allpass_1") addDay = 1;
+    else if (product_id === "allpass_3") addDay = 3;
+    else addDay = 7;
 
-  if (!sendResult.state) {
-    logger.error(`userPurchase Error #2 ${sendResult.error}`);
-    respondDB(res, 80026, sendResult.error);
-    return;
+    // 유저 올패스 업데이트 처리, addDay 만큼 더해줘서 업데이트한다.
+    const allpassUpdate = await DB(`
+    UPDATE table_account 
+    SET allpass_expiration = DATE_ADD(ifnull(allpass_expiration, now()), INTERVAL ${addDay} DAY)
+    WHERE userkey = ${userkey};
+    `);
+
+    // 실패
+    if (!allpassUpdate.state) {
+      logger.error(`userPurchase Error #2-1 ${allpassUpdate.error}`);
+      respondDB(res, 80026, allpassUpdate.error);
+      return;
+    }
+  } else {
+    //* 구매 확정 메일 보내기
+    const sendResult = await DB(
+      `INSERT INTO user_mail(userkey, mail_type, currency, quantity, expire_date, connected_project, purchase_no) 
+    VALUES(?, 'inapp_origin', '', 0, DATE_ADD(NOW(), INTERVAL 1 YEAR), -1, ?);`,
+      [userkey, result.row.insertId]
+    );
+
+    if (!sendResult.state) {
+      logger.error(`userPurchase Error #2 ${sendResult.error}`);
+      respondDB(res, 80026, sendResult.error);
+      return;
+    }
   }
 
-  //* 안읽은 메일 count와 bankInfo 리턴
+  // * 응답정보 생성하기
+  // * 안읽은 메일 count와 bankInfo 리턴, 올패스 정보 및 구매 히스토리
   const responseData = {};
+
+  // 메일정보
   const unreadMailResult = await DB(
     `SELECT fn_get_user_unread_mail_count(?) cnt FROM dual;`,
     [userkey]
@@ -702,10 +739,32 @@ export const userPurchase = async (req, res) => {
   if (unreadMailResult.state && unreadMailResult.row.length > 0)
     responseData.unreadMailCount = unreadMailResult.row[0].cnt;
 
+  // 뱅크 정보
   responseData.bank = await getUserBankInfo(req.body);
 
+  // 구매 히스토리
   responseData.userPurchaseHistory = await getUserPurchaseList(req, res, false);
-  responseData.product_id = product_id; // 제품 ID 추가
+
+  // 현재의 올패스 만료 시간
+  const currentAllpassExpireInfo = await DB(`
+  SELECT ifnull(ta.allpass_expiration, '2022-01-01') current_expiration 
+  FROM table_account ta
+ WHERE ta.userkey = ${userkey};
+  `);
+
+  // 만료시간이 설마 없진 않겠지
+  if (!currentAllpassExpireInfo.state || currentAllpassExpireInfo.row === 0) {
+    logger.error(`userPurchase Error #3 ${currentAllpassExpireInfo.error}`);
+    respondDB(res, 80026, currentAllpassExpireInfo.error);
+    return;
+  }
+
+  // 올패스 만료시간 tick 전달해주기
+  const allpassExpireDate = new Date(
+    currentAllpassExpireInfo.row[0].current_expiration
+  );
+  responseData.allpass_expire_tick = allpassExpireDate.getTime();
+  responseData.product_id = product_id; // 구매한 제품 ID
 
   res.status(200).json(responseData);
   logAction(userkey, "purchase_complete", { product_id, receipt, paymentSeq });
@@ -714,7 +773,7 @@ export const userPurchase = async (req, res) => {
   // 소비처리
   const gamebaseResult = await gamebaseAPI.consume(paymentSeq, purchaseToken);
   console.log(gamebaseResult);
-};
+}; // ? end of userPurchase
 
 //! 구매 확정
 export const userPurchaseConfirm = async (req, purchase_no, res, next) => {
