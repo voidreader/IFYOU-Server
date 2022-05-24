@@ -694,11 +694,11 @@ export const userCoinPurchase = async (req, res) => {
   achievementQuery = await getAchievementQuery(userkey, 3);
 
   //코인샵 구매
-  achievementQuery += await getAchievementQuery(userkey, 21);
+  achievementQuery += await getAchievementQuery(userkey, 19);
 
   //스탠딩 구매 업적
   if (currency_type === "standing")
-    achievementQuery += await getLevelQuery(userkey, 19);
+    achievementQuery += await getLevelQuery(userkey, 21);
 
   //일일 미션 처리
   result = await DB(
