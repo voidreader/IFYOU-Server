@@ -572,7 +572,7 @@ export const resetAttendanceMission = async (req, res) => {
     setDaySeq = 7;
   } else if (reset_result >= 8 && reset_result <= 10) {
     setDaySeq = 10;
-  } else if (reset_result >= 11 && reset_result <= 14) {
+  } else if (reset_result >= 11) {
     setDaySeq = 14;
   }
 
