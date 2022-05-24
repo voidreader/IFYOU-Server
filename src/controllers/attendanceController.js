@@ -523,14 +523,23 @@ export const resetAttendanceMission = async (req, res) => {
   SELECT  
   attendance_id
   , is_attendance
-  , DATEDIFF(now(), start_date)+1-current_result reset_day
+  , CASE WHEN is_attendance = 1 THEN 
+    DATEDIFF(now(), start_date)-current_result 
+  ELSE 
+    DATEDIFF(now(), start_date)+1-current_result
+  END reset_day
   , DATE_FORMAT(start_date, '%Y-%m-%d %T') start_date
   , DATE_FORMAT(end_date, '%Y-%m-%d %T') end_date
-  , DATEDIFF(now(), start_date)+1 reset_result
+  , CASE WHEN is_attendance = 1 THEN 
+    DATEDIFF(now(), start_date)
+  ELSE 
+    DATEDIFF(now(), start_date)+1
+  END reset_result
+  , ifnull((SELECT DATE_FORMAT(action_date, '%Y-%m-%d %T') FROM user_attendance ua WHERE ua.userkey = ? AND date(action_date) = date(now())), '') action_date
   FROM user_continuous_attendance 
   WHERE attendance_no = fn_get_max_attendance_id(?, 'user');
   `,
-    [userkey]
+    [userkey, userkey]
   );
 
   //유효성 검사 체크
@@ -540,7 +549,7 @@ export const resetAttendanceMission = async (req, res) => {
     return;
   }
 
-  const { attendance_id, reset_day, start_date, end_date, reset_result } =
+  const { attendance_id, is_attendance, reset_day, start_date, end_date, reset_result, action_date, } =
     result.row[0];
 
   //구매 가능한지 확인
@@ -568,20 +577,6 @@ export const resetAttendanceMission = async (req, res) => {
     setDaySeq = 14;
   }
 
-  console.log(mysql.format(`
-  SELECT 
-  ifnull(attendance_no, 0) attendance_no
-  , cad.day_seq
-  FROM com_attendance_daily cad 
-  LEFT OUTER JOIN user_continuous_attendance uca
-  ON uca.attendance_id = cad.attendance_id 
-  AND userkey = ?
-  AND now() BETWEEN start_date AND end_date
-  AND cad.day_seq = uca.day_seq
-  WHERE cad.attendance_id = ?
-  AND cad.day_seq <= ?
-  AND reward_date IS NULL;`, [userkey, attendance_id, setDaySeq]));
-
   //보상 리스트 확인
   result = await DB(
     `
@@ -601,38 +596,135 @@ export const resetAttendanceMission = async (req, res) => {
     [userkey, attendance_id, setDaySeq]
   );
   if (result.state && result.row.length > 0) {
+
     // eslint-disable-next-line no-restricted-syntax
     for (const item of result.row) {
       const { attendance_no, day_seq } = item;
+      let setAttendanceResult = 0;
+      let setAttendanceDate = ``;   //출석일
+
+      if(is_attendance === 0) {
+        setAttendanceResult = reset_result;
+        setAttendanceDate = 'now()';   //출석 실패               
+      }else if(action_date) {
+        setAttendanceResult = reset_result + 1;
+        setAttendanceDate = `'${action_date}'`; //일일 출석한 경우
+      }else {
+        setAttendanceResult = reset_result;
+        setAttendanceDate = 'DATE_ADD(now(), INTERVAL -1 DAY)';
+      }
 
       //히스토리 누적 생성/업데이트
       if (attendance_no === 0) {
         currentQuery = `
-        INSERT INTO user_continuous_attendance(attendance_id, userkey, day_seq, current_result, start_date, end_date) 
-        VALUES(?,?,?,?,?,?);
+        INSERT INTO user_continuous_attendance(attendance_id, userkey, day_seq, current_result, attendance_date, start_date, end_date) 
+        VALUES(?,?,?,?,${setAttendanceDate},?,?);
         `;
+
         updateQuery += mysql.format(currentQuery, [
           attendance_id,
           userkey,
           day_seq,
-          reset_result,
+          setAttendanceResult, 
           start_date,
           end_date,
         ]);
       } else {
-        currentQuery = `
-        UPDATE user_continuous_attendance 
-        SET attendance_date = now()
-        , is_attendance = 1
-        , current_result = ?
-        WHERE attendance_no = ?;
-        `;
-        updateQuery += mysql.format(currentQuery, [
-          reset_result,
-          attendance_no,
-        ]);
-      }
+        
+        // eslint-disable-next-line no-lonely-if
+        if(is_attendance === 0){   //연속 출석 실패(당일날짜 합산해서 업데이트 처리)
+          currentQuery = `
+          UPDATE user_continuous_attendance 
+          SET attendance_date = ${setAttendanceDate}
+          , is_attendance = 1
+          , current_result = ?
+          WHERE attendance_no = ?;
+          `;
+
+          updateQuery += mysql.format(currentQuery, [
+            setAttendanceResult,
+            attendance_no,
+          ]);
+        }else if(action_date){  //시즌 중에 출첵 && 당일날 일일 출석 O(이미 당일 출석했기 때문에 current_result+1)
+          currentQuery = `
+          UPDATE user_continuous_attendance
+          SET current_result = ?
+          WHERE attendance_no = ?;
+          `;
+
+          updateQuery += mysql.format(currentQuery, [
+            setAttendanceResult,
+            attendance_no,
+          ]);
+        }else {  // 시즌 중에 출첵 && 당일날 일일 출석 X(당일 직전 날짜, current_result 업데이트)
+          currentQuery = `
+          UPDATE user_continuous_attendance
+          SET attendance_date = ${setAttendanceDate}
+          , current_result = ?
+          WHERE attendance_no = ?;
+          `;
+
+          updateQuery += mysql.format(currentQuery, [
+            setAttendanceResult,
+            attendance_no,
+          ]);
+        }
+      }    
     }
+
+    //일일 출석 처리(연속 출석 실패 && 당일 일일 출석 안한 유저에 한해)
+    if(is_attendance === 0 && !action_date){
+        
+      // eslint-disable-next-line no-await-in-loop
+      result = await DB(
+      `
+      SELECT 
+      day_seq daily_day_seq
+      , currency
+      , quantity
+      , fn_get_attendance_max(?, ca.attendance_id) attendance_max
+      , ca.attendance_id daily_attendance_id
+      FROM com_attendance ca, com_attendance_daily cad 
+      WHERE ca.attendance_id = cad.attendance_id 
+      AND ca.is_public > 0 
+      AND now() BETWEEN from_date AND to_date 
+      AND kind <> -1
+      AND cad.day_seq = fn_get_next_day_seq(ca.attendance_id, (
+        SELECT day_seq FROM user_attendance ua 
+        WHERE userkey = ?
+        AND action_date = (SELECT max(action_date) FROM user_attendance ua2 WHERE userkey = ?)
+      ))
+      AND (is_loop > 0 OR ( fn_get_attendance_cnt(?, ca.attendance_id, fn_get_attendance_max(?, ca.attendance_id)) < kind AND is_loop = 0 ) )
+      ;
+      `,
+        [userkey, userkey, userkey, userkey, userkey]
+      );
+      if (!result.state || result.row.length === 0) {
+        logger.error(`resetAttendanceMission Error 3`);
+        respondDB(res, 80019);
+        return;
+      }
+      
+      const { daily_day_seq, currency, quantity, attendance_max, daily_attendance_id, } = result.row[0];
+
+      currentQuery = `
+      INSERT INTO user_attendance(userkey, attendance_id, loop_cnt, day_seq, currency, quantity) 
+      VALUES(?, ?, ?, ?, ?, ?);
+      `;
+      updateQuery += mysql.format(currentQuery, [
+        userkey,
+        daily_attendance_id,
+        attendance_max,
+        daily_day_seq,
+        currency,
+        quantity,
+      ]);
+    
+      // 메일 발송
+      currentQuery = `INSERT INTO user_mail(userkey, mail_type, currency, quantity, expire_date, connected_project)  
+        VALUES(?, 'attendance', ?, ?, DATE_ADD(NOW(), INTERVAL 1 YEAR), -1);`;
+      updateQuery += mysql.format(currentQuery, [userkey, currency, quantity]);
+    }    
     //console.log(updateQuery);
     result = await transactionDB(updateQuery);
     if (!result.state) {
