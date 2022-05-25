@@ -65,26 +65,47 @@ export const purchaseSelection = async (req, res) => {
   const responseData = {};
 
   //변조 apk 막기
-  if(price <= 0){
-    result = await DB(`
+  if (price <= 0) {
+    // 어드민 유저, 프리미엄 패스 구매 유저, 기존 선택지 구매유저
+    // 올패스 유저까지 체크한다.
+    //
+
+    result = await DB(
+      `
     SELECT 
     ( SELECT admin FROM table_account ta WHERE userkey = ? ) admin
     , ( SELECT currency FROM user_property up WHERE userkey = ? AND currency = concat('Free', '${project_id}') ) free_check
     , ( SELECT ifnull(count(*), 0) FROM user_selection_purchase WHERE userkey = ? AND project_id = ? AND episode_id = ? AND selection_group = ? AND selection_no = ?) purchase_check
-    FROM DUAL;`, [userkey, userkey, project_id, userkey, project_id, episode_id, selection_group, selection_no, lang]);
-    if(result.state && result.row.length > 0){
-      const { admin, free_check, purchase_check, } = result.row[0];
-      if( admin === 0 && !free_check  && purchase_check === 0){
+    , (SELECT CASE WHEN ta.allpass_expiration > now() THEN 1 ELSE 0 END
+        FROM table_account ta   WHERE ta.userkey  = ${userkey})  allpass
+    FROM DUAL;`,
+      [
+        userkey,
+        userkey,
+        project_id,
+        userkey,
+        project_id,
+        episode_id,
+        selection_group,
+        selection_no,
+        lang,
+      ]
+    );
+    if (result.state && result.row.length > 0) {
+      const { admin, free_check, purchase_check, allpass } = result.row[0];
+
+      if (admin === 0 && !free_check && purchase_check === 0 && allpass === 0) {
         logger.error(`Error in purchaseSelection ${JSON.stringify(req.body)}`);
         respondDB(res, 80121, "Error in selection purcharse");
         return;
       }
+
       purchaseCheck = purchase_check;
-    }   
+    }
   }
 
   // 첫 구매자만 결제 처리
-  if(purchaseCheck === 0){
+  if (purchaseCheck === 0) {
     //보유 스타 수 확인
     const userStar = await getCurrencyQuantity(userkey, "gem"); // 유저 보유 코인수
     if (userStar < parseInt(price, 10)) {
