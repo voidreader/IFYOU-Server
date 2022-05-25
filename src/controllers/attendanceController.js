@@ -107,6 +107,7 @@ export const getContinuousAttendanceList = async (userkey) => {
     , DATE_FORMAT(end_date, '%Y-%m-%d %T') end_date
     , fn_get_continuous_attendance(?, start_date, end_date, 0, 'day') attendance_day
     , fn_get_continuous_attendance(?, start_date, end_date, 0, 'check') is_attendance
+    , DATEDIFF(end_date, now()) remain_day 
     , CASE WHEN datediff(now(), start_date)+1 > fn_get_continuous_attendance(?, start_date, end_date, 0, 'day') THEN 
   	  DATEDIFF(now(), start_date)+1-fn_get_continuous_attendance(?, start_date, end_date, 0, 'day')
     ELSE 0 END reset_day
