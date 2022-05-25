@@ -107,21 +107,14 @@ export const getContinuousAttendanceList = async (userkey) => {
     , DATE_FORMAT(end_date, '%Y-%m-%d %T') end_date
     , fn_get_continuous_attendance(?, start_date, end_date, 0, 'day') attendance_day
     , fn_get_continuous_attendance(?, start_date, end_date, 0, 'check') is_attendance
-    , DATEDIFF(end_date, now()) remain_day 
-    , CASE WHEN fn_get_continuous_attendance(?, start_date, end_date, 0, 'check') = 0 THEN  -- 연속 출석 실패(현재일자-출석일수)
-      DATEDIFF(now(), start_date)+1-fn_get_continuous_attendance(?, start_date, end_date, 0, 'day') 
-    ELSE
-      CASE WHEN fn_get_continuous_attendance(?, start_date, end_date, 0, 'day') = (DATEDIFF(now(), start_date)+1) THEN 0 
-         WHEN (SELECT count(*) FROM user_attendance WHERE userkey = ? AND date(now()) = date(action_date)) > 0 THEN DATEDIFF(now(), start_date)  -- 일일출석한 경우(현재일자-시작일)
-    ELSE 
-      DATEDIFF(now(), start_date)-fn_get_continuous_attendance(?, start_date, end_date, 0, 'day')  -- 일일출석안한 경우(현재일자-시작일-출석일수)
-    END       
-    END reset_day 
+    , CASE WHEN datediff(now(), start_date)+1 > fn_get_continuous_attendance(?, start_date, end_date, 0, 'day') THEN 
+  	  DATEDIFF(now(), start_date)+1-fn_get_continuous_attendance(?, start_date, end_date, 0, 'day')
+    ELSE 0 END reset_day
     FROM com_attendance_season
     WHERE season_no = 0;
   
   `,
-    [userkey, userkey, userkey, userkey, userkey, userkey, userkey]
+    [userkey, userkey, userkey, userkey]
   );
   responseData.user_info = result.row;
 
@@ -532,11 +525,7 @@ export const resetAttendanceMission = async (req, res) => {
   SELECT  
   attendance_id
   , is_attendance
-  , CASE WHEN is_attendance = 1 THEN 
-    DATEDIFF(now(), start_date)
-  ELSE 
-    DATEDIFF(now(), start_date)+1-current_result
-  END reset_day
+  , DATEDIFF(now(), start_date)+1-fn_get_continuous_attendance(?, start_date, end_date, 0, 'day') reset_day
   , DATE_FORMAT(start_date, '%Y-%m-%d %T') start_date
   , DATE_FORMAT(end_date, '%Y-%m-%d %T') end_date
   , CASE WHEN is_attendance = 1 THEN 
@@ -548,7 +537,7 @@ export const resetAttendanceMission = async (req, res) => {
   FROM user_continuous_attendance 
   WHERE attendance_no = fn_get_max_attendance_id(?, 'user');
   `,
-    [userkey, userkey]
+    [userkey, userkey, userkey]
   );
 
   //유효성 검사 체크
@@ -733,7 +722,7 @@ export const resetAttendanceMission = async (req, res) => {
         VALUES(?, 'attendance', ?, ?, DATE_ADD(NOW(), INTERVAL 1 YEAR), -1);`;
       updateQuery += mysql.format(currentQuery, [userkey, currency, quantity]);
     }    
-    //console.log(updateQuery);
+    console.log(updateQuery);
     result = await transactionDB(updateQuery);
     if (!result.state) {
       logger.error(`resetAttendanceMission Error ${result.error}`);
