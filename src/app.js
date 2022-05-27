@@ -17,7 +17,6 @@ import {
   scheduleMail,
   scheduleGrade,
   scheduleStatInsert,
-  scheduleContinuousAttendance,
 } from "./schedule";
 
 const app = express();
