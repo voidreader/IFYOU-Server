@@ -1,8 +1,70 @@
+/* eslint-disable no-restricted-syntax */
 import mysql from "mysql2/promise";
 import { response } from "express";
 import { DB, logDB, transactionDB } from "../mysqldb";
 import { logger } from "../logger";
 import { respondDB } from "../respondent";
+
+// * 서비스 중인 모든 라이브 프로젝트의 잔존율 수집
+export const collectAllProjectRetention = async (req, res) => {
+  const {
+    body: { start_date, end_date },
+  } = req;
+
+  // 모든 프로젝트 조회
+  const projects = await DB(
+    `select a.project_id from list_project_master a order BY a.project_id;`
+  );
+
+  // 기준 유저 데이터 삭제
+  // retention 테이블 삭제
+  await DB(`
+  DELETE FROM gamelog.log_first_episode_user WHERE project_id >= 0;
+  DELETE FROM gamelog.log_project_retention WHERE project_id >= 0;
+  `);
+
+  // * 작품별
+  for await (const item of projects.row) {
+    // 대상군 수집
+    // 기간내 작품 진입자 먼저 집계
+    // 에피소드별 클리어 이용자 집계
+    const result = await DB(`
+    
+    
+    INSERT INTO gamelog.log_first_episode_user(project_id, userkey) 
+    SELECT DISTINCT CAST(JSON_EXTRACT(la.log_data, '$.project_id') AS UNSIGNED ), la.userkey 
+    FROM gamelog.log_action la 
+       , list_project_master lpm 
+   WHERE la.action_date BETWEEN '${start_date}' AND '${end_date}'
+     AND la.action_type = 'project_enter'
+     AND lpm.project_id = CAST(JSON_EXTRACT(la.log_data, '$.project_id') AS UNSIGNED )
+     AND lpm.project_id = ${item.project_id}
+    ; 
+
+       
+      
+       INSERT INTO gamelog.log_project_retention(project_id, title, episode_id, cnt, start_date, end_date)
+       VALUES (${item.project_id}, '작품 로비 진입', -1, fn_get_project_action_unique_user('${start_date}', '${end_date}', 'project_enter', ${item.project_id}), '${start_date}', '${end_date}');
+    
+    
+    
+    
+    INSERT INTO gamelog.log_project_retention(project_id, title, episode_id, cnt, start_date, end_date)
+    SELECT ${item.project_id}
+         , CASE WHEN le.episode_type IN ('chapter', 'ending') THEN concat('[',le.episode_type ,'] ', le.chapter_number, '. ', le.title)
+                ELSE concat('[',le.episode_type ,'] ', le.title) END title
+         , le.episode_id 
+         , gamelog.fn_episode_play_unique_user_retention(le.project_id, le.episode_id) user_count
+         , '${start_date}'
+         , '${end_date}'
+    FROM list_episode le 
+    WHERE le.project_id = ${item.project_id}
+    ORDER BY le.episode_type, le.chapter_number;    
+    `);
+  } // ? end of for
+
+  res.status(200).send("OK");
+};
 
 // * 작품의 에피소드별 리텐션 구하기
 export const collectProjectRetention = async (req, res) => {
