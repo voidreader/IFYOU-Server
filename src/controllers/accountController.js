@@ -3352,6 +3352,8 @@ export const requestUserTutorialProgress = async (req, res) => {
   let isReward = false;
 
   //단계 건너 뛰고 진행했는지 확인
+  // * 단계 건너띄는 케이스가 생겨서 아래 조건 주석처리
+  /* 
   if (step > 1) {
     //이전 진행단계 개수 확인
     result = await DB(
@@ -3375,6 +3377,7 @@ export const requestUserTutorialProgress = async (req, res) => {
       return;
     }
   }
+  */
 
   //단계가 있는지 확인
   result = await DB(
