@@ -108,6 +108,7 @@ import { useCoupon } from "./couponController";
 import { getUserBankInfo, getUserBankInfoWithResponse } from "./bankController";
 
 import {
+  collectAllProjectRetention,
   collectProjectRetention,
   getProjectEpisodeProgressCount,
   setStatList,
@@ -1458,6 +1459,8 @@ export const clientHome = (req, res) => {
   else if (func === "receiveInquiry") receiveInquiry(req, res);
   else if (func === "collectProjectRetention")
     collectProjectRetention(req, res);
+  else if (func === "collectAllProjectRetention")
+    collectAllProjectRetention(req, res);
   else if (func === "requestCompleteEpisode") requestCompleteEpisode(req, res);
   else if (func === "requestEpisodeFirstClear")
     requestEpisodeFirstClear(req, res);
