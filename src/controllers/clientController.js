@@ -1500,6 +1500,8 @@ export const clientHome = (req, res) => {
   else if (func === "setUserProjectNotification")
     setUserProjectNotification(req, res);
   // 유저 프로젝트 알림설정(2022.05.20)
+  else if (func === "updateRateHistory") setUserProjectNotification(req, res);
+  // 유저 평가팝업 기록 저장 (2022.06.02)
   else {
     //  res.status(400).send(`Wrong Func : ${func}`);
     logger.error(`clientHome Error ${func}`);
