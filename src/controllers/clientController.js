@@ -20,14 +20,11 @@ import {
   loginClient,
   clearUserEpisodeSceneProgress,
   insertUserEpisodeSceneHistory,
-  deleteUserEpisodeSceneProgress,
-  insertUserProjectDressProgress,
   updateUserIllustHistory,
   updateUserMissionHistory,
   changeAccountByGamebase,
   updateUserEpisodePlayRecord,
   updateUserSceneRecord,
-  insertUserEpisodeStartRecord,
   accquireUserConsumableCurrency,
   consumeUserCurrency,
   updateUserMinicutHistory,
@@ -95,6 +92,7 @@ import {
   setProjectProgressOrder,
   purchaseEpisodeType2,
   setUserProjectNotification,
+  updateRateHistory,
 } from "../com/userProject";
 import {
   getAllProductList,
@@ -1263,18 +1261,12 @@ export const clientHome = (req, res) => {
     insertUserEpisodeSceneHistory(req, res);
   else if (func === "updateUserEpisodeSceneRecord")
     updateUserSceneRecord(req, res);
-  else if (func === "deleteUserEpisodeSceneHistory")
-    deleteUserEpisodeSceneProgress(req, res);
-  else if (func === "insertUserProjectDressProgress")
-    insertUserProjectDressProgress(req, res);
   else if (func === "updateUserIllustHistory")
     updateUserIllustHistory(req, res);
   else if (func === "updateUserMissionHistory")
     updateUserMissionHistory(req, res);
   else if (func === "updateUserEpisodePlayRecord")
     updateUserEpisodePlayRecord(req, res);
-  else if (func === "insertUserEpisodeStartRecord")
-    insertUserEpisodeStartRecord(req, res);
   else if (func === "changeAccountByGamebase")
     changeAccountByGamebase(req, res);
   else if (func === "resetUserEpisodeProgressType2")
@@ -1500,7 +1492,7 @@ export const clientHome = (req, res) => {
   else if (func === "setUserProjectNotification")
     setUserProjectNotification(req, res);
   // 유저 프로젝트 알림설정(2022.05.20)
-  else if (func === "updateRateHistory") setUserProjectNotification(req, res);
+  else if (func === "updateRateHistory") updateRateHistory(req, res);
   // 유저 평가팝업 기록 저장 (2022.06.02)
   else {
     //  res.status(400).send(`Wrong Func : ${func}`);

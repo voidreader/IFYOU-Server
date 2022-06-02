@@ -382,28 +382,6 @@ const getUserProjectDressProgress = async (userInfo) => {
   else return [];
 };
 
-// 프로젝트의 유저 캐릭터 진행정보 입력
-export const insertUserProjectDressProgress = async (req, res) => {
-  console.log(`insertUserProjectDressProgress ${req.body}`);
-  const userInfo = req.body;
-
-  const result = await DB(Q_INSERT_USER_DRESS_PROGRESS, [
-    userInfo.userkey,
-    userInfo.project_id,
-    userInfo.speaker,
-    userInfo.dress_id,
-  ]);
-
-  if (!result.state) {
-    logger.error(`insertUserProjectDressProgress Error ${result.error}`);
-    respondDB(res, 80026, result.error);
-    return;
-  }
-
-  const returnValue = await getUserProjectDressProgress(userInfo);
-  res.status(200).json(returnValue);
-};
-
 //////////////////////////// 의상 정보 관련 처리 끝 ///////////////////////////////////////
 
 // 유저 에피소드 상황 History
@@ -429,19 +407,6 @@ const getUserEpisodeSceneProgress = async (userInfo) => {
   // console.log(scenes);
 
   return scenes;
-};
-
-// 유저 사건ID 진행도 삭제(개별)
-export const deleteUserEpisodeSceneProgress = async (req, res) => {
-  const userInfo = req.body;
-
-  await DB(Q_DELETE_USER_EPISODE_SCENE_PROGRESS, [
-    userInfo.userkey,
-    userInfo.scene_id,
-  ]);
-
-  const list = await getUserEpisodeSceneProgress(userInfo);
-  res.status(200).json(list);
 };
 
 // 유저 에피소드 씬 히스토리 입력(hist, progress 같이 입력)
@@ -1258,51 +1223,6 @@ export const getUserEpisodeHistory = async (userInfo) => {
     return rValue;
   } else return [];
 };
-
-// ! 유저가 에피소드 플레이를 시작한 시점에 호출
-// ! user_episode_progress에 입력된다.
-export const insertUserEpisodeStartRecord = async (req, res) => {
-  logger.info(`insertUserEpisodeStartRecord [${JSON.stringify(req.body)}]`);
-
-  const {
-    body: { userkey, project_id, episodeID },
-  } = req;
-
-  const progressQuery = `CALL sp_insert_user_episode_progress(?, ?, ?);`;
-  const progressResult = await DB(progressQuery, [
-    userkey,
-    project_id,
-    episodeID,
-  ]);
-
-  const responseData = {};
-
-  // 진행도 처리
-  // TODO 업데이트 전까지 배열과 object 배열을 함께준다.
-  if (progressResult.state && progressResult.row[0].length > 0) {
-    responseData.episodeProgress = [];
-    progressResult.row[0].forEach((element) => {
-      responseData.episodeProgress.push(element.episode_id);
-    });
-
-    // ! 버전 2 (완료 여부까지 함께)
-    responseData.episodeProgressVer2 = progressResult.row;
-  } else {
-    logger.error(`insertUserEpisodeStartRecord Error ${progressResult.error}`);
-    respondDB(res, 80026, progressResult.error);
-    return;
-  }
-
-  responseData.progressOrder = await getUserProjectProgressInfo({
-    userkey,
-    project_id,
-    episode_id: episodeID,
-  });
-
-  res.status(200).json(responseData);
-
-  logAction(userkey, "insert_episode_start", req.body);
-}; // * end of insertUserEpisodeStartRecord
 
 ///////////////
 ///////////////
