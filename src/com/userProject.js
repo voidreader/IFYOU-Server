@@ -1263,3 +1263,27 @@ export const setUserProjectNotification = async (req, res) => {
 
   res.status(200).json(responseData);
 };
+
+// 평가 팝업 히스토리 저장
+export const updateRateHistory = (req, res) => {
+  const {
+    body: { userkey, rate_result },
+  } = req;
+
+  // 굳이 await 하지 않고 업데이트는 따로 처리하고
+  DB(
+    `
+  UPDATE table_account 
+   SET last_rate_date = now()
+     , rate_result = ${rate_result}
+    WHERE userkey  = ${userkey};
+  `,
+    []
+  );
+
+  // log
+  logAction(userkey, "updateRate", req.body);
+
+  // 바로 리턴
+  res.status(200).json(req.body);
+};
