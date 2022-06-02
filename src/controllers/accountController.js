@@ -1854,7 +1854,7 @@ export const registerClientAccount = async (req, res) => {
 // ! #클라이언트 로그인 처리
 export const loginClient = async (req, res) => {
   const {
-    body: { deviceid, gamebaseid = null, os },
+    body: { deviceid, gamebaseid = null, os, lang = "EN" },
   } = req;
 
   let result = null;
@@ -1938,10 +1938,13 @@ export const loginClient = async (req, res) => {
     logger.info(
       `loginClient update(${userInfo.userkey}) : ${country}, ${valid}`
     );
-    const userUpdateResult = await DB(Q_UPDATE_CLIENT_ACCOUNT_WITH_GAMEBASE, [
+
+    // 마지막 접속일자, 언어정보 등 갱신처리
+    DB(Q_UPDATE_CLIENT_ACCOUNT_WITH_GAMEBASE, [
       country,
       valid,
       userOS,
+      lang,
       userInfo.userkey,
     ]);
 

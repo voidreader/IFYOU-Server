@@ -209,12 +209,12 @@ SELECT ta.userkey
 , ta.current_level
 , ta.current_experience
 , ta.account_link
-, ifnull(t.tutorial_step, 0) tutorial_step 
-, ifnull(t.first_project_id, -1) first_project_id
 , ifnull(t.tutorial_selection, 0) tutorial_selection
 , t.how_to_play
 , ta.intro_done
-, ifnull(ta.allpass_expiration, '2022-01-01') allpass_expiration 
+, ifnull(ta.allpass_expiration, '2022-01-01') allpass_expiration
+, datediff(now(), ta.last_rate_date) diff_rate
+, ta.rate_result
 FROM table_account ta 
 LEFT OUTER JOIN user_tutorial t ON t.userkey = ta.userkey
 WHERE ta.gamebaseid  = ?;
@@ -234,12 +234,12 @@ SELECT ta.userkey
 , ta.current_level
 , ta.current_experience
 , ta.account_link
-, ifnull(t.tutorial_step, 0) tutorial_step 
-, ifnull(t.first_project_id, -1) first_project_id
 , ifnull(t.tutorial_selection, 0) tutorial_selection
 , t.how_to_play
 , ta.intro_done
 , ifnull(ta.allpass_expiration, '2022-01-01') allpass_expiration 
+, datediff(now(), ta.last_rate_date) diff_rate
+, ta.rate_result
 FROM table_account ta 
 LEFT OUTER JOIN user_tutorial t ON t.userkey = ta.userkey
 WHERE ta.userkey = ?;
@@ -264,6 +264,7 @@ UPDATE pier.table_account
      , valid = ?
      , lastlogintime = now() 
      , os = ?
+     , lang = ?
  WHERE userkey = ?;
 `;
 
