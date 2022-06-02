@@ -25,8 +25,8 @@ export const userkeyCheck = async (send_to, os, reservation_no) => {
   }
 
   // os 운영기기에 따라 메일 전송
-  if(os === "Android" || os === "iOS") whereQuery += ` AND os = '${os}' `;
-  
+  if (os === "Android" || os === "iOS") whereQuery += ` AND os = '${os}' `;
+
   const result = await DB(
     `SELECT userkey FROM table_account
     WHERE userkey NOT IN (SELECT userkey FROM user_mail WHERE reservation_no = ?)
@@ -50,7 +50,7 @@ export const userkeyCheck = async (send_to, os, reservation_no) => {
 export const reservationSend = async () => {
   // logger.info("reservationSend Start");
 
-  const isMail = process.env.MAIL_SCHEDULE;
+  const isMail = process.env.SCHEDULE_JOB_ON;
 
   logger.info(`reservationSend isMAIL : [${isMail}]`);
 
@@ -381,13 +381,13 @@ export const scheduleGrade = schedule.scheduleJob(gradeRule, async () => {
 });
 
 //! 연속 출석 미션 시즌 업데이트
-export const scheduleContinuousAttendance  = schedule.scheduleJob(
+export const scheduleContinuousAttendance = schedule.scheduleJob(
   "0 0 0 * * *",
   async () => {
     const isMail = process.env.MAIL_SCHEDULE;
 
     logger.info(`scheduleContinuousAttendance Start [${isMail}]`);
-    
+
     if (isMail < 1) return;
 
     //시즌 갱신
@@ -400,19 +400,27 @@ export const scheduleContinuousAttendance  = schedule.scheduleJob(
     , CASE WHEN date(next_start_date) = date(now()) THEN 1 ELSE 0 END season_check
     FROM com_attendance_season WHERE season_no = 0;
     `);
-    const { next_start_date, next_end_date, season_start_date, season_end_date, season_check, } = result.row[0];
+    const {
+      next_start_date,
+      next_end_date,
+      season_start_date,
+      season_end_date,
+      season_check,
+    } = result.row[0];
 
-    if(season_check === 1){
-      await DB(`
+    if (season_check === 1) {
+      await DB(
+        `
       UPDATE com_attendance_season
       SET start_date = ?
       , end_date = ?
       , next_start_date = concat(?, ' 00:00:00')  
       , next_end_date = concat(?, ' 23:59:59')  
-      WHERE season_no = 0;`, [next_start_date, next_end_date, season_start_date, season_end_date]);
+      WHERE season_no = 0;`,
+        [next_start_date, next_end_date, season_start_date, season_end_date]
+      );
 
       logger.info(`scheduleContinuousAttendance End`);
     }
   }
-
 );
