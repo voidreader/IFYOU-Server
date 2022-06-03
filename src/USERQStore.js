@@ -405,15 +405,6 @@ SELECT lem.emoticon_owner
    AND les.emoticon_master_id = lem.emoticon_master_id;
 `;
 
-export const Q_SELECT_PROJECT_RESET_COIN_PRICE = `
-SELECT 
-  first_reset_price
-  , reset_increment_rate 
-  , fn_get_user_project_reset_count(? , ?) reset_count
-  FROM com_server 
-  WHERE server_no = 1;
-`;
-
 export const Q_SELECT_EPISODE_LOADING = `
 SELECT 
 a.loading_id 
