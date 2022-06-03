@@ -1947,42 +1947,6 @@ export const updateUserScriptMission = async (req, res) => {
   res.status(200).json(result);
 };
 
-// 작품의 리셋 코인 가격 조회하기
-const getProjectResetCoinPrice = async (userkey, project_id) => {
-  //* 기준 정보, 리셋 횟수, 프래패스currency 가져오기
-  const result = await DB(
-    `
-    SELECT 
-    first_reset_price
-    , reset_increment_rate 
-    , fn_get_user_project_reset_count(? , ?) reset_count
-    FROM com_server 
-    WHERE server_no = 1;`,
-    [userkey, project_id, project_id]
-  );
-
-  const { first_reset_price, reset_increment_rate, reset_count } =
-    result.row[0];
-
-  // * 기준정보를 가져와서 리셋 카운트에 따른 코인 비용 구하기!
-  let resetPrice = 0;
-  if (reset_count <= 0) {
-    //리셋하지 않은 경우
-    resetPrice = first_reset_price;
-  } else {
-    // 리셋한 경우(리셋횟수만큼 증가)
-    resetPrice = first_reset_price;
-    for (let i = 0; i < reset_count; i++) {
-      resetPrice = Math.floor(
-        resetPrice + resetPrice * (reset_increment_rate / 100)
-      );
-    }
-  }
-
-  const responseData = { resetPrice, reset_count };
-  return responseData;
-};
-
 // ! 유저 작품 초기화 TYPE2 - 15버전 부터 사용
 export const resetUserEpisodeProgressType2 = async (req, res) => {
   logger.info(`resetUserEpisodeProgressType2 [${JSON.stringify(req.body)}]`);
