@@ -698,9 +698,12 @@ export const userPurchase = async (req, res) => {
     else addDay = 7;
 
     // 유저 올패스 업데이트 처리, addDay 만큼 더해줘서 업데이트한다.
+    // 올패스 기간이 종료되었으면 now() + 일자
+    // 올패스 기간이 남았으면 allpass_expiration + 일자
     const allpassUpdate = await DB(`
     UPDATE table_account 
-    SET allpass_expiration = DATE_ADD(ifnull(allpass_expiration, now()), INTERVAL ${addDay} DAY)
+    SET allpass_expiration = CASE WHEN ifnull(allpass_expiration, now()) < now() THEN DATE_ADD(now(), INTERVAL ${addDay} DAY)
+                                  ELSE DATE_ADD(ifnull(allpass_expiration, now()), INTERVAL ${addDay} DAY) END
     WHERE userkey = ${userkey};
     `);
 
