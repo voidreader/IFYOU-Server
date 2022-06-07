@@ -780,7 +780,7 @@ export const userPurchase = async (req, res) => {
 
 //! 구매 확정
 export const userPurchaseConfirm = async (req, purchase_no, res, next) => {
-  logger.info(`userPurchaseConfirm`);
+  logger.info(`userPurchaseConfirm ${JSON.stringify(req.body)}/${purchase_no}`);
 
   const {
     body: { mail_no = 0, userkey = 0 },
@@ -880,6 +880,8 @@ export const userPurchaseConfirm = async (req, purchase_no, res, next) => {
   let totalGem = 0;
 
   productInfo.row.forEach((item) => {
+    logger.info(`productInfo : ${JSON.stringify(item)}`);
+
     const queryParams = [];
     let firstCheck = true;
     let mailType = "inapp";
@@ -890,7 +892,7 @@ export const userPurchaseConfirm = async (req, purchase_no, res, next) => {
     }
 
     //* 첫 구매 보너스 체크
-    if (item.first_purchase_check > 0) {
+    if (item.first_purchase_check !== 0) {
       // 이미 첫 구매 보너스 지급됨
       firstCheck = false;
     }
