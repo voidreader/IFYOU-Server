@@ -885,12 +885,13 @@ export const userPurchaseConfirm = async (req, purchase_no, res, next) => {
     let mailType = "inapp";
 
     //* 첫구매일 경우 메일 타입 변경
-    if (item.first_purchase === "1") {
+    if (item.first_purchase === 1) {
       mailType = "first_purchase";
     }
 
     //* 첫 구매 보너스 체크
     if (item.first_purchase_check > 0) {
+      // 이미 첫 구매 보너스 지급됨
       firstCheck = false;
     }
 
