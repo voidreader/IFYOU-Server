@@ -676,10 +676,10 @@ export const userPurchase = async (req, res) => {
   logAction(userkey, "purchase_call", { product_id, receipt, paymentSeq });
 
   //* 상품 구매 insert
+  // 2022.06.07 product_master_id 컬럼 추가
   const result = await DB(
-    `INSERT INTO user_purchase(userkey, product_id, receipt, price, product_currency, payment_seq, purchase_token) 
-    VALUES(?, ?, ?, ?, ?, ?, ?);`,
-    [userkey, product_id, receipt, price, currency, paymentSeq, purchaseToken]
+    `INSERT INTO user_purchase(userkey, product_id, receipt, price, product_currency, payment_seq, purchase_token, product_master_id) 
+    VALUES(${userkey}, '${product_id}', '${receipt}', ${price}, '${currency}', '${paymentSeq}', '${purchaseToken}', fn_get_product_master_id('${product_id}', now()));`
   );
 
   if (!result.state) {
