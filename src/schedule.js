@@ -13,7 +13,6 @@ import {
   getStatInappList,
   getStatCoinList,
 } from "./controllers/statController";
-import { updateProjectViewCnt } from "./controllers/coinController";
 
 dotenv.config();
 
