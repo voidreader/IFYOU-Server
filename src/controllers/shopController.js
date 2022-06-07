@@ -837,7 +837,7 @@ export const userPurchaseConfirm = async (req, purchase_no, res, next) => {
     `
   SELECT currency
        , quantity 
-       , CASE WHEN first_purchase = '1' THEN  fn_check_first_purchase(?, a.product_id, ?, a.from_date, a.to_date)
+       , CASE WHEN first_purchase = '1' THEN  fn_check_first_purchase_master_id(${userkey}, a.product_master_id)
          ELSE 0 END first_purchase_check
        , first_purchase
        , b.is_main is_main
@@ -855,8 +855,6 @@ export const userPurchaseConfirm = async (req, purchase_no, res, next) => {
   WHERE product_id = ? 
     AND ? BETWEEN DATE_FORMAT(from_date, '%Y-%m-%d 00:00:00') AND DATE_FORMAT(to_date, '%Y-%m-%d 23:59:59');`,
     [
-      userkey,
-      purchase_no,
       product.row[0].product_id,
       product.row[0].purchase_date,
       product.row[0].product_id,
