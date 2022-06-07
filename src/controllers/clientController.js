@@ -1,6 +1,5 @@
 /* eslint-disable no-restricted-syntax */
 import mysql from "mysql2/promise";
-import { restart } from "nodemon";
 import { response } from "express";
 import dotenv from "dotenv";
 import { DB, logAction, transactionDB, logDB } from "../mysqldb";
@@ -30,11 +29,9 @@ import {
   updateUserMinicutHistory,
   updateUserScriptMission,
   updateTutorialStep,
-  purchaseFreepass,
   updateWithdrawDate,
   getUserProjectSceneHistory,
   getUserEpisodeHistory,
-  requestFreeCharge,
   getProfileCurrencyOwnList,
   updateUserMinicutHistoryVer2,
   insertUserProperty,
@@ -56,8 +53,6 @@ import { logger } from "../logger";
 
 import {
   alignS3Object,
-  getServerInfo,
-  getLocallizingList,
   getClientLocalizingList,
   getAppCommonResources,
   getServerMasterInfo,
@@ -184,57 +179,6 @@ const getProjectCreditList = async (req, res) => {
   `);
 
   res.status(200).json(creditResult.row);
-};
-
-//* 프로모션 리스트
-export const getPromotionList = async (req, res) => {
-  const promotionResult = await DB(
-    `
-  SELECT 
-  promotion_no
-  , title
-  , start_date
-  , end_date
-  , promotion_type
-  , location
-  FROM com_promotion
-  WHERE is_public > 0 
-  AND NOW() BETWEEN start_date AND end_date 
-  ORDER BY sortkey; 
-  `,
-    []
-  );
-
-  const detailResult = await DB(
-    `
-  SELECT 
-  b.promotion_no 
-  , lang
-  , design_id 
-  , fn_get_design_info(design_id, 'url') promotion_banner_url
-  , fn_get_design_info(design_id, 'key') promotion_banner_key
-  FROM com_promotion a, com_promotion_detail b
-  WHERE a.promotion_no = b.promotion_no 
-  AND is_public > 0 
-  AND NOW() BETWEEN start_date AND end_date
-  ORDER BY sortkey;  
-  `,
-    []
-  );
-
-  promotionResult.row.forEach((promotion) => {
-    if (!Object.prototype.hasOwnProperty.call(promotion, "detail")) {
-      promotion.detail = [];
-    }
-
-    detailResult.row.forEach((item) => {
-      if (item.promotion_no === promotion.promotion_no) {
-        promotion.detail.push(item);
-      }
-    });
-  }); // ? end of noticeResult forEach
-
-  res.status(200).json(promotionResult.row);
 };
 
 /* clientController는 미들웨어에서 global.user를 통해 body 파라매터가 저장됩니다. */
@@ -435,36 +379,6 @@ ORDER BY rand() LIMIT 1;
   res.status(200).send(result);
 
   logAction(userInfo.userkey, "episode_start", userInfo);
-};
-
-// * 프로젝트 카테고리
-const getDistinctProjectGenre = async (req, res) => {
-  const {
-    body: {
-      userkey = 0,
-      build = "pier.make.story",
-      country = "KR",
-      lang = "KO",
-    },
-  } = req;
-
-  const result = await DB(
-    `
-  SELECT DISTINCT fn_get_localize_text(ls.text_id, ?) genre_name
-       , fn_get_localize_text(ls.text_id, ?) origin_name
-    FROM list_project_genre genre
-      , list_project_master ma
-      , list_standard ls 
-  WHERE ma.project_id = genre.project_id
-    AND ma.is_public > 0
-    AND ls.standard_class = 'genre'
-    AND ls.code = genre.genre_code 
-    AND ma.service_package LIKE CONCAT('%', ?, '%')
-  ;`,
-    [lang, lang, build]
-  );
-
-  res.status(200).json(result.row);
 };
 
 // * 프로젝트의 장르 조회하기
@@ -1291,8 +1205,6 @@ export const clientHome = (req, res) => {
     updateUserScriptMission(req, res);
   else if (func === "getUserMissionList") userMissionList(req, res);
   else if (func === "getUserMisionReward") userMisionReceive(req, res);
-  else if (func === "getServerInfo") getServerInfo(req, res);
-  else if (func === "getLocallizingList") getLocallizingList(req, res);
   else if (func === "getClientLocallizingList")
     getClientLocalizingList(req, res);
   else if (func === "updateAccountWithGamebaseID")
@@ -1303,7 +1215,6 @@ export const clientHome = (req, res) => {
     updateUserProjectCurrent(req, res);
   else if (func === "updateSelectionProgress")
     updateSelectionProgress(req, res);
-  else if (func === "getServerInfo") getServerInfo(req, res);
   else if (func === "getAllProductList") getAllProductList(req, res);
   else if (func === "getUserPurchaseList") getUserPurchaseList(req, res);
   else if (func === "getUserRawPurchaseList") getUserRawPurchaseList(req, res);
@@ -1314,7 +1225,6 @@ export const clientHome = (req, res) => {
   else if (func === "getUserPropertyHistory") getUserPropertyHistory(req, res);
   else if (func === "getAppCommonResources") getAppCommonResources(req, res);
   else if (func === "useCoupon") useCoupon(req, res);
-  else if (func === "purchaseFreepass") purchaseFreepass(req, res);
   else if (func === "reportRequestError") reportRequestError(req, res);
   else if (func === "updateWithdrawDate") updateWithdrawDate(req, res);
   else if (func === "getProjectCreditList") getProjectCreditList(req, res);
@@ -1331,8 +1241,6 @@ export const clientHome = (req, res) => {
   else if (func === "failResponse") failResponse(req, res);
   else if (func === "getProjectEpisodeProgressCount")
     getProjectEpisodeProgressCount(req, res);
-  else if (func === "requestFreeCharge") requestFreeCharge(req, res);
-  else if (func === "requestPromotionList") getPromotionList(req, res);
   else if (func === "userCoinPurchase") userCoinPurchase(req, res);
   else if (func === "updateUserSelectionCurrent")
     updateUserSelectionCurrent(req, res);
@@ -1341,9 +1249,6 @@ export const clientHome = (req, res) => {
   // 선택지 로그 리스트
   else if (func === "getEndingSelectionList") getEndingSelectionList(req, res);
   // 엔딩 선택지 로그 리스트
-  else if (func === "getDistinctProjectGenre")
-    getDistinctProjectGenre(req, res);
-  //작품 장르
   else if (func === "getServerMasterInfo") getServerMasterInfo(req, res);
   // 서버 마스터 정보 및 광고 기준정보
   else if (func === "updateUserMinicutHistoryVer2")
