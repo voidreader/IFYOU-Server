@@ -5,6 +5,7 @@ import { logger } from "../logger";
 import { DB } from "../mysqldb";
 import { getComModelMainBannerClientList } from "./designController";
 import { getLevelListNoResponse } from "./levelController";
+import { cache } from "../init";
 
 const s3 = new aws.S3({
   accessKeyId: process.env.AWS_KEY,
@@ -37,64 +38,11 @@ export const alignS3Objects = async (req, res) => {
   });
 };
 
-//! 다국어 로컬 라이징 (어드민)
-export const getLocallizingList = async (req, res) => {
-  logger.info(`getLocallizingList`);
-
-  const result = await DB(`SELECT * FROM com_localize;`, []);
-
-  if (!result.state) {
-    logger.error(`getLocallizingList Error ${result.error}`);
-    respondDB(res, 80026, result.error);
-    return;
-  }
-
-  res.status(200).json(result.row);
-};
-
 // ! 클라이언트에서 요청해서 받는 로컬라이징 텍스트
-export const getClientLocalizingList = async (req, res) => {
+export const getClientLocalizingList = (req, res) => {
   logger.info(`getClientLocalizingList`);
 
-  const result = await DB(
-    `
-  SELECT cl.id
-     , cl.KO
-     , ifnull(cl.EN, 'NO TEXT') EN
-     , ifnull(cl.JA, 'NO TEXT') JA
-     , ifnull(cl.ZH, 'NO TEXT') ZH
-  FROM com_localize cl 
- WHERE id >0;
-  `,
-    []
-  );
-
-  if (!result.state) {
-    logger.error(`getLocallizingList Error ${result.error}`);
-    respondDB(res, 80026, result.error);
-    return;
-  }
-
-  const responseData = {};
-
-  // ID를 키로 해서 사용하기 위해 재포장!
-  result.row.forEach((item) => {
-    responseData[item.id.toString()] = { ...item };
-  });
-
-  res.status(200).json(responseData);
-};
-
-//! 서버 정보
-export const getServerInfo = async (req, res) => {
-  logger.info(`getServerInfo`);
-
-  const result = await DB(
-    `SELECT * FROM com_server cs WHERE server_no > 0 LIMIT 1;`,
-    []
-  );
-
-  res.status(200).json(result.row[0]);
+  res.status(200).json(cache.get("localize"));
 };
 
 // * 앱 공용 리소스 주기.
@@ -142,28 +90,13 @@ export const getAppCommonResources = async (req, res) => {
 };
 
 // * 서버 마스터 정보 (2021.12.22)
-export const getServerMasterInfo = async (req, res) => {
+export const getServerMasterInfo = (req, res) => {
   const responseData = {};
 
-  let query = ``;
-  query += `SELECT * FROM com_server cs WHERE server_no > 0 LIMIT 1;`;
-  query += `SELECT a.* FROM com_ad a LIMIT 1;`;
-  query += `
-    SELECT cpt.timedeal_id 
-      , cpt.conditions
-      , cpt.discount 
-      , cpt.deadline 
-      , cpt.episode_progress 
-    FROM com_premium_timedeal cpt 
-  WHERE timedeal_id > 0 
-  ORDER BY timedeal_id; 
-  `;
-
-  const result = await DB(query);
-
-  responseData.master = result.row[0][0]; // 마스터 정보
-  responseData.ad = result.row[1][0]; // 광고 정보
-  responseData.timedeal = result.row[2]; // 타임딜 정보
+  // 캐시에서 불러오도록 처리
+  responseData.master = cache.get("serverMaster");
+  responseData.ad = cache.get("ad");
+  responseData.timedeal = cache.get("timedeal");
 
   res.status(200).json(responseData);
 };
@@ -187,93 +120,6 @@ export const getPlatformEvents = async (req, res) => {
   if (os === 0) userOS = "Android";
   else userOS = "iOS";
 
-  // * 프로모션 정보
-  const promotionMaster = await DB(`
-  SELECT promotion_no
-      , title
-      , start_date
-      , end_date
-      , promotion_type
-      , location
-  FROM com_promotion
-  WHERE is_public > 0 
-  AND NOW() BETWEEN start_date AND end_date 
-  AND (os = 'all' OR os = '${userOS}')
-  ORDER BY sortkey; 
-  `); // ? 프로모션 끝
-
-  const promotionDetail = await DB(
-    `
-  SELECT 
-  b.promotion_no 
-  , lang
-  , design_id 
-  , fn_get_design_info(design_id, 'url') promotion_banner_url
-  , fn_get_design_info(design_id, 'key') promotion_banner_key
-  FROM com_promotion a, com_promotion_detail b
-  WHERE a.promotion_no = b.promotion_no 
-  AND is_public > 0 
-  AND NOW() BETWEEN start_date AND end_date
-  AND (os = 'all' OR os = '${userOS}')
-  ORDER BY sortkey;  
-  `,
-    []
-  );
-
-  promotionMaster.row.forEach((promotion) => {
-    if (!Object.prototype.hasOwnProperty.call(promotion, "detail")) {
-      promotion.detail = [];
-    }
-
-    promotionDetail.row.forEach((item) => {
-      if (item.promotion_no === promotion.promotion_no) {
-        promotion.detail.push(item);
-      }
-    });
-  }); // ? 프로모션 끝
-
-  // * 공지사항 정보
-  const noticeMaster = await DB(`
-    SELECT cn.*
-    FROM com_notice cn  
-  WHERE now() BETWEEN cn.start_date AND cn.end_date
-    AND cn.is_public = 1
-    AND (os = 'all' OR os = '${userOS}')
-  ORDER BY cn.sortkey;
-  `);
-
-  const noticeDetail = await DB(`
-    SELECT b.notice_no
-    , b.lang 
-    , b.title 
-    , b.contents 
-    , fn_get_design_info(b.design_id, 'url') banner_url
-    , fn_get_design_info(b.design_id, 'key') banner_key
-    , fn_get_design_info(b.detail_design_id, 'url') detail_banner_url
-    , fn_get_design_info(b.detail_design_id, 'key') detail_banner_key
-    , b.url_link 
-  FROM com_notice cn
-    , com_notice_detail b
-  WHERE now() BETWEEN cn.start_date AND cn.end_date
-  AND (cn.os = 'all' OR cn.os = '${userOS}')
-  AND cn.is_public = 1
-  AND b.notice_no = cn.notice_no 
-  ORDER BY cn.sortkey
-  ;  
-  `);
-
-  noticeMaster.row.forEach((notice) => {
-    if (!Object.prototype.hasOwnProperty.call(notice, "detail")) {
-      notice.detail = [];
-    }
-
-    noticeDetail.row.forEach((item) => {
-      if (item.notice_no === notice.notice_no) {
-        notice.detail.push(item);
-      }
-    });
-  }); // ? 공지사항 끝
-
   // * 장르
   const genre = await DB(
     `
@@ -291,8 +137,17 @@ export const getPlatformEvents = async (req, res) => {
     [lang, lang, build]
   ); // ? 장르
 
-  responseData.promotion = promotionMaster.row; // 프로모션 정보
-  responseData.notice = noticeMaster.row; // 공지사항
+  // 캐시에서 프로모션 가져오기 (os 필터링)
+  responseData.promotion = cache.get("promotion").filter((item) => {
+    return item.os.includes("all") || item.os.includes(userOS);
+  });
+
+  // 캐시에서 공지사항 가져오기 (os 필터링)
+  responseData.notice = cache.get("notice").filter((item) => {
+    return item.os.includes("all") || item.os.includes(userOS);
+  });
+
+  // 장르
   responseData.genre = genre.row;
 
   res.status(200).json(responseData);
