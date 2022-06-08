@@ -2,7 +2,7 @@
 import mysql from "mysql2/promise";
 import { DB, transactionDB } from "../mysqldb";
 import { logger } from "../logger";
-import { respondDB, adminLogInsert, respondAdminSuccess } from "../respondent";
+import { respondDB, } from "../respondent";
 import { getUserBankInfo } from "./bankController";
 
 //* 쿠폰 관리 시작
