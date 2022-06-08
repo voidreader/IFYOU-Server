@@ -146,11 +146,13 @@ export const logAction = (userkey, action_type, log_data) => {
   }
 };
 
-// * 어드민 로그 기록
-export const logAdmin = (user_id, action_type, log_data) => {
+// * 올패스 기간 동안 플레이 완료 수집
+export const logAllPass = (userkey, project_id, episode_id) => {
   logDB(
-    `INSERT INTO log_admin (admin_id, action_type, log_data) 
+    `INSERT INTO log_allpass_play (userkey, project_id, episode_id) 
     VALUES(?, ?, ?);`,
-    [user_id, action_type, JSON.stringify(log_data)]
+    [userkey, project_id, episode_id]
   );
 };
+
+

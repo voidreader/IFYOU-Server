@@ -3,7 +3,7 @@ import unzipper from "unzipper";
 import il from "iconv-lite";
 import mysql from "mysql2/promise";
 
-import { DB, logAdmin } from "../mysqldb";
+import { DB, } from "../mysqldb";
 import { respond, respondRedirect, respondDB } from "../respondent";
 import { logger } from "../logger";
 

@@ -1,6 +1,6 @@
 import mysql from "mysql2/promise";
 import { response } from "express";
-import { DB, logAction, logDB, transactionDB } from "../mysqldb";
+import { DB, logAction, logDB, transactionDB, logAllPass, } from "../mysqldb";
 import { respondDB, respondError } from "../respondent";
 import { logger } from "../logger";
 import {
@@ -133,6 +133,8 @@ export const requestCompleteEpisode = async (req, res) => {
 
   // 클리어 로그
   logAction(userkey, "episode_clear", req.body);
+  // 올패스 수집
+  logAllPass(userkey, project_id, episodeID);
 
   res.status(200).json(responseData);
 };
