@@ -23,6 +23,40 @@ SELECT purchase_no
 
 ///////////////////////////함수 처리 끝///////////////////////////////////////////
 
+//! 상품 상세 가져오기
+export const getProductDetailList = async (masterId, product_type) => {
+  let result = ``;
+  if (product_type === "daily") {
+    //console.log('daily',  masterId);
+
+    result = await DB(
+      `SELECT master_id
+    , day_seq
+    , currency
+    , fn_get_currency_info(currency, 'name') as currency_name
+    , quantity 
+    FROM list_product_daily WHERE master_id = ?;`,
+      [masterId]
+    );
+  } else {
+    // console.log('general',  masterId);
+    result = await DB(
+      `SELECT master_id
+    , currency
+    , fn_get_currency_info(currency, 'name') as currency_name
+    , is_main 
+    , quantity 
+    , first_purchase 
+    FROM list_product_detail WHERE master_id = ?;`,
+      [masterId]
+    );
+  }
+
+  // console.log(result);
+
+  return result.row;
+};
+
 //! 사용 중인 상품 리스트
 export const getAllProductList = async (req, res) => {
   logger.info(`getAllProductList`);
