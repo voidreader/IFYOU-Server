@@ -1,12 +1,10 @@
 import express from "express";
 import { clientHome } from "../controllers/clientController";
-import { getCommonInfo } from "../controllers/storyController";
 import { clientCallMiddleware } from "../middlewares";
 import routes from "../routes";
 
 const globalRouter = express.Router();
 
-globalRouter.post(routes.common, getCommonInfo);
 globalRouter.post(routes.clientApp, clientCallMiddleware, clientHome);
 globalRouter.get(routes.rep, (req, res) => {
   res.status(200).send("OK");
