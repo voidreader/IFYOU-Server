@@ -11,8 +11,6 @@ import { logger } from "./logger";
 // import { localsMiddleware } from "./middlewares";
 import routes from "./routes";
 
-import adminRouter from "./routers/adminRouter";
-
 const app = express();
 
 const corsOption = {
@@ -39,7 +37,6 @@ app.use(
 );
 
 app.use(routes.home, globalRouter);
-app.use(routes.admin, adminRouter);
 
 logger.info(`Platform Node Starts`);
 
