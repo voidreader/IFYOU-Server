@@ -1,5 +1,5 @@
 import { logger } from "./logger";
-import { DB, logAdmin } from "./mysqldb";
+import { DB } from "./mysqldb";
 
 // mySQL DB 에러메세지 형태 (메모)
 /*
@@ -89,58 +89,4 @@ export const respondRedirect = (req, res, next, result, func, errorCode) => {
       respondDB(res, errorCode, result.error);
     }
   }
-};
-
-// ! Admin 통신 응답 성공시 공통 호출 - 로그 연계
-// ! INSERT/UPDATE/DELETE에서만 사용할것.
-export const respondAdminSuccess = (req, res, result, action, next) => {
-  const {
-    headers: { x_admin = null, x_lang = "KO" },
-  } = req;
-
-  console.log(`respondAdminSuccess : ${x_admin}`);
-
-  // * 로그 처리 (admin_id가 헤더게 있을 경우만. )
-  if (x_admin) {
-    let logData;
-    // length 체크 추가
-  
-    if (action.includes("update_all")) {
-      logData = { ...req.params };
-    } else {
-      logData = { ...req.body, params: { ...req.params } };
-    }
-
-    logAdmin(x_admin, action, logData);
-  }
-
-  // * 응답 처리 (next function 없을 경우)
-  if (next) {
-    next(req, res); // 다음 함수 호출 처리
-  } else {
-    res.status(200).json(result);
-  }
-};
-
-export const adminLogInsert = (req, action) =>{
-  
-  const {
-    headers: { x_admin = null, x_lang = "KO" },
-  } = req;
-
-  console.log(`AdminOnlyLog : ${x_admin}`);
-
-  // * 로그 처리 (admin_id가 헤더게 있을 경우만. )
-  if (x_admin) {
-    let logData;
-    // length 체크 추가
-    if (action.includes("update_all")) {
-      logData = { ...req.params };
-    } else {
-      logData = { ...req.body, params: { ...req.params } };
-    }
-
-    logAdmin(x_admin, action, logData);
-  }
-
 };

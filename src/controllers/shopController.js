@@ -3,7 +3,7 @@ import { response } from "express";
 import { timeout } from "async";
 import { DB, logAction, transactionDB } from "../mysqldb";
 import { logger } from "../logger";
-import { respondDB, adminLogInsert, respondAdminSuccess } from "../respondent";
+import { respondDB,  } from "../respondent";
 import { gamebaseAPI, inappAPI } from "../com/gamebaseAPI";
 import { getUserBankInfo } from "./bankController";
 
