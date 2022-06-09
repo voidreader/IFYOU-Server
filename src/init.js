@@ -6,7 +6,15 @@ import LRU from "lru-cache";
 import { DB } from "./mysqldb";
 import app from "./app";
 import { logger } from "./logger";
-import { getCachePlatformEvent } from "./com/cacheLoader";
+import {
+  getCacheLocalizedText,
+  getCachePlatformEvent,
+  getCacheServerMaster,
+  refreshCachePlatformEvent,
+  refreshCacheServerMaster,
+  refreshCacheLocalizedText,
+  refreshCacheProduct,
+} from "./com/cacheLoader";
 
 dotenv.config();
 
@@ -34,47 +42,11 @@ export const cache = new LRU(lruOptions);
 export const loadingCacheData = async () => {
   console.log(`Cache Loading.... `);
 
-  let query = ``; // 쿼리용 스트링
+  await refreshCacheServerMaster(); // 서버 마스터
+  await refreshCacheLocalizedText(); // 로컬라이즈 텍스트
+  await refreshCachePlatformEvent(); // 공지사항 및 프로모션
 
-  // 서버 마스터 정보
-  query += `SELECT cs.* FROM com_server cs WHERE server_no > 0 LIMIT 1;`;
-  query += `SELECT a.* FROM com_ad a LIMIT 1;`;
-  query += `
-    SELECT cpt.timedeal_id 
-      , cpt.conditions
-      , cpt.discount 
-      , cpt.deadline 
-      , cpt.episode_progress 
-    FROM com_premium_timedeal cpt 
-  WHERE timedeal_id > 0 
-  ORDER BY timedeal_id; 
-  `;
-
-  const serverInfo = await DB(query);
-  cache.set("serverMaster", serverInfo.row[0][0]); // 마스터 정보
-  cache.set("ad", serverInfo.row[1][0]); // 광고 세팅 정보
-  cache.set("timedeal", serverInfo.row[2]); // 타임딜 정보
-
-  // 로컬라이징 텍스트 정보
-  const localInfo = await DB(`
-  SELECT cl.id
-      , cl.KO
-      , ifnull(cl.EN, 'NO TEXT') EN
-      , ifnull(cl.JA, 'NO TEXT') JA
-    FROM com_localize cl 
-    WHERE id > 0;
-  `);
-  const localData = {}; // 데이터 포장하기
-  localInfo.row.forEach((item) => {
-    localData[item.id.toString()] = { ...item };
-  });
-
-  cache.set("localize", localData); // 로컬라이징 텍스트 정보 세팅
-
-  // 공지사항 및 프로모션 정보
-  const cacheEvent = await getCachePlatformEvent();
-  cache.set("promotion", cacheEvent.promotion);
-  cache.set("notice", cacheEvent.notice);
+  await refreshCacheProduct(); // 인앱상품 리스트
 
   console.log(`Cache Done!`);
   console.log(cache.size);

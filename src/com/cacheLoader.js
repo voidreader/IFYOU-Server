@@ -1,5 +1,117 @@
 import { response } from "express";
+import { getProductDetailList } from "../controllers/shopController";
+import { cache } from "../init";
+import { logger } from "../logger";
 import { DB } from "../mysqldb";
+
+// * 인앱상품 캐시 데이터 조회
+export const getCacheProduct = async (lang) => {
+  const result = await DB(
+    `    
+    SELECT a.product_master_id 
+    , a.product_id 
+    , fn_get_design_info(lang.banner_id, 'url') product_url
+    , fn_get_design_info(lang.banner_id, 'key') product_key
+    , fn_get_design_info(lang.detail_image_id, 'url') product_detail_url
+    , fn_get_design_info(lang.detail_image_id, 'key') product_detail_key
+    , lang.title product_name
+    , ifnull(a.bonus_name, '') bonus_name 
+    , a.product_type 
+    , fn_get_standard_name('product_type', a.product_type) product_type_name 
+    , DATE_FORMAT(a.from_date, '%Y-%m-%d %T') from_date
+    , DATE_FORMAT(a.to_date, '%Y-%m-%d %T') to_date
+    , a.max_count
+    , case when a.to_date = '9999-12-31' THEN 0 ELSE 1 END is_event
+    FROM list_product_master a
+        , list_product_lang lang
+    WHERE a.is_public = 1
+    AND lang.master_id = a.product_master_id 
+    AND lang.lang  = '${lang}'
+    AND now() BETWEEN a.from_date AND a.to_date
+    ORDER BY product_type, product_id;
+    `
+  );
+
+  //* 유효한 상품 리스트와 디테일 가져오기
+  const responseData = {};
+  responseData.productMaster = result.row;
+  responseData.productDetail = {};
+
+  const productInfo = {};
+  const promise = [];
+
+  responseData.productMaster.forEach(async (item) => {
+    const key = item.product_master_id.toString();
+
+    // * product_master_id로 키를 만들어주기
+    if (!Object.hasOwnProperty.call(productInfo, key)) {
+      productInfo[key] = [];
+    }
+
+    // * 상품의 product_type에 따른 디테일 정보를 배열에 푸시해주기
+    promise.push(
+      getProductDetailList(item.product_master_id, item.product_type)
+    );
+  });
+
+  await Promise.all(promise)
+    .then((values) => {
+      // * promise에 넣어둔 모든 getProductDetailList 실행이 종료되면, 결과가 한번에 들어온다.
+      values.forEach((arr) => {
+        //* productInfo의 key랑 arr[i].master_id 가 똑같으면,
+        arr.forEach((item) => {
+          productInfo[item.master_id.toString()].push(item);
+        });
+      });
+    })
+    .catch((err) => {
+      console.log(err);
+    });
+
+  responseData.productDetail = productInfo;
+  return responseData;
+};
+
+// * 캐시용 서버 마스터 정보
+export const getCacheServerMaster = async () => {
+  let query = ``; // 쿼리용 스트링
+
+  // 서버 마스터 정보
+  query += `SELECT cs.* FROM com_server cs WHERE server_no > 0 LIMIT 1;`;
+  query += `SELECT a.* FROM com_ad a LIMIT 1;`;
+  query += `
+      SELECT cpt.timedeal_id 
+        , cpt.conditions
+        , cpt.discount 
+        , cpt.deadline 
+        , cpt.episode_progress 
+      FROM com_premium_timedeal cpt 
+    WHERE timedeal_id > 0 
+    ORDER BY timedeal_id; 
+    `;
+
+  const serverInfo = await DB(query);
+  return serverInfo;
+};
+
+// * 캐시용 로컬라이즈 텍스트 정보
+export const getCacheLocalizedText = async () => {
+  // 로컬라이징 텍스트 정보
+  const localInfo = await DB(`
+  SELECT cl.id
+      , cl.KO
+      , ifnull(cl.EN, 'NO TEXT') EN
+      , ifnull(cl.JA, 'NO TEXT') JA
+    FROM com_localize cl 
+    WHERE id > 0;
+  `);
+  const localData = {}; // 데이터 포장하기
+  localInfo.row.forEach((item) => {
+    localData[item.id.toString()] = { ...item };
+  });
+
+  return localData;
+};
 
 // * 캐시용 플랫폼 이벤트 정보 받아오기
 export const getCachePlatformEvent = async () => {
@@ -92,4 +204,60 @@ export const getCachePlatformEvent = async () => {
   responseData.notice = noticeMaster.row; // 공지사항
 
   return responseData;
+};
+
+// * 공지사항, 프로모션 캐시 리프레시
+export const refreshCachePlatformEvent = async (req, res) => {
+  const cacheEvent = await getCachePlatformEvent();
+  cache.set("promotion", cacheEvent.promotion);
+  cache.set("notice", cacheEvent.notice);
+
+  if (res) res.status(200).send("Done");
+};
+
+// * 로컬라이즈 텍스트 캐시 리프레시
+export const refreshCacheLocalizedText = async (req, res) => {
+  const localData = await getCacheLocalizedText();
+  cache.set("localize", localData); // 로컬라이징 텍스트 정보 세팅
+
+  // com_server의 버전이 연계되어 있어서 같이 한다.
+  const master = await DB(
+    `SELECT cs.* FROM com_server cs WHERE server_no > 0 LIMIT 1`
+  );
+  cache.set("serverMaster", master.row[0]);
+
+  //   console.log(cache.get("serverMaster"));
+
+  if (res) res.status(200).send("Done");
+};
+
+// * 서버 마스터 캐시 리프레시
+export const refreshCacheServerMaster = async (req, res) => {
+  const serverInfo = await getCacheServerMaster();
+  if (serverInfo.length === 0) {
+    logger.error(`error in getCacheServerMaster / loadingCacheData`);
+  } else {
+    cache.set("serverMaster", serverInfo.row[0][0]); // 마스터 정보
+    cache.set("ad", serverInfo.row[1][0]); // 광고 세팅 정보
+    cache.set("timedeal", serverInfo.row[2]); // 타임딜 정보
+  }
+
+  if (res) res.status(200).send("Done");
+};
+
+// * 인앱 상품 정보 캐시
+export const refreshCacheProduct = async (req, res) => {
+  const productKO = await getCacheProduct("KO");
+  const productEN = await getCacheProduct("EN");
+  const productJA = await getCacheProduct("JA");
+
+  const product = {
+    KO: productKO,
+    EN: productEN,
+    JA: productJA,
+  };
+
+  cache.set("product", product);
+
+  if (res) res.status(200).send("Done");
 };

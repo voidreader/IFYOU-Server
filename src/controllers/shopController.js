@@ -3,9 +3,10 @@ import { response } from "express";
 import { timeout } from "async";
 import { DB, logAction, transactionDB } from "../mysqldb";
 import { logger } from "../logger";
-import { respondDB,  } from "../respondent";
+import { respondDB } from "../respondent";
 import { gamebaseAPI, inappAPI } from "../com/gamebaseAPI";
 import { getUserBankInfo } from "./bankController";
+import { cache } from "../init";
 
 //* 상품 시작
 const queryUserPurchaseHistory = `
@@ -65,71 +66,8 @@ export const getAllProductList = async (req, res) => {
     body: { lang = "KO" },
   } = req;
 
-  const result = await DB(
-    `    
-    SELECT a.product_master_id 
-    , a.product_id 
-    , fn_get_design_info(lang.banner_id, 'url') product_url
-    , fn_get_design_info(lang.banner_id, 'key') product_key
-    , fn_get_design_info(lang.detail_image_id, 'url') product_detail_url
-    , fn_get_design_info(lang.detail_image_id, 'key') product_detail_key
-    , lang.title product_name
-    , ifnull(a.bonus_name, '') bonus_name 
-    , a.product_type 
-    , fn_get_standard_name('product_type', a.product_type) product_type_name 
-   , DATE_FORMAT(a.from_date, '%Y-%m-%d %T') from_date
-   , DATE_FORMAT(a.to_date, '%Y-%m-%d %T') to_date
-   , a.max_count
-    , case when a.to_date = '9999-12-31' THEN 0 ELSE 1 END is_event
-  FROM list_product_master a
-      , list_product_lang lang
-  WHERE a.is_public = 1
-    AND lang.master_id = a.product_master_id 
-    AND lang.lang  = '${lang}'
-    AND now() BETWEEN a.from_date AND a.to_date
-  ORDER BY product_type, product_id;
-  `
-  );
-
-  //* 유효한 상품 리스트와 디테일 가져오기
-  const responseData = {};
-  responseData.productMaster = result.row;
-  responseData.productDetail = {};
-
-  const productInfo = {};
-  const promise = [];
-
-  responseData.productMaster.forEach(async (item) => {
-    const key = item.product_master_id.toString();
-
-    // * product_master_id로 키를 만들어주기
-    if (!Object.hasOwnProperty.call(productInfo, key)) {
-      productInfo[key] = [];
-    }
-
-    // * 상품의 product_type에 따른 디테일 정보를 배열에 푸시해주기
-    promise.push(
-      getProductDetailList(item.product_master_id, item.product_type)
-    );
-  });
-
-  await Promise.all(promise)
-    .then((values) => {
-      // * promise에 넣어둔 모든 getProductDetailList 실행이 종료되면, 결과가 한번에 들어온다.
-      values.forEach((arr) => {
-        //* productInfo의 key랑 arr[i].master_id 가 똑같으면,
-        arr.forEach((item) => {
-          productInfo[item.master_id.toString()].push(item);
-        });
-      });
-    })
-    .catch((err) => {
-      console.log(err);
-    });
-
-  responseData.productDetail = productInfo;
-
-  res.status(200).json(responseData);
+  // * 캐시데이터 조회로 변경
+  res.status(200).json(cache.get("product")[lang]);
 };
 
 // ! 유저 상품 구매 내역 조회
