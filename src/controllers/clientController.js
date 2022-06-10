@@ -162,6 +162,12 @@ import {
   requestDailyMissionReward,
   increaseDailyMissionCount,
 } from "./ifyouController";
+import {
+  refreshCacheLocalizedText,
+  refreshCachePlatformEvent,
+  refreshCacheProduct,
+  refreshCacheServerMaster,
+} from "../com/cacheLoader";
 
 dotenv.config();
 
@@ -1399,6 +1405,17 @@ export const clientHome = (req, res) => {
   // 유저 프로젝트 알림설정(2022.05.20)
   else if (func === "updateRateHistory") updateRateHistory(req, res);
   // 유저 평가팝업 기록 저장 (2022.06.02)
+  else if (func === "refreshCachePlatformEvent")
+    refreshCachePlatformEvent(req, res);
+  // 공지사항, 프로모션 캐시 리프레시
+  else if (func === "refreshCacheLocalizedText")
+    refreshCacheLocalizedText(req, res);
+  // 로컬라이즈 텍스트
+  else if (func === "refreshCacheServerMaster")
+    refreshCacheServerMaster(req, res);
+  // 서버 마스터, 광고기준, 타임딜
+  else if (func === "refreshCacheProduct") refreshCacheProduct(req, res);
+  // 인앱상품 정보 캐시 재조회
   else {
     //  res.status(400).send(`Wrong Func : ${func}`);
     logger.error(`clientHome Error ${func}`);
