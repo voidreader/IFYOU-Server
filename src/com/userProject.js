@@ -11,6 +11,7 @@ import {
   UQ_CHECK_PROJECT_USER_FREEPASS,
   UQ_USE_CURRENCY,
 } from "../USERQStore";
+import { cache } from "../init";
 
 // 유저 에피소드 구매 정보 !
 export const getUserEpisodePurchaseInfo = async (userInfo) => {
@@ -763,11 +764,8 @@ export const requestWaitingEpisodeWithAD = async (req, res) => {
   }
 
   // * 서버에서 광고보면 줄어드는 시간을 가져온다.
-  const reduceMin = (
-    await DB(
-      `SELECT reduce_waiting_time_ad  FROM com_server cs WHERE server_no = 1;`
-    )
-  ).row[0].reduce_waiting_time_ad;
+  // 캐시에서 불러오도록 수정함.
+  const reduceMin = cache.get("serverMaster").reduce_waiting_time_ad;
 
   // * 광고를 보고 넘어온 상태기 때문에, 시간을 차감해준다.
   let query = ``;
