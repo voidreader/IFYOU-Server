@@ -264,7 +264,7 @@ UPDATE pier.table_account
      , valid = ?
      , lastlogintime = now() 
      , os = ?
-     , lang = ?
+     , current_lang = ?
  WHERE userkey = ?;
 `;
 
