@@ -3,9 +3,10 @@ import unzipper from "unzipper";
 import il from "iconv-lite";
 import mysql from "mysql2/promise";
 
-import { DB, } from "../mysqldb";
+import { DB } from "../mysqldb";
 import { respond, respondRedirect, respondDB } from "../respondent";
 import { logger } from "../logger";
+import * as credentials from "./google_credential.json";
 
 // aws s3 엑세스 정보
 export const awsAccessInfo = new aws.S3({
@@ -15,6 +16,33 @@ export const awsAccessInfo = new aws.S3({
 
 // 버킷!
 export const mainBucketName = `pierstore/assets`;
+
+const { Translate } = require("@google-cloud/translate").v2;
+
+const translate = new Translate({
+  credentials,
+});
+
+export const translateText = async (req, res) => {
+  const {
+    body: { text, targetLang },
+  } = req;
+
+  // Translates the text into the target language. "text" can be a string for
+  // translating a single piece of text, or an array of strings for translating
+  // multiple texts.
+  let [translations] = await translate.translate(text, targetLang);
+  translations = Array.isArray(translations) ? translations : [translations];
+  console.log("Translations: ", translations.length);
+
+  /*
+  translations.forEach((translation, i) => {
+    console.log(`${text[i]} => (${targetLang}) ${translation}`);
+  });
+  */
+
+  res.status(200).send(translations[0]);
+};
 
 // 이전 S3 오브젝트 기록하기
 export const RecordPrviousS3Object = ({ project_id, object_key, bucket }) => {
