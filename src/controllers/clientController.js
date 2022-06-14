@@ -168,6 +168,7 @@ import {
   refreshCacheProduct,
   refreshCacheServerMaster,
 } from "../com/cacheLoader";
+import { translateText } from "../com/com";
 
 dotenv.config();
 
@@ -1415,6 +1416,7 @@ export const clientHome = (req, res) => {
     refreshCacheServerMaster(req, res);
   // 서버 마스터, 광고기준, 타임딜
   else if (func === "refreshCacheProduct") refreshCacheProduct(req, res);
+  else if (func === "translateText") translateText(req, res);
   // 인앱상품 정보 캐시 재조회
   else {
     //  res.status(400).send(`Wrong Func : ${func}`);
