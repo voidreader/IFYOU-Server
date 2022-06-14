@@ -2,7 +2,7 @@
 /* eslint-disable no-await-in-loop */
 import mysql from "mysql2/promise";
 import { response } from "express";
-import { DB, logAction, transactionDB } from "../mysqldb";
+import { DB, logAction, slaveDB, transactionDB } from "../mysqldb";
 import { logger } from "../logger";
 import { respondDB } from "../respondent";
 import {
@@ -146,7 +146,7 @@ export const getUserStoryProfile = async (req, res, needResponse = true) => {
   // * 작품 프로필이 비어있는 경우.
   if (currentProfile.row.length === 0) {
     // * 작품의 default profile property 조회
-    const defaultItems = await DB(`
+    const defaultItems = await slaveDB(`
     SELECT a.currency
          , a.sorting_order 
       FROM list_default_property a 

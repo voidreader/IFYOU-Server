@@ -1,5 +1,5 @@
 import mysql from "mysql2/promise";
-import { DB, logAction, transactionDB } from "../mysqldb";
+import { DB, logAction, slaveDB, transactionDB } from "../mysqldb";
 import { logger } from "../logger";
 import { respondDB } from "../respondent";
 import { getContinuousAttendanceList } from "./attendanceController";
@@ -14,7 +14,7 @@ const getDailyMissionList = async (userkey, lang) => {
   const responseData = {};
 
   //전체 일일 미션 클리어
-  let result = await DB(
+  let result = await slaveDB(
     `
     SELECT
     cdm.mission_no
@@ -86,7 +86,7 @@ export const requestDailyMissionReward = async (req, res) => {
   const responseData = {};
 
   //유효성 검사
-  let result = await DB(
+  let result = await slaveDB(
     `
     SELECT * 
     FROM user_daily_mission udm, com_daily_mission cdm

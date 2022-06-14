@@ -3,7 +3,7 @@
 import mysql from "mysql2/promise";
 import dotenv from "dotenv";
 import { response } from "express";
-import { DB, logAction, logDB, transactionDB } from "../mysqldb";
+import { DB, logAction, logDB, slaveDB, transactionDB } from "../mysqldb";
 import {
   Q_CLIENT_LOGIN_BY_DEVICE,
   Q_SELECT_PROJECT_BUBBLE_SET,
@@ -1779,11 +1779,11 @@ export const loginClient = async (req, res) => {
   if (gamebaseid != null) {
     // 게임베이스로 로그인
     logger.info(`loginClient [ ${gamebaseid} ]`);
-    result = await DB(Q_CLIENT_LOGIN_BY_GAMEBASE, [gamebaseid]);
+    result = await slaveDB(Q_CLIENT_LOGIN_BY_GAMEBASE, [gamebaseid]);
   } else {
     // 구버전.
     logger.info(`loginClient without gamebaseID`);
-    result = await DB(Q_CLIENT_LOGIN_BY_DEVICE, [deviceid]);
+    result = await slaveDB(Q_CLIENT_LOGIN_BY_DEVICE, [deviceid]);
   }
 
   const accountInfo = {};
@@ -1819,7 +1819,7 @@ export const loginClient = async (req, res) => {
         [accountInfo.account.userkey]
       );
 
-      result = await DB(
+      result = await slaveDB(
         `SELECT uid , nickname FROM table_account WHERE userkey = ?;`,
         [accountInfo.account.userkey]
       );
@@ -2362,7 +2362,7 @@ const getProjectResources = async (project_id, lang, bubbleID, userkey) => {
   ); // [22] 미션 올 클리어
 
   // * 모인 쿼리 실행
-  const result = await DB(query);
+  const result = await slaveDB(query);
 
   if (!result.state) {
     logger.error(result.error);
