@@ -1,6 +1,6 @@
 import mysql from "mysql2/promise";
 import { response } from "express";
-import { DB, logAction, transactionDB } from "../mysqldb";
+import { DB, logAction, slaveDB, transactionDB } from "../mysqldb";
 import { logger } from "../logger";
 import { respondDB } from "../respondent";
 import { getUserBankInfo } from "./bankController";
@@ -8,7 +8,7 @@ import { getUserBankInfo } from "./bankController";
 //! 좋아요 리스트
 export const getUserProjectLikeList = async (userkey) => {
   const like = [];
-  const result = await DB(
+  const result = await slaveDB(
     `
     SELECT project_id 
     FROM user_project_like 

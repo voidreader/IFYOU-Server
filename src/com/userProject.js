@@ -1,5 +1,5 @@
 import mysql from "mysql2/promise";
-import { DB, logAction, transactionDB } from "../mysqldb";
+import { DB, logAction, slaveDB, transactionDB } from "../mysqldb";
 import { logger } from "../logger";
 import { respond, respondDB } from "../respondent";
 import {
@@ -113,7 +113,7 @@ export const getUserProjectCurrent = async (userInfo) => {
   let currentInfo = [];
 
   // list_episode 조인 추가 2022.05.20
-  const result = await DB(
+  const result = await slaveDB(
     `
     SELECT a.project_id
     , a.episode_id 
@@ -213,7 +213,7 @@ export const updateUserProjectCurrent = async (req, res) => {
 
 //* 현재 선택지 로그 가져오기
 export const getUserSelectionCurrent = async (userkey, project_id) => {
-  const result = await DB(
+  const result = await slaveDB(
     `
   SELECT episode_id 
   , target_scene_id 
@@ -244,7 +244,7 @@ export const getSelectionCurrent = async (req, res) => {
   let endingCheck = true;
   let index = 0;
 
-  let result = await DB(
+  let result = await slaveDB(
     `SELECT * FROM user_selection_current 
   WHERE userkey = ? AND project_id =?;
   `,
@@ -254,7 +254,7 @@ export const getSelectionCurrent = async (req, res) => {
 
   //* 현재 설렉션(user_selection_current), 엔딩(user_selection_ending) 같은 데이터가 있는지 확인
   if (endingCheck) {
-    result = await DB(
+    result = await slaveDB(
       `SELECT *
     FROM user_selection_current a, user_selection_ending b 
     WHERE a.userkey = b.userkey 
@@ -556,7 +556,7 @@ export const getEndingSelectionList = async (req, res) => {
   let result = ``;
 
   //* 최근 엔딩 가져오기(max_play_count)
-  result = await DB(
+  result = await slaveDB(
     `
   SELECT MAX(play_count) max_play_count
   FROM user_selection_ending 
@@ -744,7 +744,7 @@ export const requestWaitingEpisodeWithAD = async (req, res) => {
   // * 에피소드가 열리는 시간은 user_project_current에서의  next_open_time  컬럼이다.
 
   // project current 체크
-  const rowCheck = await DB(`
+  const rowCheck = await slaveDB(`
   SELECT a.*
     FROM user_project_current a
   WHERE a.userkey = ${userkey}
@@ -890,7 +890,7 @@ export const resetProjectProgress = async (req, res) => {
   resetQuery += mysql.format(currentQuery, [userkey, quantity, project_id]);
 
   //현재 script_no 가져오기
-  result = await DB(
+  result = await slaveDB(
     `SELECT script_no FROM user_project_current WHERE userkey = ? AND project_id = ? AND is_special = 0;`,
     [userkey, project_id]
   );
@@ -1014,7 +1014,7 @@ export const purchaseEpisodeType2 = async (req, res, needResponse = true) => {
     // 대여기간, 1회 플레이, 소장
     // 이중구매는 막아준다. 400 응답
     // 프리패스 이용자가 아닐때만 하는 이유는 프리패스는 이중구매고 뭐고 그냥 구매해도 상관없다.
-    const validationCheck = await DB(
+    const validationCheck = await slaveDB(
       `
       SELECT CASE WHEN uep.permanent = 1 THEN 1
                   ELSE 0 END is_purchased

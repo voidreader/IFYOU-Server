@@ -1,5 +1,5 @@
 import mysql from "mysql2/promise";
-import { DB } from "../mysqldb";
+import { DB, slaveDB } from "../mysqldb";
 import { respondError, respondDB } from "../respondent";
 import { getUserBankInfo } from "./bankController";
 
@@ -138,12 +138,12 @@ export const getUserUnreadMailList = async (req, res) => {
   const responseData = {};
 
   // 조회 쿼리
-  const result = await DB(QUERY_USER_UNREAD_MAIL_LIST, [lang, userkey]);
+  const result = await slaveDB(QUERY_USER_UNREAD_MAIL_LIST, [lang, userkey]);
 
   // console.log(result.row);
 
   responseData.mailList = result.row;
-  const unreadMailResult = await DB(
+  const unreadMailResult = await slaveDB(
     `
     SELECT fn_get_user_unread_mail_count(?) cnt
     FROM dual
@@ -176,7 +176,7 @@ export const requestReceiveAllMail = async (req, res) => {
   logger.info(`requestReceiveAllMail [${JSON.stringify(req.body)}]`);
 
   // 유저의 모든 미수신 메일 정보를 읽어온다.
-  const result = await DB(QUERY_USER_UNREAD_MAIL_LIST, [lang, userkey]);
+  const result = await slaveDB(QUERY_USER_UNREAD_MAIL_LIST, [lang, userkey]);
 
   for await (const item of result.row) {
     req.body.mail_no = item.mail_no;
