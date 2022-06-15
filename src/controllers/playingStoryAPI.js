@@ -139,7 +139,10 @@ export const requestCompleteEpisode = async (req, res) => {
   CASE WHEN now() <= allpass_expiration THEN 1 ELSE 0 END allpass_check
   FROM table_account
   WHERE userkey = ?;`, [userkey]);
-  if(result.state && result.row.length > 0) logAllPass(userkey, project_id, episodeID);
-  
+  if(result.state && result.row.length > 0) {
+    const { allpass_check } = result.row[0];
+    if(allpass_check === 1) logAllPass(userkey, project_id, episodeID);
+  }
+
   res.status(200).json(responseData);
 };
