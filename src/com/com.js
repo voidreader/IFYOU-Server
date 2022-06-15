@@ -8,6 +8,8 @@ import { respond, respondRedirect, respondDB } from "../respondent";
 import { logger } from "../logger";
 import * as credentials from "./google_credential.json";
 
+const googleProjectID = "refined-sum-353306";
+
 // aws s3 엑세스 정보
 export const awsAccessInfo = new aws.S3({
   accessKeyId: process.env.AWS_KEY,
@@ -18,11 +20,44 @@ export const awsAccessInfo = new aws.S3({
 export const mainBucketName = `pierstore/assets`;
 
 const { Translate } = require("@google-cloud/translate").v2;
+const { TranslationServiceClient } = require("@google-cloud/translate");
 
 const translate = new Translate({
   credentials,
 });
 
+const translationClient = new TranslationServiceClient({ credentials });
+
+// * 용어집과 함께 번역
+export const translateWithGlossary = async (req, res) => {
+  const {
+    body: { text, targetLang },
+  } = req;
+
+  const glossaryConfig = {
+    glossary: `projects/${googleProjectID}/locations/us-central1/glossaries/en_ar_73`,
+  };
+  // Construct request
+  const request = {
+    parent: `projects/${googleProjectID}/locations/us-central1`,
+    contents: [text],
+    mimeType: "text/plain", // mime types: text/plain, text/html
+    sourceLanguageCode: "en",
+    targetLanguageCode: targetLang,
+    glossaryConfig,
+  };
+
+  // Run request
+  const [response] = await translationClient.translateText(request);
+
+  for (const translation of response.glossaryTranslations) {
+    console.log(`Translation: ${translation.translatedText}`);
+  }
+
+  res.status(200).send("ok");
+};
+
+// * 번역 API
 export const translateText = async (req, res) => {
   const {
     body: { text, targetLang },
@@ -42,6 +77,38 @@ export const translateText = async (req, res) => {
   */
 
   res.status(200).send(translations[0]);
+}; // 번역 API 종료
+
+export const createArabicGlossary = async (req, res) => {
+  // Construct glossary
+  const glossary = {
+    languageCodesSet: {
+      languageCodes: ["en", "ko", "ar"],
+    },
+    inputConfig: {
+      gcsSource: {
+        inputUri: "gs://ifyou/translate/ifyou_en_ar_73.csv",
+      },
+    },
+    name: `projects/${googleProjectID}/locations/us-central1/glossaries/en_ar_73`,
+  };
+
+  // Construct request
+  const request = {
+    parent: `projects/${googleProjectID}/locations/us-central1`,
+    glossary,
+  };
+
+  // Create glossary using a long-running operation
+  const [operation] = await translationClient.createGlossary(request);
+
+  // Wait for the operation to complete
+  await operation.promise();
+
+  console.log("Created glossary:");
+  console.log(`InputUri ${request.glossary.inputConfig.gcsSource.inputUri}`);
+
+  res.status(200).send("OK");
 };
 
 // 이전 S3 오브젝트 기록하기
