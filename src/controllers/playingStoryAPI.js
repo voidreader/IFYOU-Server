@@ -134,7 +134,12 @@ export const requestCompleteEpisode = async (req, res) => {
   // 클리어 로그
   logAction(userkey, "episode_clear", req.body);
   // 올패스 수집
-  logAllPass(userkey, project_id, episodeID);
-
+  const result = await DB(`
+  SELECT 
+  CASE WHEN now() <= allpass_expiration THEN 1 ELSE 0 END allpass_check
+  FROM table_account
+  WHERE userkey = ?;`, [userkey]);
+  if(result.state && result.row.length > 0) logAllPass(userkey, project_id, episodeID);
+  
   res.status(200).json(responseData);
 };
