@@ -58,7 +58,12 @@ export const updateProjectLike = async (req, res) => {
       `DELETE FROM user_project_like WHERE userkey = ? AND project_id = ?;`,
       [userkey, project_id]
     );
-    isLike = 0;
+
+    // 선호작 해제한경우는 알림설정을 맘대로 건들지 않는다.
+    const userNotify = await DB(
+      `SELECT is_notify FROM user_project_notification upn WHERE userkey = ${userkey} AND project_id = ${project_id};`
+    );
+    isLike = userNotify.row[0].is_notify;
   }
 
   if (!result.state) {
