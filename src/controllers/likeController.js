@@ -72,14 +72,16 @@ export const updateProjectLike = async (req, res) => {
 
   const responseData = {};
   responseData.like = await getUserProjectLikeList(userkey);
-  responseData.is_notify = isLike;
+  responseData.is_notify = "0";
 
   // 선호작 등록/해제에 따라서 작품 알림설정 처리
+  /*
   DB(`
     INSERT INTO user_project_notification (userkey, project_id, is_notify, last_modified)
     VALUES (${userkey}, ${project_id}, ${isLike}, now()) ON DUPLICATE KEY 
     UPDATE is_notify = ${isLike}, last_modified = now();
     `);
+  */
 
   res.status(200).json(responseData);
 };
