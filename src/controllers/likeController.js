@@ -41,7 +41,7 @@ export const updateProjectLike = async (req, res) => {
     return;
   }
 
-  let isLike = 0;
+  let isLike = "0";
 
   //* 좋아요 등록/해제 처리
   let result = await DB(
@@ -54,14 +54,14 @@ export const updateProjectLike = async (req, res) => {
       `INSERT INTO user_project_like(userkey, project_id) VALUES(?, ?);`,
       [userkey, project_id]
     );
-    isLike = 1;
+    isLike = "1";
   } else {
     //있으면 delete
     result = await DB(
       `DELETE FROM user_project_like WHERE userkey = ? AND project_id = ?;`,
       [userkey, project_id]
     );
-    isLike = 0;
+    isLike = "0";
   }
 
   if (!result.state) {
