@@ -22,9 +22,10 @@ export const getCacheProduct = async (lang) => {
     , DATE_FORMAT(a.to_date, '%Y-%m-%d %T') to_date
     , a.max_count
     , case when a.to_date = '9999-12-31' THEN 0 ELSE 1 END is_event
+    , a.is_public
     FROM list_product_master a
         , list_product_lang lang
-    WHERE a.is_public = 1
+    WHERE a.is_public > 0
     AND lang.master_id = a.product_master_id 
     AND lang.lang  = '${lang}'
     AND now() BETWEEN a.from_date AND a.to_date
@@ -102,6 +103,7 @@ export const getCacheLocalizedText = async () => {
       , cl.KO
       , ifnull(cl.EN, 'NO TEXT') EN
       , ifnull(cl.JA, 'NO TEXT') JA
+      , ifnull(cl.AR, 'NO TEXT') AR
     FROM com_localize cl 
     WHERE id > 0;
   `);
