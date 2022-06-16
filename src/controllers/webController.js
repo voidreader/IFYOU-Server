@@ -73,6 +73,7 @@ export const getIFyouWebMainPageInfo = async (req, res) => {
        , CASE WHEN '${lang}' = 'KO' THEN cl.KO
               WHEN '${lang}' = 'EN' THEN cl.EN
               WHEN '${lang}' = 'JA' THEN cl.JA 
+              WHEN '${lang}' = 'AR' THEN cl.AR
               ELSE cl.EN END value
  FROM com_localize cl 
 WHERE cl.id BETWEEN 6400 AND 6425 
@@ -87,7 +88,7 @@ WHERE cl.id BETWEEN 6400 AND 6425
 
 export const receiveInquiry = async (req, res) => {
   const {
-    body: { client, company, tel, email, contents, kind ='ifyou', },
+    body: { client, company, tel, email, contents, kind = "ifyou" },
   } = req;
 
   const result = await DB(
