@@ -1,3 +1,4 @@
+/* eslint-disable no-restricted-syntax */
 import aws from "aws-sdk";
 import unzipper from "unzipper";
 import il from "iconv-lite";
@@ -28,14 +29,90 @@ const translate = new Translate({
 
 const translationClient = new TranslationServiceClient({ credentials });
 
+// * 작품 스크립트 자동 번역 생성하기
+export const translateScriptWithGlossary = async (req, res) => {
+  const {
+    body: { project_id, targetLang, glossary_id, episode_id },
+  } = req;
+
+  // 구글 클라우드 용어집 설정
+  const glossaryConfig = {
+    glossary: `projects/${googleProjectID}/locations/us-central1/glossaries/${glossary_id}`,
+  };
+
+  // 작품의 에피소드 리스트 가져온다.
+  const episodeList = await DB(`
+  SELECT le.episode_id, le.title
+  FROM list_episode le
+ WHERE le.project_id = ${project_id}
+  ORDER BY le.episode_id ;
+  `);
+
+  // * 에피소드 별로 복사를 한다.
+  for await (const item of episodeList.row) {
+    // const texts = [];
+
+    // 영어 스크립트를 타겟 스크립트로 복사한다.
+
+    // 대상 에피소드의 영문 스크립트 정보를 가져온다.
+    const targetScript = await DB(`
+    SELECT ls.script_no, ls.script_data 
+    FROM list_script ls
+   WHERE ls.project_id = ${project_id}
+     AND ls.episode_id = ${item.episode_id}
+     AND ls.template IN ('narration', 'feeling', 'talk', 'whisper', 'yell', 'speech', 'monologue', 'message_receive', 'message_self', 'message_partner', 'message_call', 'selection', 'phone_self', 'phone_partner', 'game_message', 'selection_info', 'flow_time')
+     AND ls.script_data is not null
+     AND ls.script_data <> ''
+     AND ls.lang = 'EN';    
+    `);
+
+    console.log(`${JSON.stringify(item)} translate start!!!`);
+
+    for await (const scriptRow of targetScript.row) {
+      console.log(`[${scriptRow.script_data}]`);
+
+      // Construct request
+      const request = {
+        parent: `projects/${googleProjectID}/locations/us-central1`,
+        contents: [scriptRow.script_data],
+        mimeType: "text/plain", // mime types: text/plain, text/html
+        sourceLanguageCode: "en",
+        targetLanguageCode: targetLang,
+        glossaryConfig,
+      };
+
+      // 번역 요청하기 (한줄씩 요청)
+      const [response] = await translationClient.translateText(request);
+      scriptRow.script_data = response.glossaryTranslations[0].translatedText;
+      console.log(scriptRow.script_data);
+    } // ? end of targetScript for.
+
+    /*
+    let index = 0;
+    response.glossaryTranslations.forEach((translation) => {
+      targetScript.row[index].script_data = translation.translatedText;
+      index += 1;
+    });
+
+    console.log(`translated rows : ${response.glossaryTranslations.length}`);
+    
+    */
+    // console.log(item);
+  } // ? end of episode for await
+
+  // Run request
+
+  res.status(200).send("ok");
+};
+
 // * 용어집과 함께 번역
 export const translateWithGlossary = async (req, res) => {
   const {
-    body: { text, targetLang },
+    body: { text, targetLang, glossary_id },
   } = req;
 
   const glossaryConfig = {
-    glossary: `projects/${googleProjectID}/locations/us-central1/glossaries/en_ar_73`,
+    glossary: `projects/${googleProjectID}/locations/us-central1/glossaries/${glossary_id}`,
   };
   // Construct request
   const request = {
@@ -80,6 +157,10 @@ export const translateText = async (req, res) => {
 }; // 번역 API 종료
 
 export const createArabicGlossary = async (req, res) => {
+  const {
+    body: { filename, glossary_id },
+  } = req;
+
   // Construct glossary
   const glossary = {
     languageCodesSet: {
@@ -87,10 +168,10 @@ export const createArabicGlossary = async (req, res) => {
     },
     inputConfig: {
       gcsSource: {
-        inputUri: "gs://ifyou/translate/ifyou_en_ar_73.csv",
+        inputUri: `gs://ifyou/translate/${filename}`,
       },
     },
-    name: `projects/${googleProjectID}/locations/us-central1/glossaries/en_ar_73`,
+    name: `projects/${googleProjectID}/locations/us-central1/glossaries/${glossary_id}`,
   };
 
   // Construct request
@@ -109,6 +190,29 @@ export const createArabicGlossary = async (req, res) => {
   console.log(`InputUri ${request.glossary.inputConfig.gcsSource.inputUri}`);
 
   res.status(200).send("OK");
+};
+
+// 용어집 삭제
+export const deleteGlossary = async (req, res) => {
+  const {
+    body: { glossary_id },
+  } = req;
+
+  // Construct request
+  const request = {
+    parent: `projects/${googleProjectID}/locations/us-central1`,
+    name: `projects/${googleProjectID}/locations/us-central1/glossaries/${glossary_id}`,
+  };
+
+  // Delete glossary using a long-running operation
+  const [operation] = await translationClient.deleteGlossary(request);
+
+  // Wait for operation to complete.
+  const [response] = await operation.promise();
+
+  console.log(`Deleted glossary: ${response.name}`);
+
+  res.status(200).send(`${response.name}`);
 };
 
 // 이전 S3 오브젝트 기록하기
