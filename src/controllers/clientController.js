@@ -1182,6 +1182,8 @@ const getIntroCharacterList = async(req, res) =>{
   ci.*
   , ifnull(fn_get_localize_text(ci.character_msg, '${lang}'), '') character_msg_text
   , ifnull(fn_get_localize_text(ci.public_msg, '${lang}'), '') public_msg_text
+  , fn_get_design_info(ci.image_id, 'key') image_key
+  , fn_get_design_info(ci.image_id, 'url') image_url
   FROM com_intro ci;
   `);
 
