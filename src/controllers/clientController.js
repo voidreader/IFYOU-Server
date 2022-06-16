@@ -1169,6 +1169,27 @@ WHERE lem.project_id = ${project_id}
   res.status(200).json(result);
 };
 
+//! 인트로 캐릭터 리스트 
+const getIntroCharacterList = async(req, res) =>{
+  const {
+    body: {
+      lang = "KO",
+    },
+  } = req;
+
+  const result = await DB(`
+  SELECT 
+  ci.*
+  , ifnull(fn_get_localize_text(ci.character_msg, '${lang}'), '') character_msg_text
+  , ifnull(fn_get_localize_text(ci.public_msg, '${lang}'), '') public_msg_text
+  , fn_get_design_info(ci.image_id, 'key') image_key
+  , fn_get_design_info(ci.image_id, 'url') image_url
+  FROM com_intro ci;
+  `);
+
+  res.status(200).json(result.row);
+};
+
 // clientHome에서 func에 따라 분배
 // controller에서 또다시 controller로 보내는것이 옳을까..? ㅠㅠ
 export const clientHome = (req, res) => {
@@ -1424,6 +1445,8 @@ export const clientHome = (req, res) => {
   else if (func === "translateWithGlossary") translateWithGlossary(req, res);
   else if (func === "createArabicGlossary") createArabicGlossary(req, res);
   // 인앱상품 정보 캐시 재조회
+  else if (func === "getIntroCharacterList") getIntroCharacterList(req, res); 
+  // 인트로 캐릭터별 리스트
   else {
     //  res.status(400).send(`Wrong Func : ${func}`);
     logger.error(`clientHome Error ${func}`);
