@@ -138,12 +138,12 @@ export const getUserUnreadMailList = async (req, res) => {
   const responseData = {};
 
   // 조회 쿼리
-  const result = await slaveDB(QUERY_USER_UNREAD_MAIL_LIST, [lang, userkey]);
+  const result = await DB(QUERY_USER_UNREAD_MAIL_LIST, [lang, userkey]);
 
   // console.log(result.row);
 
   responseData.mailList = result.row;
-  const unreadMailResult = await slaveDB(
+  const unreadMailResult = await DB(
     `
     SELECT fn_get_user_unread_mail_count(?) cnt
     FROM dual
