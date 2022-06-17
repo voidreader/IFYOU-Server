@@ -42,7 +42,7 @@ export const getCurrencyQuantity = async (
 export const getUserBankInfo = async (userInfo) => {
   // ! 기본 재화 (gem, coin)
   const commonProperty = (
-    await slaveDB(
+    await DB(
       `
       SELECT fn_get_user_property(${userInfo.userkey}, 'gem') gem
            , fn_get_user_property(${userInfo.userkey}, 'coin') coin
@@ -52,7 +52,7 @@ export const getUserBankInfo = async (userInfo) => {
   ).row[0];
 
   // 프로젝트 귀속 재화
-  const projectProperty = await slaveDB(`
+  const projectProperty = await DB(`
   SELECT a.currency 
      , IFNULL(SUM(a.current_quantity), 0) current_quantity
      , cc.connected_project
