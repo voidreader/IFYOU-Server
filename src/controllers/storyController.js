@@ -34,7 +34,7 @@ export const getCurrentProjectPassPrice = async ({ userkey, project_id }) => {
 // ! 스페셜 에피소드 해금 체크 -  에피소드 조건 -
 export const checkSideUnlockByEpisode = async (userInfo) => {
   // 아직 해금되지 않은 episode unlock style 사이드 에피소드 리스트
-  const locekdSideList = await slaveDB(
+  const locekdSideList = await DB(
     `
   SELECT a.episode_id   
   , fn_get_episode_title_lang(a.episode_id, '${userInfo.lang}') title 
@@ -57,7 +57,7 @@ export const checkSideUnlockByEpisode = async (userInfo) => {
   // console.log(" lockedSideList : ", locekdSideList.row[0]);
 
   // 해금되지 않은 사이드 스토리가 남아있어.!
-  const histEpisodeIDs = await slaveDB(
+  const histEpisodeIDs = await DB(
     `
   SELECT a.episode_id 
   FROM user_episode_hist a
@@ -134,7 +134,7 @@ export const checkSideUnlockByEpisode = async (userInfo) => {
 export const checkSideUnlockByScene = async (userInfo) => {
   const { userkey, project_id, scene_id, lang = "KO" } = userInfo;
 
-  const locekdSideList = await slaveDB(
+  const locekdSideList = await DB(
     `
   SELECT a.episode_id   
   , fn_get_episode_title_lang(a.episode_id, ?) title 
@@ -155,7 +155,7 @@ export const checkSideUnlockByScene = async (userInfo) => {
 
   //console.log(" lockedSideList : ", locekdSideList.row[0]);
 
-  const histSceneIDs = await slaveDB(
+  const histSceneIDs = await DB(
     `SELECT a.scene_id 
     FROM user_scene_hist a
     WHERE a.userkey = ? AND a.project_id = ?;
@@ -225,7 +225,7 @@ export const checkSideUnlockByScene = async (userInfo) => {
 export const checkMissionByEpisode = async (userInfo) => {
   const { userkey, project_id, episodeID, lang = "KO" } = userInfo;
 
-  const locekdMissionList = await slaveDB(
+  const locekdMissionList = await DB(
     `
     SELECT mission_id
     , fn_get_mission_name(mission_id, ?) mission_name
@@ -246,7 +246,7 @@ export const checkMissionByEpisode = async (userInfo) => {
 
   if (!locekdMissionList.state || locekdMissionList.row.length === 0) return [];
 
-  const histEpisodeIDs = await slaveDB(
+  const histEpisodeIDs = await DB(
     `SELECT a.episode_id 
     FROM user_episode_hist a
     WHERE a.userkey = ? AND a.project_id = ?;
@@ -316,7 +316,7 @@ export const checkMissionByEpisode = async (userInfo) => {
 export const checkMissionByScence = async (userInfo) => {
   const { userkey, project_id, scene_id, lang = "KO" } = userInfo;
 
-  const locekdMissionList = await slaveDB(
+  const locekdMissionList = await DB(
     `
     SELECT mission_id
     , fn_get_mission_name(mission_id, ?) mission_name
@@ -337,7 +337,7 @@ export const checkMissionByScence = async (userInfo) => {
 
   if (!locekdMissionList.state || locekdMissionList.row.length === 0) return [];
 
-  const histSceneIDs = await slaveDB(
+  const histSceneIDs = await DB(
     `SELECT a.scene_id 
     FROM user_scene_hist a
     WHERE a.userkey = ? AND a.project_id = ?;
@@ -408,7 +408,7 @@ export const checkMissionByDrop = async (userInfo) => {
   const { userkey, project_id, mission_id, lang = "KO" } = userInfo;
 
   //! 미션 확인
-  const missionCheck = await slaveDB(
+  const missionCheck = await DB(
     `SELECT * FROM list_mission WHERE project_id = ? AND mission_id = ? AND mission_type = 'drop';`,
     [project_id, mission_id]
   );
@@ -416,7 +416,7 @@ export const checkMissionByDrop = async (userInfo) => {
   if (!missionCheck.state || missionCheck.row.length === 0) return [];
 
   //! user_mission 확인
-  const userMissionCheck = await slaveDB(
+  const userMissionCheck = await DB(
     `SELECT * FROM user_mission WHERE userkey = ? AND mission_id = ?;`,
     [userkey, mission_id]
   );
@@ -435,7 +435,7 @@ export const checkMissionByDrop = async (userInfo) => {
     return [];
   }
 
-  const missionResult = await slaveDB(
+  const missionResult = await DB(
     `SELECT mission_id
     , fn_get_mission_name(a.mission_id, ?) mission_name
     , fn_get_mission_hint(a.mission_id, ?) mission_hint
