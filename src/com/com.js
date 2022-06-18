@@ -31,9 +31,16 @@ const translationClient = new TranslationServiceClient({ credentials });
 
 // * 작품 스크립트 자동 번역 생성하기
 export const translateScriptWithGlossary = async (req, res) => {
+  // * 프로젝트ID, 번역될 언어 값을 받아서 변형시킨다.
+  // * targetLang은 소문자로 받는다.
+
   const {
-    body: { project_id, targetLang, glossary_id, episode_id },
+    body: { project_id, targetLang, glossary_id },
   } = req;
+
+  let updateQuery = ``;
+
+  res.status(200).send("ok");
 
   // 구글 클라우드 용어집 설정
   const glossaryConfig = {
@@ -50,11 +57,70 @@ export const translateScriptWithGlossary = async (req, res) => {
 
   // * 에피소드 별로 복사를 한다.
   for await (const item of episodeList.row) {
-    // const texts = [];
+    console.log(`[${item.id}] [${item.title}] start translation`);
 
     // 영어 스크립트를 타겟 스크립트로 복사한다.
+    // 대상 언어의 스크립트를 제거하고 입력한다.
+    await DB(`DELETE FROM list_script WHERE episode_id = ${item.episode_id} AND lang = UPPER('${targetLang}');
+    INSERT INTO list_script (episode_id
+      , scene_id
+      , template
+      , speaker
+      , script_data
+      , target_scene_id
+      , requisite
+      , character_expression
+      , emoticon_expression
+      , in_effect
+      , out_effect
+      , bubble_size
+      , bubble_pos
+      , bubble_hold
+      , bubble_reverse
+      , emoticon_size
+      , voice
+      , autoplay_row
+      , dev_comment
+      , project_id
+      , sortkey
+      , sound_effect
+      , lang
+      , control
+      , selection_group
+      , selection_no) 
+      SELECT episode_id
+      , scene_id
+      , template
+      , speaker
+      , script_data
+      , target_scene_id
+      , requisite
+      , character_expression
+      , emoticon_expression
+      , in_effect
+      , out_effect
+      , bubble_size
+      , bubble_pos
+      , bubble_hold
+      , bubble_reverse
+      , emoticon_size
+      , voice
+      , autoplay_row
+      , dev_comment
+      , project_id
+      , sortkey
+      , sound_effect
+      , UPPER('${targetLang}')
+      , control
+      , selection_group
+      , selection_no
+        FROM list_script a
+       WHERE a.episode_id = ${item.episode_id}
+         AND a.lang = 'EN'
+       ORDER BY a.script_no;
+    `);
 
-    // 대상 에피소드의 영문 스크립트 정보를 가져온다.
+    // 복사된 타겟 언어 스크립트 정보를 가져온다. (아직 영어다)
     const targetScript = await DB(`
     SELECT ls.script_no, ls.script_data 
     FROM list_script ls
@@ -63,13 +129,15 @@ export const translateScriptWithGlossary = async (req, res) => {
      AND ls.template IN ('narration', 'feeling', 'talk', 'whisper', 'yell', 'speech', 'monologue', 'message_receive', 'message_self', 'message_partner', 'message_call', 'selection', 'phone_self', 'phone_partner', 'game_message', 'selection_info', 'flow_time')
      AND ls.script_data is not null
      AND ls.script_data <> ''
-     AND ls.lang = 'EN';    
+     AND ls.lang = UPPER('${targetLang}');
     `);
 
     console.log(`${JSON.stringify(item)} translate start!!!`);
+    updateQuery = ``;
 
     for await (const scriptRow of targetScript.row) {
-      console.log(`[${scriptRow.script_data}]`);
+      // 타겟 언어 스크립트는 최초에 영어라서 이제 번역을 시작한다.
+      // console.log(`[${scriptRow.script_data}]`);
 
       // Construct request
       const request = {
@@ -83,26 +151,22 @@ export const translateScriptWithGlossary = async (req, res) => {
 
       // 번역 요청하기 (한줄씩 요청)
       const [response] = await translationClient.translateText(request);
-      scriptRow.script_data = response.glossaryTranslations[0].translatedText;
+      scriptRow.script_data = response.glossaryTranslations[0].translatedText; // 번역된 언어로 교체하기.
       console.log(scriptRow.script_data);
+
+      updateQuery += `UPDATE list_script SET script_data = '${scriptRow.script_data}' WHERE script_no = ${scriptRow.script_no};`;
     } // ? end of targetScript for.
 
-    /*
-    let index = 0;
-    response.glossaryTranslations.forEach((translation) => {
-      targetScript.row[index].script_data = translation.translatedText;
-      index += 1;
-    });
-
-    console.log(`translated rows : ${response.glossaryTranslations.length}`);
-    
-    */
-    // console.log(item);
+    console.log(`[${item.episode_id}] [${item.title}]`);
+    const updateResult = await DB(updateQuery);
+    if (!updateResult.state) {
+      // 드물게 번역이 제대로 안되고 에러나는 케이스 있다.
+      logger.error(`${updateResult.error}`);
+    }
   } // ? end of episode for await
 
   // Run request
-
-  res.status(200).send("ok");
+  console.log(`Done!`);
 };
 
 // * 용어집과 함께 번역
