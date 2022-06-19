@@ -151,5 +151,8 @@ export const getPlatformEvents = async (req, res) => {
   // 장르
   responseData.genre = genre.row;
 
+  // 인트로 (캐시)
+  responseData.intro = cache.get("intro");
+
   res.status(200).json(responseData);
 };
