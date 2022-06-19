@@ -152,7 +152,7 @@ export const translateScriptWithGlossary = async (req, res) => {
       // 번역 요청하기 (한줄씩 요청)
       const [response] = await translationClient.translateText(request);
       scriptRow.script_data = response.glossaryTranslations[0].translatedText; // 번역된 언어로 교체하기.
-      console.log(scriptRow.script_data);
+      // console.log(scriptRow.script_data);
 
       updateQuery += `UPDATE list_script SET script_data = '${scriptRow.script_data}' WHERE script_no = ${scriptRow.script_no};`;
     } // ? end of targetScript for.
