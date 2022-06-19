@@ -52,7 +52,7 @@ export const translateScriptWithGlossary = async (req, res) => {
   SELECT le.episode_id, le.title
   FROM list_episode le
  WHERE le.project_id = ${project_id}
-  ORDER BY le.episode_id ;
+  ORDER BY le.episode_type, le.chapter_number;
   `);
 
   // * 에피소드 별로 복사를 한다.
@@ -154,15 +154,16 @@ export const translateScriptWithGlossary = async (req, res) => {
       scriptRow.script_data = response.glossaryTranslations[0].translatedText; // 번역된 언어로 교체하기.
       // console.log(scriptRow.script_data);
 
-      updateQuery += `UPDATE list_script SET script_data = '${scriptRow.script_data}' WHERE script_no = ${scriptRow.script_no};`;
+      // 중간중간 에러때문에 단일 쿼리 실행으로 변경
+      updateQuery = `UPDATE list_script SET script_data = '${scriptRow.script_data}' WHERE script_no = ${scriptRow.script_no};`;
+      const updateResult = await DB(updateQuery);
+      if (!updateResult.state) {
+        // 드물게 번역이 제대로 안되고 에러나는 케이스 있다.
+        logger.error(`${updateResult.error}`);
+      }
     } // ? end of targetScript for.
 
     console.log(`[${item.episode_id}] [${item.title}]`);
-    const updateResult = await DB(updateQuery);
-    if (!updateResult.state) {
-      // 드물게 번역이 제대로 안되고 에러나는 케이스 있다.
-      logger.error(`${updateResult.error}`);
-    }
   } // ? end of episode for await
 
   // Run request
