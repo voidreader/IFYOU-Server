@@ -497,3 +497,113 @@ export const updatePassTimeDeal = async (req, res) => {
 
   res.status(200).json(responseData);
 };
+
+// 올패스 만료시간 (tick) 구하가ㅣ
+export const getUserAllpassExpireTick = async (userkey) => {
+  const currentAllpassExpireInfo = await DB(`
+  SELECT ifnull(ta.allpass_expiration, '2022-01-01') current_expiration 
+  FROM table_account ta
+ WHERE ta.userkey = ${userkey};
+  `);
+
+  // 올패스 만료시간 tick으로 변경
+  const allpassExpireDate = new Date(
+    currentAllpassExpireInfo.row[0].current_expiration
+  );
+
+  return allpassExpireDate.getTime();
+};
+
+// * 인앱 상품 구매 및 확정 처리 2022.06.20
+export const purchaseInappProduct = async (req, res) => {
+  // 기존에 메일함 수령방식을 구매 후 즉시 지급으로 변경한다.
+  let {
+    body: {
+      userkey = 0,
+      product_id = "",
+      receipt = "",
+      price = 0, // 가격
+      currency = "KRW", // 화폐
+      paymentSeq = "", // 게임베이스 거래 식별자 1
+      purchaseToken = "", // 게임베이스 거래 식별자 2
+      os = 0,
+    },
+  } = req;
+
+  // * 사전예약 때문에 추가 처리
+  if (os === 0 && product_id === null && receipt === null && paymentSeq) {
+    product_id = "pre_reward_pack";
+    receipt = "pre_reward_pack";
+
+    logger.info(
+      `### pre reward userPurchase ${userkey}/${product_id}/${receipt}`
+    );
+  }
+
+  logger.info(`purchaseInappProduct ${userkey}/${product_id}/${receipt}`);
+  //* 유효성 체크
+  if (!product_id || userkey === 0) {
+    logger.error(`userPurchase Error [${product_id}]/[${userkey}]`);
+    respondDB(res, 80019, "Wrong parameters");
+    return;
+  }
+
+  // 구매 시작전에 로그 만들기
+  logAction(userkey, "purchase_call", { product_id, receipt, paymentSeq });
+
+  // 상품 구매 INSERT . state 1로 입력한다.
+  let query = ``; // 처리 쿼리 만들기
+  query += `INSERT INTO user_purchase(userkey, product_id, receipt, price, product_currency, payment_seq, purchase_token, state, product_master_id) 
+            VALUES(${userkey}, '${product_id}', '${receipt}', ${price}, '${currency}', '${paymentSeq}', '${purchaseToken}', 1, fn_get_product_master_id('${product_id}', now()));`;
+
+  // 올패스 상품 처리(올패스는 재화를 지급하지 않는다)
+  if (product_id.includes(`allpass`)) {
+    let addDay = 0;
+    // 1,3,7일차에 대한 처리
+    if (product_id === "allpass_1") addDay = 1;
+    else if (product_id === "allpass_3") addDay = 3;
+    else addDay = 7;
+
+    // 유저 올패스 업데이트 처리, addDay 만큼 더해줘서 업데이트한다.
+    // 올패스 기간이 종료되었으면 now() + 일자
+    // 올패스 기간이 남았으면 allpass_expiration + 일자
+    query += `UPDATE table_account 
+    SET allpass_expiration = CASE WHEN ifnull(allpass_expiration, now()) < now() THEN DATE_ADD(now(), INTERVAL ${addDay} DAY)
+                                  ELSE DATE_ADD(ifnull(allpass_expiration, now()), INTERVAL ${addDay} DAY) END
+    WHERE userkey = ${userkey};`;
+  } // 올패스 상품 처리 종료
+
+  // ? 구매한 상품 유저에게 지급처리(임지은 헬프헬프미)
+  // query에 + 해서 상품 직접 지급까지 진행해주세요!
+  // 임지은 자리
+  // 임지은 자리
+  // 임지은 자리
+  // 임지은 자리
+
+  // query 만들고 실행한다.
+  const purchaseResult = await DB(query);
+  if (!purchaseResult.state) {
+    logger.error(
+      `purchaseInappProduct : [${JSON.stringify(purchaseResult.error)}]`
+    );
+    respondDB(res, 80026, purchaseResult.error);
+    return;
+  }
+  ///////////////////////////////////////////////////////////
+
+  // * 응답값 만들기
+  const responseData = {};
+  responseData.bank = await getUserBankInfo(req.body); // 뱅크
+  responseData.userPurchaseHistory = await getUserPurchaseList(req, res, false); // 구매 히스토리
+  responseData.allpass_expire_tick = await getUserAllpassExpireTick(userkey); // 올패스 만료시간
+  responseData.product_id = product_id; // 구매한 제품 ID
+
+  res.status(200).json(responseData); // 클라이언트에게 응답처리
+
+  // * 다 처리하고 마지막에 호출!!!
+  // 게임베이스 API 통신
+  // 구매 상품 소비 처리 (마켓에 전달 )
+  logAction(userkey, "purchase_complete", { product_id, receipt, paymentSeq });
+  const gamebaseResult = await gamebaseAPI.consume(paymentSeq, purchaseToken);
+  console.log(gamebaseResult);
+}; // ? purchaseInappProduct END
