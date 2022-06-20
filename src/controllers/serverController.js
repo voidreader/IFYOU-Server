@@ -133,6 +133,7 @@ export const getPlatformEvents = async (req, res) => {
     AND ls.standard_class = 'genre'
     AND ls.code = genre.genre_code 
     AND ma.service_package LIKE CONCAT('%', ?, '%')
+    ORDER BY ls.sortkey
   ;`,
     [lang, lang, build]
   ); // ? 장르
@@ -149,6 +150,9 @@ export const getPlatformEvents = async (req, res) => {
 
   // 장르
   responseData.genre = genre.row;
+
+  // 인트로 (캐시)
+  responseData.intro = cache.get("intro");
 
   res.status(200).json(responseData);
 };

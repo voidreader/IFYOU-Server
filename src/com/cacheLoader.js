@@ -2,7 +2,7 @@ import { response } from "express";
 import { getProductDetailList } from "../controllers/shopController";
 import { cache } from "../init";
 import { logger } from "../logger";
-import { DB } from "../mysqldb";
+import { DB, slaveDB } from "../mysqldb";
 
 // * 인앱상품 캐시 데이터 조회
 export const getCacheProduct = async (lang) => {
@@ -202,8 +202,23 @@ export const getCachePlatformEvent = async () => {
     });
   }); // ? 공지사항 끝
 
+  // * 인트로 기준정보  2022.06.18
+  const introList = await slaveDB(`
+  SELECT ci.intro_no 
+  , ci.color_rgb 
+  , ci.connected_project_id 
+  , ci.character_msg 
+  , ci.public_msg 
+  , fn_get_design_info(ci.image_id, 'key') image_key
+  , fn_get_design_info(ci.image_id, 'url') image_url
+  FROM com_intro ci
+ WHERE ci.intro_no > 0
+ ORDER BY intro_no;
+  `);
+
   responseData.promotion = promotionMaster.row; // 프로모션 정보
   responseData.notice = noticeMaster.row; // 공지사항
+  responseData.intro = introList.row; // 인트로 정보
 
   return responseData;
 };
@@ -213,6 +228,7 @@ export const refreshCachePlatformEvent = async (req, res) => {
   const cacheEvent = await getCachePlatformEvent();
   cache.set("promotion", cacheEvent.promotion);
   cache.set("notice", cacheEvent.notice);
+  cache.set("intro", cacheEvent.intro);
 
   if (res) res.status(200).send("Done");
 };
@@ -239,6 +255,8 @@ export const refreshCacheServerMaster = async (req, res) => {
   if (serverInfo.length === 0) {
     logger.error(`error in getCacheServerMaster / loadingCacheData`);
   } else {
+    console.log(serverInfo.row);
+
     cache.set("serverMaster", serverInfo.row[0][0]); // 마스터 정보
     cache.set("ad", serverInfo.row[1][0]); // 광고 세팅 정보
     cache.set("timedeal", serverInfo.row[2]); // 타임딜 정보

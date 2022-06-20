@@ -14,7 +14,7 @@ const getDailyMissionList = async (userkey, lang) => {
   const responseData = {};
 
   //전체 일일 미션 클리어
-  let result = await slaveDB(
+  let result = await DB(
     `
     SELECT
     cdm.mission_no
