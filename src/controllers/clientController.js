@@ -173,6 +173,7 @@ import {
 import {
   createArabicGlossary,
   deleteGlossary,
+  translateProjectDataWithGlossary,
   translateScriptWithGlossary,
   translateText,
   translateWithGlossary,
@@ -1459,6 +1460,8 @@ export const clientHome = (req, res) => {
     requestRecommendProject(req, res);
   // 추천 작품 리스트
   else if (func === "purchaseInappProduct") purchaseInappProduct(req, res);
+  else if (func === "translateProjectDataWithGlossary")
+    translateProjectDataWithGlossary(req, res);
   else {
     //  res.status(400).send(`Wrong Func : ${func}`);
     logger.error(`clientHome Error ${func}`);

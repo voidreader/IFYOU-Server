@@ -3251,11 +3251,11 @@ export const requestSelectionHint = async (req, res) => {
 };
 
 //! 추천 작품 리스트 추출(최대 3개까지)
-const pushRecommendProject = async ( projectList ) =>{
+const pushRecommendProject = async (projectList) => {
   const projectArr = [];
-  
+
   let whereQuery = ``;
-  if(projectList) whereQuery = `WHERE project_id IN (${projectList}) `;
+  if (projectList) whereQuery = `WHERE project_id IN (${projectList}) `;
 
   //조회순 높은 순으로 3개 추출
   const result = await DB(`      
@@ -3264,32 +3264,30 @@ const pushRecommendProject = async ( projectList ) =>{
   ${whereQuery}
   ORDER BY hit_count DESC
   LIMIT 3;`);
-  if(result.state && result.row.length > 0){
+  if (result.state && result.row.length > 0) {
     // eslint-disable-next-line no-restricted-syntax
-    for(const item of result.row){
+    for (const item of result.row) {
       projectArr.push(item.project_id);
     }
   }
   return projectArr;
 };
 
-//! 추전 작품 리스트 
-export const requestRecommendProject = async(req, res) => {
-
+//! 추전 작품 리스트
+export const requestRecommendProject = async (req, res) => {
   const {
-    body:{
-      userkey,
-    }
+    body: { userkey },
   } = req;
 
-  let projectList = '';
+  let projectList = "";
   const responseData = {};
 
   //추천 작품 알고리즘 처리
   const result = await DB(`CALL pier.sp_select_recommend_project(${userkey});`);
-  if(result.state) projectList = result.row[0][0].project_list;
+  if (result.state) projectList = result.row[0][0].project_list;
   //console.log(result.row[0][0].project_list);
-  responseData.project_id = await pushRecommendProject(projectList);
+  // responseData.project_id = await pushRecommendProject(projectList);
+  responseData.project_id = [57, 60, 81];
 
   res.status(200).json(responseData);
 };
