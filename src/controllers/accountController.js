@@ -1779,11 +1779,11 @@ export const loginClient = async (req, res) => {
   if (gamebaseid != null) {
     // 게임베이스로 로그인
     logger.info(`loginClient [ ${gamebaseid} ]`);
-    result = await slaveDB(Q_CLIENT_LOGIN_BY_GAMEBASE, [gamebaseid]);
+    result = await DB(Q_CLIENT_LOGIN_BY_GAMEBASE, [gamebaseid]);
   } else {
     // 구버전.
     logger.info(`loginClient without gamebaseID`);
-    result = await slaveDB(Q_CLIENT_LOGIN_BY_DEVICE, [deviceid]);
+    result = await DB(Q_CLIENT_LOGIN_BY_DEVICE, [deviceid]);
   }
 
   const accountInfo = {};

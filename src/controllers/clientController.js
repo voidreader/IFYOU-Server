@@ -171,6 +171,8 @@ import {
 } from "../com/cacheLoader";
 import {
   createArabicGlossary,
+  deleteGlossary,
+  translateScriptWithGlossary,
   translateText,
   translateWithGlossary,
 } from "../com/com";
@@ -439,6 +441,7 @@ const getIfYouProjectList = async (req, res) => {
 
   console.log("onlyDeploy : ", onlyDeploy);
 
+  // 2022.06.16 조회수(hit_count), 선호작(like_count) 카운트 추가
   const query = `
   SELECT a.project_id 
   , ifnull(b.title, a.title) title
@@ -471,8 +474,11 @@ const getIfYouProjectList = async (req, res) => {
   , ifnull(fn_get_origin_pass_price (a.project_id), 100) pass_price
   , ROUND(fn_get_current_pass_price(${userkey}, a.project_id), 2) pass_discount
   , fn_get_user_project_notification(${userkey}, a.project_id) is_notify
+  , ifnull(sps.hit_count, 0) hit_count
+  , ifnull(sps.like_count, 0) like_count
   FROM list_project_master a
   LEFT OUTER JOIN list_project_detail b ON b.project_id = a.project_id AND b.lang ='${lang}'
+  LEFT OUTER JOIN gamelog.stat_project_sum sps ON sps.project_id = a.project_id
   WHERE a.is_public > 0
   AND a.service_package LIKE CONCAT('%', ?, '%')
   AND (locate('${lang}', a.exception_lang) IS NULL OR locate('${lang}', a.exception_lang) < 1)
@@ -1170,12 +1176,10 @@ WHERE lem.project_id = ${project_id}
   res.status(200).json(result);
 };
 
-//! 인트로 캐릭터 리스트 
-const getIntroCharacterList = async(req, res) =>{
+//! 인트로 캐릭터 리스트
+const getIntroCharacterList = async (req, res) => {
   const {
-    body: {
-      lang = "KO",
-    },
+    body: { lang = "KO" },
   } = req;
 
   const result = await DB(`
@@ -1446,8 +1450,10 @@ export const clientHome = (req, res) => {
   else if (func === "translateWithGlossary") translateWithGlossary(req, res);
   else if (func === "createArabicGlossary") createArabicGlossary(req, res);
   // 인앱상품 정보 캐시 재조회
-  else if (func === "getIntroCharacterList") getIntroCharacterList(req, res); 
-  // 인트로 캐릭터별 리스트
+  else if (func === "getIntroCharacterList") getIntroCharacterList(req, res);
+  else if (func === "deleteGlossary") deleteGlossary(req, res);
+  else if (func === "translateScriptWithGlossary")
+    translateScriptWithGlossary(req, res);
   else if (func === "requestRecommendProject") requestRecommendProject(req, res);
   // 추천 작품 리스트
   else {
