@@ -777,6 +777,7 @@ SELECT nt.speaker
 , nt.JA 
 , nt.ZH
 , nt.SC 
+, nt.AR
 , fn_get_design_info(nt.voice_banner_id, 'url') banner_url
 , fn_get_design_info(nt.voice_banner_id, 'key') banner_key
 FROM list_nametag nt
