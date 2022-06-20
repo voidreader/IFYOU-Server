@@ -48,6 +48,7 @@ import {
   getUserActiveTimeDeal,
   purchasePremiumPass,
   requestSelectionHint,
+  requestRecommendProject,
 } from "./accountController";
 import { logger } from "../logger";
 
@@ -1453,6 +1454,8 @@ export const clientHome = (req, res) => {
   else if (func === "deleteGlossary") deleteGlossary(req, res);
   else if (func === "translateScriptWithGlossary")
     translateScriptWithGlossary(req, res);
+  else if (func === "requestRecommendProject") requestRecommendProject(req, res);
+  // 추천 작품 리스트
   else {
     //  res.status(400).send(`Wrong Func : ${func}`);
     logger.error(`clientHome Error ${func}`);
