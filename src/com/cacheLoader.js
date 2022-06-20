@@ -270,11 +270,13 @@ export const refreshCacheProduct = async (req, res) => {
   const productKO = await getCacheProduct("KO");
   const productEN = await getCacheProduct("EN");
   const productJA = await getCacheProduct("JA");
+  const productAR = await getCacheProduct("AR");
 
   const product = {
     KO: productKO,
     EN: productEN,
     JA: productJA,
+    AR: productAR,
   };
 
   cache.set("product", product);
