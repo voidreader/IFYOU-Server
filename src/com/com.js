@@ -29,6 +29,81 @@ const translate = new Translate({
 
 const translationClient = new TranslationServiceClient({ credentials });
 
+export const translateProjectDataWithGlossary = async (req, res) => {
+  const {
+    body: { project_id, targetLang },
+  } = req;
+
+  res.status(200).send("go!");
+
+  const glossaryConfig = {
+    glossary: `projects/${googleProjectID}/locations/us-central1/glossaries/en_${targetLang}_${project_id}`,
+  };
+
+  const episodeList = await DB(`
+  SELECT led.episode_id, led.title, led.summary 
+  FROM list_episode a
+     , list_episode_detail led 
+ WHERE a.project_id = ${project_id}
+   AND led.episode_id = a.episode_id 
+   AND led.lang  = 'EN'
+ ORDER BY a.episode_type , a.chapter_number ;
+  `);
+
+  console.log(`${project_id} episode data count : [${episodeList.row.length}]`);
+
+  // 에피소드별로 처리한다.
+  for await (const episode of episodeList.row) {
+    // 타이틀, 요약 따로따로 번역
+    const requestTitle = {
+      parent: `projects/${googleProjectID}/locations/us-central1`,
+      contents: [episode.title],
+      mimeType: "text/plain", // mime types: text/plain, text/html
+      sourceLanguageCode: "en",
+      targetLanguageCode: targetLang,
+      glossaryConfig,
+    };
+
+    const [responseTitle] = await translationClient.translateText(requestTitle);
+    episode.title = responseTitle.glossaryTranslations[0].translatedText;
+
+    const requestSummary = {
+      parent: `projects/${googleProjectID}/locations/us-central1`,
+      contents: [episode.summary],
+      mimeType: "text/plain", // mime types: text/plain, text/html
+      sourceLanguageCode: "en",
+      targetLanguageCode: targetLang,
+      glossaryConfig,
+    };
+
+    const [responseSummary] = await translationClient.translateText(
+      requestSummary
+    );
+    episode.summary = responseSummary.glossaryTranslations[0].translatedText;
+
+    console.log(`[${episode.title}]/[${episode.summary}]`);
+
+    // 에피소드 번역 받았으면 입력한다
+    const updateResult = await DB(
+      `
+    INSERT INTO list_episode_detail (episode_id, lang, title, summary)
+    VALUES (${episode.episode_id}, UPPER('${targetLang}'), ?, ?) 
+    ON DUPLICATE KEY UPDATE title = ?, summary = ?;
+    `,
+      [episode.title, episode.summary, episode.title, episode.summary]
+    );
+
+    if (!updateResult.state) {
+      logger.error(
+        `${JSON.stringify(updateResult.error)} / [${updateResult.query}]`
+      );
+      return;
+    }
+  } // ? end of for
+
+  console.log(`${project_id} episode translatation end`);
+};
+
 // * 작품 스크립트 자동 번역 생성하기
 export const translateScriptWithGlossary = async (req, res) => {
   // * 프로젝트ID, 번역될 언어 값을 받아서 변형시킨다.
