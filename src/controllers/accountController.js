@@ -3286,7 +3286,7 @@ export const requestRecommendProject = async(req, res) => {
   const responseData = {};
 
   //추천 작품 알고리즘 처리
-  const result = await DB(`CALL pier.sp_select_commend_project(${userkey});`);
+  const result = await DB(`CALL pier.sp_select_recommend_project(${userkey});`);
   if(result.state) projectList = result.row[0][0].project_list;
   //console.log(result.row[0][0].project_list);
   responseData.project_id = await pushRecommendProject(projectList);
