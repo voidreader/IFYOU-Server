@@ -96,6 +96,7 @@ import {
   getUserRawPurchaseList,
   updatePassTimeDeal,
   userPurchase,
+  purchaseInappProduct,
 } from "./shopController";
 import { getUserPropertyHistory, reportRequestError } from "./logController";
 import { useCoupon } from "./couponController";
@@ -1456,6 +1457,7 @@ export const clientHome = (req, res) => {
     translateScriptWithGlossary(req, res);
   else if (func === "requestRecommendProject") requestRecommendProject(req, res);
   // 추천 작품 리스트
+  else if (func === "purchaseInappProduct") purchaseInappProduct(req, res);
   else {
     //  res.status(400).send(`Wrong Func : ${func}`);
     logger.error(`clientHome Error ${func}`);
