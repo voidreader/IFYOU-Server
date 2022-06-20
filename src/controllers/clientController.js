@@ -478,6 +478,7 @@ const getIfYouProjectList = async (req, res) => {
   , fn_get_user_project_notification(${userkey}, a.project_id) is_notify
   , ifnull(sps.hit_count, 0) hit_count
   , ifnull(sps.like_count, 0) like_count
+  , fn_get_project_hashtags(a.project_id, '${lang}') hashtags
   FROM list_project_master a
   LEFT OUTER JOIN list_project_detail b ON b.project_id = a.project_id AND b.lang ='${lang}'
   LEFT OUTER JOIN gamelog.stat_project_sum sps ON sps.project_id = a.project_id
