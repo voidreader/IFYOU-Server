@@ -94,6 +94,7 @@ import {
   getAllProductList,
   getUserPurchaseList,
   getUserRawPurchaseList,
+  purchaseInappProduct,
   updatePassTimeDeal,
   userPurchase,
 } from "./shopController";
@@ -1454,8 +1455,10 @@ export const clientHome = (req, res) => {
   else if (func === "deleteGlossary") deleteGlossary(req, res);
   else if (func === "translateScriptWithGlossary")
     translateScriptWithGlossary(req, res);
-  else if (func === "requestRecommendProject") requestRecommendProject(req, res);
+  else if (func === "requestRecommendProject")
+    requestRecommendProject(req, res);
   // 추천 작품 리스트
+  else if (func === "purchaseInappProduct") purchaseInappProduct(req, res);
   else {
     //  res.status(400).send(`Wrong Func : ${func}`);
     logger.error(`clientHome Error ${func}`);
