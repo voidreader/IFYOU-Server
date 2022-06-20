@@ -48,6 +48,7 @@ import {
   getUserActiveTimeDeal,
   purchasePremiumPass,
   requestSelectionHint,
+  requestRecommendProject,
 } from "./accountController";
 import { logger } from "../logger";
 
@@ -1447,6 +1448,8 @@ export const clientHome = (req, res) => {
   // 인앱상품 정보 캐시 재조회
   else if (func === "getIntroCharacterList") getIntroCharacterList(req, res); 
   // 인트로 캐릭터별 리스트
+  else if (func === "requestRecommendProject") requestRecommendProject(req, res);
+  // 추천 작품 리스트
   else {
     //  res.status(400).send(`Wrong Func : ${func}`);
     logger.error(`clientHome Error ${func}`);
