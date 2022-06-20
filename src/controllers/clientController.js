@@ -97,6 +97,7 @@ import {
   purchaseInappProduct,
   updatePassTimeDeal,
   userPurchase,
+  purchaseInappProduct,
 } from "./shopController";
 import { getUserPropertyHistory, reportRequestError } from "./logController";
 import { useCoupon } from "./couponController";
