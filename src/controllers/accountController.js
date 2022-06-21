@@ -3286,7 +3286,7 @@ export const requestRecommendProject = async (req, res) => {
   responseData.project_id = [];
   let result = await DB(`
   SELECT 
-  ifnull(project_id, '') AS last_played_porject
+  ifnull(project_id, '') AS last_played_project
   , fn_check_all_project_play(${userkey}) all_play_check
   , fn_get_not_play_project(${userkey}) not_play_project
   FROM user_project_current
@@ -3296,11 +3296,11 @@ export const requestRecommendProject = async (req, res) => {
   if(result.state && result.row.length > 0){
 
     //마지막 플레이 작품, 모든 작품 플레이 확인, 플레이 하지 않은 작품 리스트
-    const { last_played_porject = '', all_play_check = 0, not_play_project, } = result.row[0];       
+    const { last_played_project = '', all_play_check = 0, not_play_project, } = result.row[0];       
 
     //아직 모든 작품을 플레이 하지 않은 경우(플레이를 아예 안했거나 다한 경우 제외)
-    if(last_played_porject && all_play_check < 1){
-      result = await DB(`CALL pier.sp_select_recommend_project(?, ?);`, [last_played_porject, not_play_project]);
+    if(last_played_project && all_play_check < 1){
+      result = await DB(`CALL pier.sp_select_recommend_project(?, ?);`, [last_played_project, not_play_project]);
       if (result.state) projectList = result.row[0][0].project_list;
       responseData.project_id = await pushRecommendProject(projectList);
     }
