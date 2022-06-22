@@ -81,7 +81,7 @@ export const translateProjectDataWithGlossary = async (req, res) => {
     );
     episode.summary = responseSummary.glossaryTranslations[0].translatedText;
 
-    console.log(`[${episode.title}]/[${episode.summary}]`);
+    // console.log(`[${episode.title}]/[${episode.summary}]`);
 
     // 에피소드 번역 받았으면 입력한다
     const updateResult = await DB(
@@ -102,6 +102,308 @@ export const translateProjectDataWithGlossary = async (req, res) => {
   } // ? end of for
 
   console.log(`${project_id} episode translatation end`);
+
+  // * 여기서부터 미션 데이터 시작
+
+  const missionList = await DB(`
+  SELECT lml.mission_id, lml.mission_name, lml.mission_hint 
+  FROM list_mission lm
+     , list_mission_lang lml 
+ WHERE lm.project_id = ${project_id}
+   AND lm.mission_id = lml.mission_id 
+   AND lml.lang = 'EN'
+  ORDER BY lml.mission_id;
+  `);
+
+  console.log(`${project_id} missionList count : [${missionList.row.length}]`);
+
+  // 에피소드별로 처리한다.
+  for await (const mission of missionList.row) {
+    // 타이틀, 요약 따로따로 번역
+    const requestTitle = {
+      parent: `projects/${googleProjectID}/locations/us-central1`,
+      contents: [mission.mission_name],
+      mimeType: "text/plain", // mime types: text/plain, text/html
+      sourceLanguageCode: "en",
+      targetLanguageCode: targetLang,
+      glossaryConfig,
+    };
+
+    const [responseTitle] = await translationClient.translateText(requestTitle);
+    mission.mission_name = responseTitle.glossaryTranslations[0].translatedText;
+
+    const requestMissionSummary = {
+      parent: `projects/${googleProjectID}/locations/us-central1`,
+      contents: [mission.mission_hint],
+      mimeType: "text/plain", // mime types: text/plain, text/html
+      sourceLanguageCode: "en",
+      targetLanguageCode: targetLang,
+      glossaryConfig,
+    };
+
+    const [responseMissionSummary] = await translationClient.translateText(
+      requestMissionSummary
+    );
+    mission.mission_hint =
+      responseMissionSummary.glossaryTranslations[0].translatedText;
+
+    // console.log(`[${mission.mission_name}]/[${mission.mission_hint}]`);
+
+    // 에피소드 번역 받았으면 입력한다
+    const updateResult = await DB(
+      `
+    INSERT INTO list_mission_lang (mission_id, lang, mission_name, mission_hint)
+    VALUES (${mission.mission_id}, UPPER('${targetLang}'), ?, ?) 
+    ON DUPLICATE KEY UPDATE mission_name = ?, mission_hint = ?;
+    `,
+      [
+        mission.mission_name,
+        mission.mission_hint,
+        mission.mission_name,
+        mission.mission_hint,
+      ]
+    );
+
+    if (!updateResult.state) {
+      logger.error(
+        `${JSON.stringify(updateResult.error)} / [${updateResult.query}]`
+      );
+      return;
+    }
+  } // ? end of for
+  console.log(`${project_id} mission translatation end`);
+
+  // ! 코인상품
+  const coinShopList = await DB(`
+  SELECT ccpd.coin_product_id, ccpd.name 
+  FROM com_coin_product ccp
+     , com_currency cc 
+     , com_coin_product_detail ccpd 
+  WHERE cc.currency = ccp.currency
+    AND cc.connected_project = ${project_id}
+    AND ccpd.coin_product_id = ccp.coin_product_id 
+    AND ccpd.lang = 'EN'
+  ;
+  `);
+
+  console.log(`${project_id} coinShop count : [${coinShopList.row.length}]`);
+
+  for await (const coin of coinShopList.row) {
+    const requestTitle = {
+      parent: `projects/${googleProjectID}/locations/us-central1`,
+      contents: [coin.name],
+      mimeType: "text/plain", // mime types: text/plain, text/html
+      sourceLanguageCode: "en",
+      targetLanguageCode: targetLang,
+      glossaryConfig,
+    };
+
+    const [responseTitle] = await translationClient.translateText(requestTitle);
+    coin.name = responseTitle.glossaryTranslations[0].translatedText;
+
+    const updateResult = await DB(
+      `
+    INSERT INTO com_coin_product_detail (coin_product_id, lang, name)
+    VALUES (${coin.coin_product_id}, UPPER('${targetLang}'), ?) 
+    ON DUPLICATE KEY UPDATE name = ?;
+    `,
+      [coin.name, coin.name]
+    );
+
+    if (!updateResult.state) {
+      logger.error(
+        `${JSON.stringify(updateResult.error)} / [${updateResult.query}]`
+      );
+      return;
+    }
+  } // ? end of 코인샵 상품 for
+  console.log(`${project_id} #### coinShop translatation end`);
+
+  // 연결재화 로컬ID 자동번역 //////////////////////////////////////
+  const currencyList = await DB(`
+  SELECT cl.id, cl.EN 
+  FROM com_currency cc
+     , com_localize cl 
+ WHERE cc.connected_project  = ${project_id}
+   AND cl.id = cc.local_code
+   AND cl.EN <> ''
+;
+  `);
+
+  console.log(
+    `${project_id} currencyList count : [${currencyList.row.length}]`
+  );
+
+  for await (const currency of currencyList.row) {
+    const requestTitle = {
+      parent: `projects/${googleProjectID}/locations/us-central1`,
+      contents: [currency.EN],
+      mimeType: "text/plain", // mime types: text/plain, text/html
+      sourceLanguageCode: "en",
+      targetLanguageCode: targetLang,
+      glossaryConfig,
+    };
+
+    const [responseTitle] = await translationClient.translateText(requestTitle);
+    currency.AR = responseTitle.glossaryTranslations[0].translatedText;
+
+    const updateResult = await DB(
+      `
+    update com_localize 
+       SET AR = ?
+     WHERE id = ?;
+    `,
+      [currency.AR, currency.id]
+    );
+
+    if (!updateResult.state) {
+      logger.error(
+        `${JSON.stringify(updateResult.error)} / [${updateResult.query}]`
+      );
+      return;
+    }
+  } // ? end of 재화for
+  console.log(`${project_id} #### currency translatation end`);
+  //////////////////// 재화 끝
+
+  // * 사운드 시작
+  const soundList = await DB(`
+  SELECT lsl.sound_id, lsl.public_name 
+  FROM list_sound ls 
+     , list_sound_lang lsl 
+ WHERE ls.project_id = ${project_id}
+   AND ls.is_public > 0
+   AND lsl.sound_id = ls.sound_id 
+   AND lsl.lang = 'EN'
+;
+  `);
+
+  console.log(`${project_id} soundList count : [${soundList.row.length}]`);
+
+  for await (const sound of soundList.row) {
+    const requestTitle = {
+      parent: `projects/${googleProjectID}/locations/us-central1`,
+      contents: [sound.public_name],
+      mimeType: "text/plain", // mime types: text/plain, text/html
+      sourceLanguageCode: "en",
+      targetLanguageCode: targetLang,
+      glossaryConfig,
+    };
+
+    const [responseTitle] = await translationClient.translateText(requestTitle);
+    sound.public_name = responseTitle.glossaryTranslations[0].translatedText;
+
+    const updateResult = await DB(
+      `
+      INSERT INTO list_sound_lang (sound_id, lang, public_name)
+      VALUES (${sound.sound_id}, UPPER('${targetLang}'), ?) 
+      ON DUPLICATE KEY UPDATE public_name = ?;
+      `,
+      [sound.public_name, sound.public_name]
+    );
+
+    if (!updateResult.state) {
+      logger.error(
+        `${JSON.stringify(updateResult.error)} / [${updateResult.query}]`
+      );
+      return;
+    }
+  } // ? end of 재화for
+  console.log(`${project_id} #### Sound translatation end`);
+  //////////////// 사운드 종료
+
+  // * 말풍선 시작
+  const bubbleList = await DB(`
+    SELECT ccb.currency, bubble
+    FROM com_currency cc
+       , com_currency_bubble ccb 
+   WHERE cc.connected_project  = ${project_id}
+     AND ccb.currency = cc.currency
+     AND ccb.lang  = 'EN'
+  ;
+    `);
+
+  console.log(`${project_id} bubbleList count : [${bubbleList.row.length}]`);
+
+  for await (const bubble of bubbleList.row) {
+    const requestTitle = {
+      parent: `projects/${googleProjectID}/locations/us-central1`,
+      contents: [bubble.bubble],
+      mimeType: "text/plain", // mime types: text/plain, text/html
+      sourceLanguageCode: "en",
+      targetLanguageCode: targetLang,
+      glossaryConfig,
+    };
+
+    const [responseTitle] = await translationClient.translateText(requestTitle);
+    bubble.bubble = responseTitle.glossaryTranslations[0].translatedText;
+
+    const updateResult = await DB(
+      `
+        INSERT INTO com_currency_bubble (currency, lang, bubble)
+        VALUES ('${bubble.currency}', UPPER('${targetLang}'), ?) 
+        ON DUPLICATE KEY UPDATE bubble = ?;
+        `,
+      [bubble.bubble, bubble.bubble]
+    );
+
+    if (!updateResult.state) {
+      logger.error(
+        `${JSON.stringify(updateResult.error)} / [${updateResult.query}]`
+      );
+      return;
+    }
+  } // ? end of 재화for
+  console.log(`${project_id} #### Bubble translatation end`);
+  //////////////// 말풍선 종료
+
+  // * TMI 시작
+  const loadingList = await DB(`
+    SELECT lld.detail_no, lld.loading_text, lld.loading_id
+    FROM list_loading ll
+       , list_loading_detail lld 
+   WHERE ll.project_id = ${project_id}
+     AND lld.lang = 'EN'
+     AND lld.loading_id = ll.loading_id;
+    `);
+
+  console.log(`${project_id} loadingList count : [${loadingList.row.length}]`);
+
+  // 여기는 예외로 타겟언어를 삭제하고 시작한다
+  const deleteLoading = await DB(`
+  DELETE FROM list_loading_detail lld WHERE lang = UPPER('${targetLang}') AND loading_id  IN (SELECT z.loading_id FROM list_loading z WHERE z.project_id = 57);
+  `);
+
+  for await (const loading of loadingList.row) {
+    const requestTitle = {
+      parent: `projects/${googleProjectID}/locations/us-central1`,
+      contents: [loading.loading_text],
+      mimeType: "text/plain", // mime types: text/plain, text/html
+      sourceLanguageCode: "en",
+      targetLanguageCode: targetLang,
+      glossaryConfig,
+    };
+
+    const [responseTitle] = await translationClient.translateText(requestTitle);
+    loading.loading_text = responseTitle.glossaryTranslations[0].translatedText;
+
+    const updateResult = await DB(
+      `
+        INSERT INTO list_loading_detail (loading_id, lang, loading_text)
+        VALUES (${loading.loading_id}, UPPER('${targetLang}'), ?);
+        `,
+      [loading.loading_text]
+    );
+
+    if (!updateResult.state) {
+      logger.error(
+        `${JSON.stringify(updateResult.error)} / [${updateResult.query}]`
+      );
+      return;
+    }
+  } // ? end of 재화for
+  console.log(`${project_id} #### loading translatation end`);
+  //////////////// TMI 종료
 };
 
 // * 작품 스크립트 자동 번역 생성하기
