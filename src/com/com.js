@@ -40,6 +40,7 @@ export const translateProjectDataWithGlossary = async (req, res) => {
     glossary: `projects/${googleProjectID}/locations/us-central1/glossaries/en_${targetLang}_${project_id}`,
   };
 
+  /*
   const episodeList = await DB(`
   SELECT led.episode_id, led.title, led.summary 
   FROM list_episode a
@@ -404,7 +405,275 @@ export const translateProjectDataWithGlossary = async (req, res) => {
   } // ? end of 재화for
   console.log(`${project_id} #### loading translatation end`);
   //////////////// TMI 종료
-};
+  */
+
+  // * 일반 일러스트
+  const illustList = await DB(`
+  SELECT lil.illust_id , lil.lang, lil.public_name, lil.summary
+  FROM list_illust_lang lil
+     , list_illust li 
+ WHERE li.project_id = ${project_id}
+   AND lil.illust_id = li.illust_id 
+   AND lil.lang = 'EN'
+   AND lil.illust_type = 'illust'
+ ORDER BY lil.illust_id;
+;
+  `);
+
+  console.log(`${project_id} illustList count : [${illustList.row.length}]`);
+
+  for await (const illust of illustList.row) {
+    const requestTitle = {
+      parent: `projects/${googleProjectID}/locations/us-central1`,
+      contents: [illust.public_name],
+      mimeType: "text/plain", // mime types: text/plain, text/html
+      sourceLanguageCode: "en",
+      targetLanguageCode: targetLang,
+      glossaryConfig,
+    };
+
+    const [responseTitle] = await translationClient.translateText(requestTitle);
+    illust.public_name = responseTitle.glossaryTranslations[0].translatedText;
+
+    const requestTitle2 = {
+      parent: `projects/${googleProjectID}/locations/us-central1`,
+      contents: [illust.summary],
+      mimeType: "text/plain", // mime types: text/plain, text/html
+      sourceLanguageCode: "en",
+      targetLanguageCode: targetLang,
+      glossaryConfig,
+    };
+
+    const [responseTitle2] = await translationClient.translateText(
+      requestTitle2
+    );
+    illust.summary = responseTitle2.glossaryTranslations[0].translatedText;
+
+    const updateResult = await DB(
+      `
+      INSERT INTO list_illust_lang (illust_id, lang, illust_type, public_name, summary)
+      VALUES (${illust.illust_id}, UPPER('${targetLang}'), ?, ?, ?) 
+      ON DUPLICATE KEY UPDATE public_name = ?, summary = ?;
+      `,
+      [
+        "illust",
+        illust.public_name,
+        illust.summary,
+        illust.public_name,
+        illust.summary,
+      ]
+    );
+
+    if (!updateResult.state) {
+      logger.error(
+        `${JSON.stringify(updateResult.error)} / [${updateResult.query}]`
+      );
+      return;
+    }
+  } // ? end of illust for
+  console.log(`${project_id} #### illust translatation end`);
+  //////////////// 일반 일러스트 종료
+
+  // * 라이브 일러스트
+  const liveIllustList = await DB(`
+  SELECT lil.illust_id , lil.lang, lil.public_name, lil.summary
+  FROM list_illust_lang lil
+     , list_live_illust li 
+ WHERE li.project_id = ${project_id}
+   AND lil.illust_id = li.live_illust_id  
+   AND lil.lang = 'EN'
+   AND lil.illust_type = 'live2d';  
+;
+  `);
+
+  console.log(
+    `${project_id} liveIllustList count : [${liveIllustList.row.length}]`
+  );
+
+  for await (const illust of liveIllustList.row) {
+    const requestTitle = {
+      parent: `projects/${googleProjectID}/locations/us-central1`,
+      contents: [illust.public_name],
+      mimeType: "text/plain", // mime types: text/plain, text/html
+      sourceLanguageCode: "en",
+      targetLanguageCode: targetLang,
+      glossaryConfig,
+    };
+
+    const [responseTitle] = await translationClient.translateText(requestTitle);
+    illust.public_name = responseTitle.glossaryTranslations[0].translatedText;
+
+    const requestTitle2 = {
+      parent: `projects/${googleProjectID}/locations/us-central1`,
+      contents: [illust.summary],
+      mimeType: "text/plain", // mime types: text/plain, text/html
+      sourceLanguageCode: "en",
+      targetLanguageCode: targetLang,
+      glossaryConfig,
+    };
+
+    const [responseTitle2] = await translationClient.translateText(
+      requestTitle2
+    );
+    illust.summary = responseTitle2.glossaryTranslations[0].translatedText;
+
+    const updateResult = await DB(
+      `
+      INSERT INTO list_illust_lang (illust_id, lang, illust_type, public_name, summary)
+      VALUES (${illust.illust_id}, UPPER('${targetLang}'), ?, ?, ?) 
+      ON DUPLICATE KEY UPDATE public_name = ?, summary = ?;
+      `,
+      [
+        "live2d",
+        illust.public_name,
+        illust.summary,
+        illust.public_name,
+        illust.summary,
+      ]
+    );
+
+    if (!updateResult.state) {
+      logger.error(
+        `${JSON.stringify(updateResult.error)} / [${updateResult.query}]`
+      );
+      return;
+    }
+  } // ? end of live illust for
+  console.log(`${project_id} #### live illust translatation end`);
+  //////////////// 라이브 일러스트 종료
+
+  // * 미니컷
+  const minicutList = await DB(`
+  SELECT lil.minicut_id, lil.lang, lil.public_name, lil.summary
+  FROM list_minicut_lang lil
+     , list_minicut li 
+ WHERE li.project_id = ${project_id}
+   AND lil.minicut_id = li.minicut_id 
+   AND lil.lang = 'EN'
+   AND lil.minicut_type = 'minicut';
+  `);
+
+  console.log(`${project_id} minicutList count : [${minicutList.row.length}]`);
+
+  for await (const minicut of minicutList.row) {
+    const requestTitle = {
+      parent: `projects/${googleProjectID}/locations/us-central1`,
+      contents: [minicut.public_name],
+      mimeType: "text/plain", // mime types: text/plain, text/html
+      sourceLanguageCode: "en",
+      targetLanguageCode: targetLang,
+      glossaryConfig,
+    };
+
+    const [responseTitle] = await translationClient.translateText(requestTitle);
+    minicut.public_name = responseTitle.glossaryTranslations[0].translatedText;
+
+    const requestTitle2 = {
+      parent: `projects/${googleProjectID}/locations/us-central1`,
+      contents: [minicut.summary],
+      mimeType: "text/plain", // mime types: text/plain, text/html
+      sourceLanguageCode: "en",
+      targetLanguageCode: targetLang,
+      glossaryConfig,
+    };
+
+    const [responseTitle2] = await translationClient.translateText(
+      requestTitle2
+    );
+    minicut.summary = responseTitle2.glossaryTranslations[0].translatedText;
+
+    const updateResult = await DB(
+      `
+      INSERT INTO list_minicut_lang (minicut_id, lang, minicut_type, public_name, summary)
+      VALUES (${minicut.minicut_id}, UPPER('${targetLang}'), ?, ?, ?) 
+      ON DUPLICATE KEY UPDATE public_name = ?, summary = ?;
+      `,
+      [
+        "minicut",
+        minicut.public_name,
+        minicut.summary,
+        minicut.public_name,
+        minicut.summary,
+      ]
+    );
+
+    if (!updateResult.state) {
+      logger.error(
+        `${JSON.stringify(updateResult.error)} / [${updateResult.query}]`
+      );
+      return;
+    }
+  } // ? end of minicut for
+  console.log(`${project_id} #### minicut translatation end`);
+  //////////////// 미니컷 종료
+
+  // * 미니컷
+  const liveObjectList = await DB(`
+  SELECT lil.minicut_id, lil.lang, lil.public_name, lil.summary
+  FROM list_minicut_lang lil
+     , list_live_object li 
+ WHERE li.project_id = ${project_id}
+   AND lil.minicut_id = li.live_object_id  
+   AND lil.lang = 'EN'
+   AND lil.minicut_type  = 'live2d';     
+  `);
+
+  console.log(
+    `${project_id} liveObjectList count : [${liveObjectList.row.length}]`
+  );
+
+  for await (const minicut of liveObjectList.row) {
+    const requestTitle = {
+      parent: `projects/${googleProjectID}/locations/us-central1`,
+      contents: [minicut.public_name],
+      mimeType: "text/plain", // mime types: text/plain, text/html
+      sourceLanguageCode: "en",
+      targetLanguageCode: targetLang,
+      glossaryConfig,
+    };
+
+    const [responseTitle] = await translationClient.translateText(requestTitle);
+    minicut.public_name = responseTitle.glossaryTranslations[0].translatedText;
+
+    const requestTitle2 = {
+      parent: `projects/${googleProjectID}/locations/us-central1`,
+      contents: [minicut.summary],
+      mimeType: "text/plain", // mime types: text/plain, text/html
+      sourceLanguageCode: "en",
+      targetLanguageCode: targetLang,
+      glossaryConfig,
+    };
+
+    const [responseTitle2] = await translationClient.translateText(
+      requestTitle2
+    );
+    minicut.summary = responseTitle2.glossaryTranslations[0].translatedText;
+
+    const updateResult = await DB(
+      `
+      INSERT INTO list_minicut_lang (minicut_id, lang, minicut_type, public_name, summary)
+      VALUES (${minicut.minicut_id}, UPPER('${targetLang}'), ?, ?, ?) 
+      ON DUPLICATE KEY UPDATE public_name = ?, summary = ?;
+      `,
+      [
+        "live2d",
+        minicut.public_name,
+        minicut.summary,
+        minicut.public_name,
+        minicut.summary,
+      ]
+    );
+
+    if (!updateResult.state) {
+      logger.error(
+        `${JSON.stringify(updateResult.error)} / [${updateResult.query}]`
+      );
+      return;
+    }
+  } // ? end of minicut for
+  console.log(`${project_id} #### live object translatation end`);
+  //////////////// 라이브 오브젝트 종료
+}; // ? 종료 프로젝트 데이터
 
 // * 작품 스크립트 자동 번역 생성하기
 export const translateScriptWithGlossary = async (req, res) => {
@@ -532,7 +801,10 @@ export const translateScriptWithGlossary = async (req, res) => {
       // console.log(scriptRow.script_data);
 
       // 중간중간 에러때문에 단일 쿼리 실행으로 변경
-      updateQuery = `UPDATE list_script SET script_data = '${scriptRow.script_data}' WHERE script_no = ${scriptRow.script_no};`;
+      updateQuery = mysql.format(
+        `UPDATE list_script SET script_data = ? WHERE script_no = ${scriptRow.script_no};`,
+        [scriptRow.script_data]
+      );
       const updateResult = await DB(updateQuery);
       if (!updateResult.state) {
         // 드물게 번역이 제대로 안되고 에러나는 케이스 있다.
@@ -569,11 +841,13 @@ export const translateWithGlossary = async (req, res) => {
   // Run request
   const [response] = await translationClient.translateText(request);
 
+  const resultText = response.glossaryTranslations[0].translatedText;
+
   for (const translation of response.glossaryTranslations) {
     console.log(`Translation: ${translation.translatedText}`);
   }
 
-  res.status(200).send("ok");
+  res.status(200).send(resultText);
 };
 
 // * 번역 API
