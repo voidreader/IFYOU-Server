@@ -226,7 +226,16 @@ export const getCoinProductMainList = async (req, res) => {
   //계정 연동 정보
   let result = await checkAccountLink(userkey);
   responseData.account_link = result.account_link;
-
+  console.log(mysql.format(`${coinProductListQuery} ORDER BY a.price DESC, rand() LIMIT 5;`, [      lang,
+    lang,
+    userkey,
+    project_id,
+    lang,
+    lang,
+    lang,
+    userkey,
+    project_id,
+    "standing",]));
   //스탠딩
   result = await DB(
     `${coinProductListQuery} ORDER BY a.price DESC, rand() LIMIT 5;`,
@@ -243,6 +252,7 @@ export const getCoinProductMainList = async (req, res) => {
       "standing",
     ]
   );
+
   responseData.character = await getCoinProductListSort(result.row, 1);
 
   //배경
@@ -890,7 +900,7 @@ export const requestLocalizingCoinShop = async (req, res) => {
   id
   , ${lang} message 
   FROM com_localize
-  WHERE id IN (7015,7018,7006,7007,7021,6017,7003,7010,7011,7012,7017,7004,7005,7019,7020,7000,7001,7002,7022,7023,2001,6204,80102);`);
+  WHERE id IN (7015,7018,7006,7007,7021,6017,7003,7010,7011,7012,7017,7004,7005,7019,7020,7000,7001,7002,7022,7023,2001,6204,80102,80127);`);
 
   res.status(200).json(result.row);
 };
