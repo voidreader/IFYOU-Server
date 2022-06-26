@@ -40,7 +40,6 @@ export const translateProjectDataWithGlossary = async (req, res) => {
     glossary: `projects/${googleProjectID}/locations/us-central1/glossaries/en_${targetLang}_${project_id}`,
   };
 
-  /*
   const episodeList = await DB(`
   SELECT led.episode_id, led.title, led.summary 
   FROM list_episode a
@@ -174,6 +173,7 @@ export const translateProjectDataWithGlossary = async (req, res) => {
   } // ? end of for
   console.log(`${project_id} mission translatation end`);
 
+  /*
   // ! 코인상품
   const coinShopList = await DB(`
   SELECT ccpd.coin_product_id, ccpd.name 
@@ -266,6 +266,7 @@ export const translateProjectDataWithGlossary = async (req, res) => {
   } // ? end of 재화for
   console.log(`${project_id} #### currency translatation end`);
   //////////////////// 재화 끝
+  */
 
   // * 사운드 시작
   const soundList = await DB(`
@@ -405,7 +406,6 @@ export const translateProjectDataWithGlossary = async (req, res) => {
   } // ? end of 재화for
   console.log(`${project_id} #### loading translatation end`);
   //////////////// TMI 종료
-  */
 
   // * 일반 일러스트
   const illustList = await DB(`
