@@ -163,6 +163,8 @@ import {
   requestIfyouPlayList,
   requestDailyMissionReward,
   increaseDailyMissionCount,
+  increaseMissionAdReward,
+  requestAdReward,
 } from "./ifyouController";
 import {
   refreshCacheLocalizedText,
@@ -1463,6 +1465,10 @@ export const clientHome = (req, res) => {
   else if (func === "purchaseInappProduct") purchaseInappProduct(req, res);
   else if (func === "translateProjectDataWithGlossary")
     translateProjectDataWithGlossary(req, res);
+  else if (func === "increaseMissionAdReward")
+    increaseMissionAdReward(req, res);  // 미션 광고 보상 카운트 누적
+  else if (func === "requestAdReward")
+    requestAdReward(req, res); // 광고 보상 처리    
   else {
     //  res.status(400).send(`Wrong Func : ${func}`);
     logger.error(`clientHome Error ${func}`);
