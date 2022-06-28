@@ -5,7 +5,7 @@ import { logger } from "../logger";
 
 // * 프로젝트의 장르 조회하기
 const getProjectGenre = async (project_id, lang) => {
-  const result = await slaveDB(`
+  const result = await DB(`
     SELECT lpg.genre_code
          , fn_get_localize_text(ls.text_id, '${lang}') genre_name
       FROM list_project_genre lpg
@@ -34,7 +34,7 @@ export const getIFyouWebMainPageInfo = async (req, res) => {
   const responseData = {};
 
   // * 공개된 작품 목록 가져오기
-  const projects = await slaveDB(`
+  const projects = await DB(`
   SELECT a.project_id 
   , ifnull(b.title, a.title) title
   , ifnull(b.summary, a.summary) summary 
@@ -53,7 +53,7 @@ export const getIFyouWebMainPageInfo = async (req, res) => {
 
   responseData.project = projects.row; // 작품
 
-  const noticeResult = await slaveDB(`
+  const noticeResult = await DB(`
   SELECT cn.notice_no
     , cnd.title 
     , ifnull(cnd.contents, '') contents
@@ -68,7 +68,7 @@ export const getIFyouWebMainPageInfo = async (req, res) => {
     ;
     `);
 
-  const text = await slaveDB(`
+  const text = await DB(`
   SELECT cl.id
        , CASE WHEN '${lang}' = 'KO' THEN cl.KO
               WHEN '${lang}' = 'EN' THEN cl.EN
