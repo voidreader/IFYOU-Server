@@ -1,12 +1,13 @@
 import { response } from "express";
+import schedule from "node-schedule";
 import { getProductDetailList } from "../controllers/shopController";
-import { cache } from "../init";
+import { cache, loadingCacheData } from "../init";
 import { logger } from "../logger";
 import { DB, slaveDB } from "../mysqldb";
 
 // * 인앱상품 캐시 데이터 조회
 export const getCacheProduct = async (lang) => {
-  const result = await DB(
+  const result = await slaveDB(
     `    
     SELECT a.product_master_id 
     , a.product_id 
@@ -91,14 +92,14 @@ export const getCacheServerMaster = async () => {
     ORDER BY timedeal_id; 
     `;
 
-  const serverInfo = await DB(query);
+  const serverInfo = await slaveDB(query);
   return serverInfo;
 };
 
 // * 캐시용 로컬라이즈 텍스트 정보
 export const getCacheLocalizedText = async () => {
   // 로컬라이징 텍스트 정보
-  const localInfo = await DB(`
+  const localInfo = await slaveDB(`
   SELECT cl.id
       , cl.KO
       , ifnull(cl.EN, 'NO TEXT') EN
@@ -120,7 +121,7 @@ export const getCachePlatformEvent = async () => {
   const responseData = {};
 
   // * 프로모션 정보
-  const promotionMaster = await DB(`
+  const promotionMaster = await slaveDB(`
   SELECT a.promotion_no
       , a.title
       , a.start_date
@@ -134,7 +135,7 @@ export const getCachePlatformEvent = async () => {
   ORDER BY sortkey; 
   `); // ? 프로모션 끝
 
-  const promotionDetail = await DB(
+  const promotionDetail = await slaveDB(
     `
   SELECT 
   b.promotion_no 
@@ -163,7 +164,7 @@ export const getCachePlatformEvent = async () => {
   }); // ? 프로모션 끝
 
   // * 공지사항 정보
-  const noticeMaster = await DB(`
+  const noticeMaster = await slaveDB(`
     SELECT cn.*
     FROM com_notice cn  
   WHERE now() BETWEEN cn.start_date AND cn.end_date
@@ -171,7 +172,7 @@ export const getCachePlatformEvent = async () => {
   ORDER BY cn.sortkey;
   `);
 
-  const noticeDetail = await DB(`
+  const noticeDetail = await slaveDB(`
     SELECT b.notice_no
     , b.lang 
     , b.title 
@@ -239,7 +240,7 @@ export const refreshCacheLocalizedText = async (req, res) => {
   cache.set("localize", localData); // 로컬라이징 텍스트 정보 세팅
 
   // com_server의 버전이 연계되어 있어서 같이 한다.
-  const master = await DB(
+  const master = await slaveDB(
     `SELECT cs.* FROM com_server cs WHERE server_no > 0 LIMIT 1`
   );
   cache.set("serverMaster", master.row[0]);
@@ -255,7 +256,7 @@ export const refreshCacheServerMaster = async (req, res) => {
   if (serverInfo.length === 0) {
     logger.error(`error in getCacheServerMaster / loadingCacheData`);
   } else {
-    console.log(serverInfo.row);
+    // console.log(serverInfo.row);
 
     cache.set("serverMaster", serverInfo.row[0][0]); // 마스터 정보
     cache.set("ad", serverInfo.row[1][0]); // 광고 세팅 정보
@@ -283,3 +284,10 @@ export const refreshCacheProduct = async (req, res) => {
 
   if (res) res.status(200).send("Done");
 };
+
+// 캐시 리프레시
+const schduleCacheRefresh = schedule.scheduleJob("*/2 * * * *", async () => {
+  logger.info(">> schduleCacheRefresh START");
+  await loadingCacheData();
+  logger.info(">> schduleCacheRefresh END");
+});
