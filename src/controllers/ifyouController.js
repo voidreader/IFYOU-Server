@@ -335,6 +335,7 @@ export const requestAdReward = async (req, res) =>{
   if(ad_no === 1){
     whereQuery = `
     AND current_result >= fn_get_max_ad_reward_value(${userkey}, step, 'total') 
+    AND clear_date IS NULL
     `;
   }
 
@@ -362,7 +363,6 @@ export const requestAdReward = async (req, res) =>{
   LEFT OUTER JOIN user_ad_reward_history uarh
   ON car.ad_no = uarh.ad_no AND uarh.history_no = fn_get_max_ad_reward_value(${userkey}, car.ad_no, 'id')
   WHERE car.ad_no = ${ad_no}
-  AND clear_date IS NULL
   ${whereQuery}
   AND is_public > 0;`);
   if(result.state && result.row.length > 0){
