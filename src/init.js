@@ -49,8 +49,8 @@ export const loadingCacheData = async () => {
   await refreshCacheProduct(); // 인앱상품 리스트
 
   console.log(`Cache Done!`);
-  console.log(cache.size);
-  console.log(cache.calculatedSize);
+  // console.log(cache.size);
+  // console.log(cache.calculatedSize);
 }; // ? 캐시데이터 세팅 종료
 
 const handleListening = () => {
