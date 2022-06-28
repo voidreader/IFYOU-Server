@@ -1,10 +1,10 @@
 import mysql from "mysql2/promise";
+import { response } from "express";
 import { DB, logAction, slaveDB, transactionDB } from "../mysqldb";
 import { logger } from "../logger";
 import { respondDB } from "../respondent";
 import { getContinuousAttendanceList } from "./attendanceController";
 import { getUserBankInfo } from "./bankController";
-import { response } from "express";
 
 //? 이프유 플레이 시작
 //* 연속 출석 관리는 이미 attendanceController에 이미 작업을 해서 그대로 두고
@@ -287,7 +287,7 @@ export const increaseMissionAdReward = async (req, res) => {
       currentQuery = `UPDATE user_ad_reward_history SET current_result = current_result + 1 WHERE history_no = ?;`;
       updateQuery += mysql.format(currentQuery, [history_no]);
     }
-  
+    
     //카운트 누적
     result = await DB(updateQuery);
     if(!result.state){
@@ -333,7 +333,9 @@ export const requestAdReward = async (req, res) =>{
 
   //달성 횟수 초과된 경우
   if(ad_no === 1){
-    whereQuery = `AND current_result >= fn_get_max_ad_reward_value(${userkey}, step, 'total') `;
+    whereQuery = `
+    AND current_result >= fn_get_max_ad_reward_value(${userkey}, step, 'total') 
+    `;
   }
 
   //메인 타입 변경
@@ -367,7 +369,7 @@ export const requestAdReward = async (req, res) =>{
 
     const { history_no, clear_date, currency, quantity, step, } = result.row[0];
 
-    if(clear_date) {
+    if(clear_date && ad_no === 1) {
       logger.error(`requestAdReward Error`);
       respondDB(res, 80025, "already done");
       return;  
@@ -386,7 +388,7 @@ export const requestAdReward = async (req, res) =>{
 
       //다음 단계 insert(마지막 단계 제외)
       if(step < 3){
-        currentQuery = `INSERT INTO user_ad_reward_history(userkey, ad_no, step) VALUES(?, ?, ?);`;
+        currentQuery = `INSERT INTO user_ad_reward_history(userkey, ad_no, step, current_result) VALUES(?, ?, ?, 0);`;
         updateQuery += mysql.format(currentQuery, [userkey, ad_no, step+1]);
       }
     }else{ //타이머 광고 보상
