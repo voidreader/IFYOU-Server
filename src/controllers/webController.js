@@ -1,11 +1,11 @@
 import mysql from "mysql2/promise";
 import { response } from "express";
-import { DB, logAction, transactionDB } from "../mysqldb";
+import { DB, logAction, slaveDB, transactionDB } from "../mysqldb";
 import { logger } from "../logger";
 
 // * 프로젝트의 장르 조회하기
 const getProjectGenre = async (project_id, lang) => {
-  const result = await DB(`
+  const result = await slaveDB(`
     SELECT lpg.genre_code
          , fn_get_localize_text(ls.text_id, '${lang}') genre_name
       FROM list_project_genre lpg
@@ -34,7 +34,7 @@ export const getIFyouWebMainPageInfo = async (req, res) => {
   const responseData = {};
 
   // * 공개된 작품 목록 가져오기
-  const projects = await DB(`
+  const projects = await slaveDB(`
   SELECT a.project_id 
   , ifnull(b.title, a.title) title
   , ifnull(b.summary, a.summary) summary 
@@ -53,7 +53,7 @@ export const getIFyouWebMainPageInfo = async (req, res) => {
 
   responseData.project = projects.row; // 작품
 
-  const noticeResult = await DB(`
+  const noticeResult = await slaveDB(`
   SELECT cn.notice_no
     , cnd.title 
     , ifnull(cnd.contents, '') contents
@@ -68,7 +68,7 @@ export const getIFyouWebMainPageInfo = async (req, res) => {
     ;
     `);
 
-  const text = await DB(`
+  const text = await slaveDB(`
   SELECT cl.id
        , CASE WHEN '${lang}' = 'KO' THEN cl.KO
               WHEN '${lang}' = 'EN' THEN cl.EN
