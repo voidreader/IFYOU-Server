@@ -310,7 +310,7 @@ export const increaseMissionAdReward = async (req, res) => {
   responseData.timerAdReward = await getAdRewardList(userkey, lang, 2);  
 
   res.status(200).json(responseData);
-  logAction(userkey, "ifyou_ad", req.body);
+  logAction(userkey, "ifyou_ad_count", req.body);
 
 };
 
@@ -336,6 +336,10 @@ export const requestAdReward = async (req, res) =>{
     whereQuery = `
     AND current_result >= fn_get_max_ad_reward_value(${userkey}, step, 'total') 
     AND clear_date IS NULL
+    `;
+  }else if(ad_no === 2){
+    whereQuery = `
+    AND ifnull(date_add(uarh.clear_date, INTERVAL car.min_time MINUTE), '2022-01-01 00:00:00') < now()
     `;
   }
 
@@ -419,7 +423,7 @@ export const requestAdReward = async (req, res) =>{
   responseData.timerAdReward = await getAdRewardList(userkey, lang, 2);  
 
   res.status(200).json(responseData);
-  logAction(userkey, "ifyou_ad", req.body);
+  logAction(userkey, "ifyou_ad_reward", req.body);
 
 };
 
