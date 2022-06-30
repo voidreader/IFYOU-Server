@@ -225,7 +225,7 @@ export const checkSideUnlockByScene = async (userInfo) => {
 export const checkMissionByEpisode = async (userInfo) => {
   const { userkey, project_id, episodeID, lang = "KO" } = userInfo;
 
-  const locekdMissionList = await DB(
+  const locekdMissionList = await slaveDB(
     `
     SELECT mission_id
     , fn_get_mission_name(mission_id, ?) mission_name
