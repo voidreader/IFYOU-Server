@@ -421,6 +421,30 @@ const getProjectGenre = async (project_id, lang) => {
   return responseData;
 };
 
+//? 메인 카테고리 시작
+const getMainCategoryList = async (lang, country, is_beta, build) =>{
+
+  //메인 카테고리 
+  const result = await DB(`
+  SELECT 
+  category_id
+  , fn_get_localize_text(name, 'ko') name_text
+  , project_kind 
+  , array_kind
+  , project_cnt 
+  , is_favorite 
+  , is_view
+  , fn_get_main_category(category_id, '${lang}', '${country}', ${is_beta}, '${build}') project_list
+  FROM com_main_category cmc
+  WHERE category_id > 0 
+  AND is_public > 0
+  ORDER BY sortkey;
+  `);
+
+  return result.row;
+};
+//? 메인 카테고리 끝
+
 // * 이프유 프로젝트 리스트 조회
 const getIfYouProjectList = async (req, res) => {
   const {
@@ -508,7 +532,9 @@ const getIfYouProjectList = async (req, res) => {
 
   // * 가장 마지막에 플레이한 프로젝트 가져오기
   const latestProject = await DB(`
-  SELECT a.project_id 
+  SELECT 
+  a.project_id
+  , a.episode_id
   FROM user_project_current a
      , list_project_master lpm
  WHERE a.userkey = ${userkey}
@@ -521,6 +547,7 @@ const getIfYouProjectList = async (req, res) => {
 
   const responseData = {};
   responseData.all = result.row;
+  responseData.mainCategory = await getMainCategoryList(lang, country, isBETA, build);
   responseData.recommend = []; // 사용하지 않도록 변경
   responseData.like = await getUserProjectLikeList(userkey); //좋아요 리스트
   responseData.latest = latestProject.row;
