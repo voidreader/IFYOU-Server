@@ -535,11 +535,16 @@ const getIfYouProjectList = async (req, res) => {
   SELECT 
   a.project_id
   , a.episode_id
+  , le.chapter_number 
+  , le.episode_type 
   FROM user_project_current a
      , list_project_master lpm
+     , list_episode le 
  WHERE a.userkey = ${userkey}
    AND a.is_special = 0
    AND lpm.project_id = a.project_id 
+   AND a.project_id = le.project_id 
+   AND a.episode_id = le.episode_id 
    AND (locate('${lang}', lpm.exception_lang) IS NULL OR locate('${lang}', lpm.exception_lang) < 1)
  ORDER BY a.update_date DESC
  LIMIT 1;  
