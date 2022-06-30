@@ -177,6 +177,7 @@ import {
   deleteGlossary,
   translateProjectDataWithGlossary,
   translateScriptWithGlossary,
+  translateSingleEpisode,
   translateText,
   translateWithGlossary,
 } from "../com/com";
@@ -1200,6 +1201,33 @@ const getIntroCharacterList = async (req, res) => {
   res.status(200).json(result.row);
 };
 
+// 이전 인앱상품 구매자 환불  처리하기
+const refundPreviousInappStar = async (req, res) => {
+  const targets = await DB(`
+  SELECT userkey, sum(current_quantity) quantity  
+    FROM user_property up WHERE currency IN ('gem') AND current_quantity  > 0 AND paid > 0 
+     AND current_quantity <> 77
+   GROUP BY userkey;
+  `);
+
+  let sendQuery = ``;
+
+  targets.row.forEach((user) => {
+    sendQuery += mysql.format(`CALL sp_send_user_mail(?, ?, ?, ?, ?, ?);`, [
+      user.userkey,
+      "refund",
+      "gem",
+      user.quantity,
+      -1,
+      90,
+    ]);
+  });
+
+  const result = await DB(sendQuery);
+
+  res.status(200).json(result.state);
+};
+
 // clientHome에서 func에 따라 분배
 // controller에서 또다시 controller로 보내는것이 옳을까..? ㅠㅠ
 export const clientHome = (req, res) => {
@@ -1466,9 +1494,13 @@ export const clientHome = (req, res) => {
   else if (func === "translateProjectDataWithGlossary")
     translateProjectDataWithGlossary(req, res);
   else if (func === "increaseMissionAdReward")
-    increaseMissionAdReward(req, res);  // 미션 광고 보상 카운트 누적
-  else if (func === "requestAdReward")
-    requestAdReward(req, res); // 광고 보상 처리    
+    increaseMissionAdReward(req, res);
+  // 미션 광고 보상 카운트 누적
+  else if (func === "requestAdReward") requestAdReward(req, res);
+  // 광고 보상 처리
+  else if (func === "translateSingleEpisode") translateSingleEpisode(req, res);
+  else if (func === "refundPreviousInappStar")
+    refundPreviousInappStar(req, res);
   else {
     //  res.status(400).send(`Wrong Func : ${func}`);
     logger.error(`clientHome Error ${func}`);
