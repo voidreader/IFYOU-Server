@@ -649,7 +649,7 @@ export const checkUserIdValidation = async (req, res) => {
   const userkey = uid.split("-")[1];
 
   // pin과 userkey 같이 검색.
-  const validationResult = await DB(
+  const validationResult = await slaveDB(
     `SELECT fn_get_userkey_info(${userkey}) uid
           , userkey 
           , nickname 
@@ -990,7 +990,7 @@ export const purchaseEpisodeType2 = async (req, res, needResponse = true) => {
 
   // ! 자유이용권 구매자인지 체크할것!
   // 클라이언트에서 체크하겠지만 한번 더 체크..
-  const freepassCheck = await DB(UQ_CHECK_PROJECT_USER_FREEPASS, [
+  const freepassCheck = await slaveDB(UQ_CHECK_PROJECT_USER_FREEPASS, [
     userkey,
     project_id,
   ]);
@@ -1136,7 +1136,7 @@ export const requestWaitingEpisodeWithCoin = async (req, res) => {
   logger.info(`requestWaitingEpisodeWithCoin : ${JSON.stringify(req.body)}`);
 
   // project current 체크
-  const rowCheck = await DB(`
+  const rowCheck = await slaveDB(`
   SELECT a.*
     FROM user_project_current a
   WHERE a.userkey = ${userkey}
