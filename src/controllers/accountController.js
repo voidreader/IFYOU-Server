@@ -3374,11 +3374,11 @@ export const requestRecommendProject = async (req, res) => {
   SELECT 
   DISTINCT ifnull(upc.project_id, '') AS last_played_project
   , fn_get_not_play_project(${userkey}) not_play_project 
-  , genre_code AS genre
+  , fn_get_project_genre(upc.project_id) AS genre
   , group_concat(lph.hashtag_no) hashtag_list
-  FROM user_project_current upc, list_project_hashtag lph, list_project_genre lpg
-  WHERE upc.project_id = lph.project_id
-  AND upc.project_id = lpg.project_id
+  FROM user_project_current upc, list_project_hashtag lph
+  WHERE upc.userkey = ${userkey}
+  AND upc.project_id = lph.project_id
   AND upc.update_date = fn_get_max_project_current_time(${userkey}); 
   `);
   if (result.state && result.row.length > 0) {
