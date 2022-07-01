@@ -423,9 +423,8 @@ const getProjectGenre = async (project_id, lang) => {
 };
 
 //? 메인 카테고리 시작
-const getMainCategoryList = async (lang, country, is_beta, build) =>{
-
-  //메인 카테고리 
+const getMainCategoryList = async (lang, country, is_beta, build) => {
+  //메인 카테고리
   const result = await DB(`
   SELECT 
   category_id
@@ -493,6 +492,8 @@ const getIfYouProjectList = async (req, res) => {
   , fn_get_design_info(b.premium_pass_id, 'key') premium_pass_key
   , fn_get_design_info(b.category_thumbnail_id, 'url') category_thumbnail_url
   , fn_get_design_info(b.category_thumbnail_id, 'key') category_thumbnail_key
+  , fn_get_design_info(b.coin_banner_id, 'url') coin_banner_url
+  , fn_get_design_info(b.coin_banner_id, 'key') coin_banner_key
   , a.banner_model_id -- 메인배너 Live2D 모델ID
   , a.is_lock
   , a.color_rgb
@@ -556,7 +557,12 @@ const getIfYouProjectList = async (req, res) => {
 
   const responseData = {};
   responseData.all = result.row;
-  responseData.mainCategory = await getMainCategoryList(lang, country, isBETA, build);
+  responseData.mainCategory = await getMainCategoryList(
+    lang,
+    country,
+    isBETA,
+    build
+  );
   responseData.recommend = []; // 사용하지 않도록 변경
   responseData.like = await getUserProjectLikeList(userkey); //좋아요 리스트
   responseData.latest = latestProject.row;
