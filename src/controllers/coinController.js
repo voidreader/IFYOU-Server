@@ -1,11 +1,11 @@
 import mysql from "mysql2/promise";
 import { response } from "express";
-import { DB, logAction, transactionDB } from "../mysqldb";
+import { DB, logAction, slaveDB, transactionDB } from "../mysqldb";
 import { logger } from "../logger";
-import { respondDB, } from "../respondent";
+import { respondDB } from "../respondent";
 import { getUserBankInfo, getCurrencyQuantity } from "./bankController";
 import { getLevelQuery, getAchievementQuery } from "./achievementController";
-import { Q_SELECT_COIN_EXCHANGE, } from "../QStore";
+import { Q_SELECT_COIN_EXCHANGE } from "../QStore";
 import { getInConditionQuery } from "../com/com";
 
 const coinProductListQuery = `
@@ -82,7 +82,7 @@ const getTopContent = async (req, is_main = 0) => {
 
   if (is_main) {
     //탑 메뉴
-    result = await DB(
+    result = await slaveDB(
       `
     SELECT code
     , fn_get_localize_text(text_id, ?) name 
@@ -96,7 +96,7 @@ const getTopContent = async (req, is_main = 0) => {
     responseData.top = result.row;
 
     //코인샵 배너
-    result = await DB(
+    result = await slaveDB(
       `
     SELECT 
     fn_get_design_info(coin_banner_id, 'url') coin_banner_url
@@ -202,7 +202,7 @@ const getCoinProductListSort = async (result, is_main = 0) => {
 
 //! 계정정보 연결 확인
 const checkAccountLink = async (userkey) => {
-  const result = await DB(
+  const result = await slaveDB(
     `SELECT account_link FROM table_account WHERE userkey = ?;`,
     [userkey]
   );
@@ -226,18 +226,25 @@ export const getCoinProductMainList = async (req, res) => {
   //계정 연동 정보
   let result = await checkAccountLink(userkey);
   responseData.account_link = result.account_link;
-  console.log(mysql.format(`${coinProductListQuery} ORDER BY a.price DESC, rand() LIMIT 5;`, [      lang,
-    lang,
-    userkey,
-    project_id,
-    lang,
-    lang,
-    lang,
-    userkey,
-    project_id,
-    "standing",]));
+  console.log(
+    mysql.format(
+      `${coinProductListQuery} ORDER BY a.price DESC, rand() LIMIT 5;`,
+      [
+        lang,
+        lang,
+        userkey,
+        project_id,
+        lang,
+        lang,
+        lang,
+        userkey,
+        project_id,
+        "standing",
+      ]
+    )
+  );
   //스탠딩
-  result = await DB(
+  result = await slaveDB(
     `${coinProductListQuery} ORDER BY a.price DESC, rand() LIMIT 5;`,
     [
       lang,
@@ -256,7 +263,7 @@ export const getCoinProductMainList = async (req, res) => {
   responseData.character = await getCoinProductListSort(result.row, 1);
 
   //배경
-  result = await DB(
+  result = await slaveDB(
     `${coinProductListQuery} ORDER BY price DESC, rand() LIMIT 5;`,
     [
       lang,
@@ -274,7 +281,7 @@ export const getCoinProductMainList = async (req, res) => {
   responseData.wallpaper = await getCoinProductListSort(result.row, 1);
 
   //스티커
-  result = await DB(
+  result = await slaveDB(
     `${coinProductListQuery} ORDER BY price DESC, rand() LIMIT 5;`,
     [
       lang,
@@ -292,7 +299,7 @@ export const getCoinProductMainList = async (req, res) => {
   responseData.sticker = await getCoinProductListSort(result.row, 1);
 
   //대사
-  result = await DB(
+  result = await slaveDB(
     `${coinProductListQuery} ORDER BY price DESC, rand() LIMIT 5;`,
     [
       lang,
@@ -320,7 +327,7 @@ export const getCoinProductSearch = async (req, res) => {
     body: { userkey },
   } = req;
 
-  const result = await DB(
+  const result = await slaveDB(
     `
     SELECT search_word
     FROM user_coin_search
@@ -395,7 +402,7 @@ export const getCoinProductSearchDetail = async (req, res) => {
 
   if (!whereQuery) {
     logger.info(`getCoinProductSearchDetail search no`);
-    respondDB(res, 80098, '', lang);
+    respondDB(res, 80098, "", lang);
     return;
   }
 
@@ -512,7 +519,7 @@ export const coinProductSearchDelete = async (req, res) => {
     );
     if (!result.state || result.row.length === 0) {
       logger.error(`coinProductSearchDelete Error 2`);
-      respondDB(res, 80019, '', lang);
+      respondDB(res, 80019, "", lang);
       return;
     }
 
@@ -605,7 +612,7 @@ export const userCoinPurchase = async (req, res) => {
   }
 
   //* 판매 중인 상품인지 확인
-  let result = await DB(
+  let result = await slaveDB(
     `SELECT ifnull(fn_get_currency_info(a.currency, 'type'), 'set') currency_type
     , CASE WHEN a.currency = '' THEN 
       fn_get_currency_set(coin_product_id)
@@ -632,7 +639,7 @@ export const userCoinPurchase = async (req, res) => {
   );
   if (!result.state || result.row.length === 0) {
     logger.error(`userCoinPurchase Error 1-2`);
-    respondDB(res, 80097, '', lang);
+    respondDB(res, 80097, "", lang);
     return;
   }
 
@@ -655,7 +662,7 @@ export const userCoinPurchase = async (req, res) => {
 
   if (is_unique > 0 && quantity > 0) {
     logger.error(`userCoinPurchase Error 2`);
-    respondDB(res, 80025, '', lang);
+    respondDB(res, 80025, "", lang);
     return;
   }
 
@@ -673,7 +680,7 @@ export const userCoinPurchase = async (req, res) => {
 
   if (userCoin < valid_pay_price) {
     logger.error(`userCoinPurchase Error 3`);
-    respondDB(res, 80013, '', lang);
+    respondDB(res, 80013, "", lang);
     return;
   }
 
@@ -906,16 +913,12 @@ export const requestLocalizingCoinShop = async (req, res) => {
 };
 
 //! 코인 환전 리스트
-export const requestCoinExchangeListByCoinShop = async (req, res) =>{
+export const requestCoinExchangeListByCoinShop = async (req, res) => {
   const {
-    body:{
-      userkey, 
-      lang = "KO",
-      project_id = -1,
-    }
+    body: { userkey, lang = "KO", project_id = -1 },
   } = req;
-  
-  const responseData = {}; 
+
+  const responseData = {};
 
   let result = await DB(Q_SELECT_COIN_EXCHANGE, [userkey]);
   responseData.exchange_coin = result.row;

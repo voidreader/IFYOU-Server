@@ -2,7 +2,7 @@ import aws from "aws-sdk";
 import { response } from "express";
 import { respondRedirect, respondError, respondDB } from "../respondent";
 import { logger } from "../logger";
-import { DB } from "../mysqldb";
+import { DB, slaveDB } from "../mysqldb";
 import { getComModelMainBannerClientList } from "./designController";
 import { getLevelListNoResponse } from "./levelController";
 import { cache } from "../init";
@@ -53,7 +53,7 @@ export const getAppCommonResources = async (req, res) => {
   // responseData.models = await getComModelMainBannerClientList();
 
   // * 2021.01.03 재화 아이콘
-  const currencyIcons = await DB(`
+  const currencyIcons = await slaveDB(`
   SELECT DISTINCT a.currency 
        , fn_get_design_info(a.icon_image_id, 'url') icon_url
        , fn_get_design_info(a.icon_image_id, 'key') icon_key

@@ -306,7 +306,7 @@ export const getUserProjectProperty = async (userInfo) => {
   // logger.info(`getUserProjectProperty ${JSON.stringify(userInfo)}`);
 
   // 유저의 프로젝트 재화
-  const propertyResult = await DB(UQ_GET_PROJECT_USER_PROPERTY, [
+  const propertyResult = await slaveDB(UQ_GET_PROJECT_USER_PROPERTY, [
     userInfo.userkey,
     userInfo.project_id,
     userInfo.userkey,
@@ -640,7 +640,7 @@ ORDER BY a.episode_type, a.sortkey;
 const getProjectBubbleSetVersionID = async (userInfo) => {
   // * 2022.05.18 말풍선 추가 옵션
   // 폰트 사이즈 및 정렬 방식, 네임태그 설정에 대한 정보 추가
-  const result = await DB(
+  const result = await slaveDB(
     `
     SELECT lp.bubble_set_id
          , cbm.bubble_ver
@@ -681,7 +681,9 @@ const getProjectBubbleSetVersionID = async (userInfo) => {
 
 // 프로젝트 말풍선 세트 정보 조회
 const getProjectBubbleSetDetail = async (userInfo) => {
-  const result = await DB(Q_SELECT_PROJECT_BUBBLE_SET, [userInfo.bubbleID]);
+  const result = await slaveDB(Q_SELECT_PROJECT_BUBBLE_SET, [
+    userInfo.bubbleID,
+  ]);
 
   if (result.state) return result.row;
   else return [];
@@ -1245,7 +1247,7 @@ const getEpisodeFisrtClearReward = async (userkey, episodeID) => {
 
   // 없으면, 첫클리어 보상 정보 가져오기
   // 재화의 아이콘 URL 추가
-  const rewardResult = await DB(`
+  const rewardResult = await slaveDB(`
   SELECT le.first_reward_currency currency
        , le.first_reward_quantity quantity
        , fn_get_design_info(cc.icon_image_id, 'url') icon_url
@@ -1454,7 +1456,7 @@ export const requestEpisodeFirstClearReward = async (req, res) => {
     body: { userkey, episode_id, is_double },
   } = req;
 
-  const episodeFirstResult = await DB(`
+  const episodeFirstResult = await slaveDB(`
   SELECT a.first_reward_currency currency
      , a.first_reward_quantity quantity
   FROM list_episode a
@@ -2611,7 +2613,7 @@ const getProjectResources = async (project_id, lang, bubbleID, userkey) => {
 const getCurrentLoadingData = async (project_id, episode_id, lang) => {
   const result = {};
 
-  const loading = await DB(`
+  const loading = await slaveDB(`
   SELECT a.loading_id
      , a.loading_name
      , a.image_id 
@@ -2859,7 +2861,7 @@ export const purchasePremiumPass = async (req, res) => {
   } = req;
 
   // currency 체크
-  const currencyCheck = await DB(`
+  const currencyCheck = await slaveDB(`
   SELECT cc.currency 
   FROM com_currency cc 
  WHERE connected_project = ${project_id} 
@@ -2906,7 +2908,7 @@ export const purchasePremiumPass = async (req, res) => {
 
   // * 프리미엄 패스와 연결된 뱃지 조회
   let passBadgeCurrnecy = "";
-  const passBadgeSelect = await DB(`
+  const passBadgeSelect = await slaveDB(`
   SELECT a.currency 
   FROM com_currency a
  WHERE a.connected_project = ${project_id}
@@ -3130,7 +3132,7 @@ export const requestSelectionHint = async (req, res) => {
   let scene_id = null;
 
   // 해당 선택지의 타겟씬id 조회
-  let result = await DB(
+  let result = await slaveDB(
     `
   SELECT target_scene_id
   FROM list_script 
@@ -3293,14 +3295,20 @@ export const requestRecommendProject = async (req, res) => {
   WHERE userkey = ${userkey} 
   AND update_date = fn_get_max_project_current_time(${userkey}); 
   `);
-  if(result.state && result.row.length > 0){
-
+  if (result.state && result.row.length > 0) {
     //마지막 플레이 작품, 모든 작품 플레이 확인, 플레이 하지 않은 작품 리스트
-    const { last_played_project = '', all_play_check = 0, not_play_project, } = result.row[0];       
+    const {
+      last_played_project = "",
+      all_play_check = 0,
+      not_play_project,
+    } = result.row[0];
 
     //아직 모든 작품을 플레이 하지 않은 경우(플레이를 아예 안했거나 다한 경우 제외)
-    if(last_played_project && all_play_check < 1){
-      result = await DB(`CALL pier.sp_select_recommend_project(?, ?);`, [last_played_project, not_play_project]);
+    if (last_played_project && all_play_check < 1) {
+      result = await DB(`CALL pier.sp_select_recommend_project(?, ?);`, [
+        last_played_project,
+        not_play_project,
+      ]);
       if (result.state) projectList = result.row[0][0].project_list;
       responseData.project_id = await pushRecommendProject(projectList);
     }

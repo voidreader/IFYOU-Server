@@ -1,5 +1,5 @@
 import mysql from "mysql2/promise";
-import { DB } from "../mysqldb";
+import { DB, slaveDB } from "../mysqldb";
 
 import {
   respond,
@@ -19,7 +19,7 @@ import { logger } from "../logger";
 export const getUserVoiceHistory = async (userInfo) => {
   const voiceData = {};
 
-  const result = await DB(
+  const result = await slaveDB(
     `
     SELECT ls.sound_id
     , ls.sound_name 
@@ -53,7 +53,7 @@ ORDER BY ls.speaker, le.episode_type, le.sortkey;
 
   // * 보이스 배너를 사용하는 캐릭터 네임태그
   // * 엑스트라 보이스 분리용도.
-  const voiceNametagResult = await DB(`
+  const voiceNametagResult = await slaveDB(`
   SELECT a.speaker
   FROM list_nametag a
  WHERE a.project_id = ${userInfo.project_id}
@@ -112,7 +112,7 @@ export const updateUserVoiceHistory = async (req, res) => {
   // * 파라매터로 sound_id를 안받으면 DB에서 찾아준다.
   if (sound_id < 0) {
     // 주어진 음성 이름으로 id를 찾는다.
-    const idSelect = await DB(`
+    const idSelect = await slaveDB(`
       SELECT a.sound_id
       FROM list_sound a 
     WHERE a.project_id = '${project_id}'
@@ -132,7 +132,7 @@ export const updateUserVoiceHistory = async (req, res) => {
     updateSoundID = sound_id;
   }
 
-  const existsCheck = await DB(
+  const existsCheck = await slaveDB(
     `
   SELECT EXISTS (SELECT a.userkey FROM user_voice a WHERE a.userkey = ? AND a.sound_id= ?) is_exists
   FROM DUAL;

@@ -2,7 +2,7 @@
 import mysql from "mysql2/promise";
 import { response } from "express";
 import dotenv from "dotenv";
-import { DB, logAction, transactionDB, logDB } from "../mysqldb";
+import { DB, logAction, transactionDB, logDB, slaveDB } from "../mysqldb";
 import {
   Q_MODEL_RESOURCE_INFO,
   Q_SCRIPT_RESOURCE_BG,
@@ -177,6 +177,7 @@ import {
   deleteGlossary,
   translateProjectDataWithGlossary,
   translateScriptWithGlossary,
+  translateSingleEpisode,
   translateText,
   translateWithGlossary,
 } from "../com/com";
@@ -241,7 +242,7 @@ const getEpisodeScriptWithResources = async (req, res) => {
   let lang = userInfo.lang;
 
   // lang이 있는지 확인
-  const langCheck = await DB(
+  const langCheck = await slaveDB(
     `
   SELECT * FROM list_script 
   WHERE episode_id = ? 
@@ -306,53 +307,53 @@ const getEpisodeScriptWithResources = async (req, res) => {
   }
 
   // 배경
-  const background = await DB(Q_SCRIPT_RESOURCE_BG, [
+  const background = await slaveDB(Q_SCRIPT_RESOURCE_BG, [
     userInfo.project_id,
     userInfo.episode_id,
     lang,
   ]);
   // 이미지
-  const image = await DB(Q_SCRIPT_RESOURCE_IMAGE, [
+  const image = await slaveDB(Q_SCRIPT_RESOURCE_IMAGE, [
     userInfo.project_id,
     userInfo.episode_id,
     lang,
   ]);
   // 일러스트
-  const illust = await DB(Q_SCRIPT_RESOURCE_ILLUST, [
+  const illust = await slaveDB(Q_SCRIPT_RESOURCE_ILLUST, [
     userInfo.project_id,
     userInfo.episode_id,
     lang,
   ]);
   // 이모티콘
-  const emoticon = await DB(Q_SCRIPT_RESOURCE_EMOTICON, [
+  const emoticon = await slaveDB(Q_SCRIPT_RESOURCE_EMOTICON, [
     userInfo.project_id,
     userInfo.episode_id,
     lang,
   ]);
 
   // BGM
-  const bgm = await DB(Q_SCRIPT_RESOURCE_BGM, [
+  const bgm = await slaveDB(Q_SCRIPT_RESOURCE_BGM, [
     userInfo.project_id,
     userInfo.episode_id,
     lang,
   ]);
 
   // 음성
-  const voice = await DB(Q_SCRIPT_RESOURCE_VOICE, [
+  const voice = await slaveDB(Q_SCRIPT_RESOURCE_VOICE, [
     userInfo.project_id,
     userInfo.episode_id,
     lang,
   ]);
 
   // 효과음
-  const se = await DB(Q_SCRIPT_RESOURCE_SE, [
+  const se = await slaveDB(Q_SCRIPT_RESOURCE_SE, [
     userInfo.project_id,
     userInfo.episode_id,
     lang,
   ]);
 
   // 현재 에피소드에서 활성화된 로딩 중 랜덤하게 하나 가져온다.
-  const loading = await DB(`
+  const loading = await slaveDB(`
   SELECT a.loading_id
      , a.loading_name
      , a.image_id 
@@ -401,7 +402,7 @@ ORDER BY rand() LIMIT 1;
 
 // * 프로젝트의 장르 조회하기
 const getProjectGenre = async (project_id, lang) => {
-  const result = await DB(`
+  const result = await slaveDB(`
   SELECT lpg.genre_code
        , fn_get_localize_text(ls.text_id, '${lang}') genre_name
     FROM list_project_genre lpg
@@ -516,7 +517,10 @@ const getIfYouProjectList = async (req, res) => {
   `;
   // * 위에 베타서버용 추가 쿼리 관련 로직 추가되었음 2022.03.22
 
-  const result = await DB(`${query} ORDER BY a.sortkey;`, [build, country]);
+  const result = await slaveDB(`${query} ORDER BY a.sortkey;`, [
+    build,
+    country,
+  ]);
   if (!result.state) {
     logger.error(`getIfYouProjectList Error ${result.error}`);
     respondDB(res, 80026, result.error);
@@ -564,7 +568,7 @@ const getCharacterModel = async (req, res) => {
   const userInfo = req.body;
   console.log(`getCharacterModel : ${userInfo}`);
 
-  const result = await DB(Q_MODEL_RESOURCE_INFO, [
+  const result = await slaveDB(Q_MODEL_RESOURCE_INFO, [
     userInfo.project_id,
     userInfo.speaker,
   ]);
@@ -580,7 +584,7 @@ export const getMainLoadingImageRandom = async (req, res) => {
 
   logger.info(`getMainLoadingImageRandom ${lang}`);
 
-  const result = await DB(
+  const result = await slaveDB(
     `
     SELECT fn_get_design_info(b.image_id, 'url') image_url 
          , fn_get_design_info(b.image_id, 'key') image_key
@@ -1232,6 +1236,33 @@ const getIntroCharacterList = async (req, res) => {
   res.status(200).json(result.row);
 };
 
+// 이전 인앱상품 구매자 환불  처리하기
+const refundPreviousInappStar = async (req, res) => {
+  const targets = await DB(`
+  SELECT userkey, sum(current_quantity) quantity  
+    FROM user_property up WHERE currency IN ('gem') AND current_quantity  > 0 AND paid > 0 
+     AND current_quantity <> 77
+   GROUP BY userkey;
+  `);
+
+  let sendQuery = ``;
+
+  targets.row.forEach((user) => {
+    sendQuery += mysql.format(`CALL sp_send_user_mail(?, ?, ?, ?, ?, ?);`, [
+      user.userkey,
+      "refund",
+      "gem",
+      user.quantity,
+      -1,
+      90,
+    ]);
+  });
+
+  const result = await DB(sendQuery);
+
+  res.status(200).json(result.state);
+};
+
 // clientHome에서 func에 따라 분배
 // controller에서 또다시 controller로 보내는것이 옳을까..? ㅠㅠ
 export const clientHome = (req, res) => {
@@ -1498,9 +1529,13 @@ export const clientHome = (req, res) => {
   else if (func === "translateProjectDataWithGlossary")
     translateProjectDataWithGlossary(req, res);
   else if (func === "increaseMissionAdReward")
-    increaseMissionAdReward(req, res);  // 미션 광고 보상 카운트 누적
-  else if (func === "requestAdReward")
-    requestAdReward(req, res); // 광고 보상 처리    
+    increaseMissionAdReward(req, res);
+  // 미션 광고 보상 카운트 누적
+  else if (func === "requestAdReward") requestAdReward(req, res);
+  // 광고 보상 처리
+  else if (func === "translateSingleEpisode") translateSingleEpisode(req, res);
+  else if (func === "refundPreviousInappStar")
+    refundPreviousInappStar(req, res);
   else {
     //  res.status(400).send(`Wrong Func : ${func}`);
     logger.error(`clientHome Error ${func}`);
