@@ -3373,7 +3373,7 @@ export const requestRecommendProject = async (req, res) => {
   const result = await DB(`
   SELECT 
   DISTINCT ifnull(upc.project_id, '') AS last_played_project
-  , fn_get_not_play_project(${userkey}) not_play_project 
+  , fn_get_not_play_project_ver2(${userkey}) not_play_project 
   , fn_get_project_genre(upc.project_id) AS genre
   , group_concat(lph.hashtag_no) hashtag_list
   FROM user_project_current upc, list_project_hashtag lph
