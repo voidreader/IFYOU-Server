@@ -1,14 +1,13 @@
 import mysql from "mysql2/promise";
 import { response } from "express";
-import { DB, logAction, transactionDB } from "../mysqldb";
+import { DB, logAction, slaveDB, transactionDB } from "../mysqldb";
 import { logger } from "../logger";
-import { respondDB, } from "../respondent";
-import { Q_SELECT_COIN_EXCHANGE, } from "../QStore";
+import { respondDB } from "../respondent";
+import { Q_SELECT_COIN_EXCHANGE } from "../QStore";
 import { getUserBankInfo, getCurrencyQuantity } from "./bankController";
 
 //! 판매 중인 코인 환전상품 리스트
 export const getCoinExchangeProductList = async (req, res) => {
-
   const result = await DB(Q_SELECT_COIN_EXCHANGE, [req.body.userkey]);
 
   res.status(200).json(result.row);
@@ -22,14 +21,14 @@ export const coinExchangePurchase = async (req, res) => {
 
   if (exchange_product_id === 0) {
     logger.error(`coinExchangePurchase error 1`);
-    respondDB(res, 80019, '', lang);
+    respondDB(res, 80019, "", lang);
     return;
   }
 
   let coin = 0;
   let currentQuery = ``;
   let exchangeQuery = ``;
-  let result = await DB(
+  let result = await slaveDB(
     `SELECT
     star_quantity
     , coin_quantity
@@ -47,7 +46,7 @@ export const coinExchangePurchase = async (req, res) => {
   // * 실패시..
   if (!result.state || result.row.length === 0) {
     logger.error(`coinExchangePurchase error 2`);
-    respondDB(res, 80097, '', lang);
+    respondDB(res, 80097, "", lang);
     return;
   }
 
@@ -60,7 +59,7 @@ export const coinExchangePurchase = async (req, res) => {
   if (exchange_check === 0) {
     // 교환 여부
     logger.error(`coinExchangePurchase error 3`);
-    respondDB(res, 80025, '', lang);
+    respondDB(res, 80025, "", lang);
     return;
   }
 
@@ -68,7 +67,7 @@ export const coinExchangePurchase = async (req, res) => {
   const userStar = await getCurrencyQuantity(userkey, "gem"); // 유저 보유 스타수
   if (userStar < star_quantity) {
     logger.error(`coinExchangePurchase error 4`);
-    respondDB(res, 80102, '', lang);
+    respondDB(res, 80102, "", lang);
     return;
   }
 
@@ -85,7 +84,7 @@ export const coinExchangePurchase = async (req, res) => {
         consumeResult.state.error
       )}`
     );
-    respondDB(res, 80102, '', lang);
+    respondDB(res, 80102, "", lang);
     return;
   }
 

@@ -1,9 +1,9 @@
 import mysql from "mysql2/promise";
-import { DB } from "../mysqldb";
+import { DB, slaveDB } from "../mysqldb";
 
 // 프리패스 뱃지 정보
 export const getProjectFreepassBadge = async ({ project_id }) => {
-  const result = await DB(`
+  const result = await slaveDB(`
   SELECT fn_get_design_info(a.resource_image_id, 'url') image_url
   , fn_get_design_info(a.resource_image_id, 'key') image_key
 FROM com_currency a
@@ -18,7 +18,7 @@ AND a.currency LIKE '%premiumpass%';
 
 // ? 프로젝트 BGM 배너 정보
 export const getProjectBgmBannerInfo = async ({ project_id }) => {
-  const result = await DB(
+  const result = await slaveDB(
     `
   SELECT ld.image_url, ld.image_key 
   FROM list_design ld
