@@ -434,7 +434,8 @@ const getMainCategoryList = async (lang, country, is_beta, build) => {
   , project_cnt 
   , is_favorite 
   , is_view
-  , ifnull(cmc.genre, '') genre
+  , CASE WHEN project_kind = 'genre' THEN fn_get_localize_text((SELECT z.text_id  FROM list_standard z WHERE z.standard_class ='genre' AND z.code = cmc.genre LIMIT 1), '${lang}')
+  		ELSE '' END genre
   , fn_get_main_category(category_id, '${lang}', '${country}', ${is_beta}, '${build}') project_list
   FROM com_main_category cmc
   WHERE category_id > 0 
