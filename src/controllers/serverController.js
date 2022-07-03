@@ -135,7 +135,7 @@ export const getPlatformEvents = async (req, res) => {
     AND ma.service_package LIKE CONCAT('%', ?, '%')
     ORDER BY ls.sortkey
   ;`,
-    [lang, lang, build]
+    [lang, build]
   ); // ? 장르
 
   // 캐시에서 프로모션 가져오기 (os 필터링)
