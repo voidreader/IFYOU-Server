@@ -434,6 +434,7 @@ const getMainCategoryList = async (lang, country, is_beta, build) => {
   , project_cnt 
   , is_favorite 
   , is_view
+  , ifnull(cmc.genre, '') genre
   , fn_get_main_category(category_id, '${lang}', '${country}', ${is_beta}, '${build}') project_list
   FROM com_main_category cmc
   WHERE category_id > 0 
