@@ -428,7 +428,7 @@ const getMainCategoryList = async (lang, country, is_beta, build) => {
   const result = await DB(`
   SELECT 
   category_id
-  , fn_get_localize_text(name, 'ko') name_text
+  , fn_get_localize_text(name, '${lang}') name_text
   , project_kind 
   , array_kind
   , project_cnt 
