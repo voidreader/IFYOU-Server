@@ -425,7 +425,7 @@ const getProjectGenre = async (project_id, lang) => {
 //? 메인 카테고리 시작
 const getMainCategoryList = async (lang, country, is_beta, build) => {
   //메인 카테고리
-  const result = await DB(`
+  const result = await slaveDB(`
   SELECT 
   category_id
   , fn_get_localize_text(name, 'ko') name_text
@@ -538,7 +538,7 @@ const getIfYouProjectList = async (req, res) => {
   }
 
   // * 가장 마지막에 플레이한 프로젝트 가져오기
-  const latestProject = await DB(`
+  const latestProject = await slaveDB(`
   SELECT 
   a.project_id
   , a.episode_id

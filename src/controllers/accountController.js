@@ -3262,7 +3262,7 @@ const getRecommendPorject = async (userkey, genre, project_list, hashtag_list) =
   let setProjectCount = 0; 
 
   // 순위 정하기
-  result = await DB(`
+  result = await slaveDB(`
   SELECT
   1 AS case_value 
   , ifnull(count(DISTINCT lpm.project_id), 0) AS project_count
@@ -3307,7 +3307,7 @@ const getRecommendPorject = async (userkey, genre, project_list, hashtag_list) =
   logger.info(`${userkey} of recommend project >>> case: ${setCaseValue} genre: ${genre} project: ${project_list} hashtag: ${hashtag_list} `);
 
   if(setCaseValue === 1) {  // -- 1순위(동일 장르, 1개 이상의 동일 옵션 태그)
-    result = await DB(`
+    result = await slaveDB(`
     SELECT group_concat(DISTINCT lpm.project_id) project_list
     FROM list_project_master lpm, list_project_genre lpg, list_project_hashtag lph  
     WHERE lpm.project_id = lpg.project_id  
@@ -3316,14 +3316,14 @@ const getRecommendPorject = async (userkey, genre, project_list, hashtag_list) =
     AND lpm.project_id IN (${project_list})
     AND lph.hashtag_no IN (${hashtag_list});`);
   }else if(setCaseValue === 2){  //  -- 2순위(동일 장르)
-    result = await DB(`
+    result = await slaveDB(`
     SELECT group_concat(DISTINCT lpg.project_id) project_list
 		FROM list_project_genre lpg 
 		WHERE lpg.project_id IN (${project_list})
 		AND lpg.genre_code = '${genre}';	
     `);
   }else if(setCaseValue === 3){  //  -- 3순위(1개 이상의 동일 옵션 태그) 
-    result = await DB(`
+    result = await slaveDB(`
     SELECT group_concat(DISTINCT project_id) project_list
 		FROM list_project_hashtag lph 
 		WHERE lph.project_id IN (${project_list})
@@ -3345,7 +3345,7 @@ const pushRecommendProject = async (projectList) => {
   if (projectList) whereQuery = `WHERE project_id IN (${projectList}) `;
 
   //조회순 높은 순으로 3개 추출
-  const result = await DB(`      
+  const result = await slaveDB(`      
   SELECT project_id
   FROM gamelog.stat_project_sum
   ${whereQuery}
@@ -3370,7 +3370,7 @@ export const requestRecommendProject = async (req, res) => {
 
   //추천 작품 알고리즘 처리
   responseData.project_id = [];
-  const result = await DB(`
+  const result = await slaveDB(`
   SELECT 
   DISTINCT ifnull(upc.project_id, '') AS last_played_project
   , fn_get_not_play_project_ver2(${userkey}) not_play_project 
