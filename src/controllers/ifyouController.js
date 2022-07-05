@@ -5,6 +5,7 @@ import { logger } from "../logger";
 import { respondDB } from "../respondent";
 import { getContinuousAttendanceList } from "./attendanceController";
 import { getUserBankInfo } from "./bankController";
+import { getUserUnreadMailCount } from "./clientController";
 
 //? 이프유 플레이 시작
 //* 연속 출석 관리는 이미 attendanceController에 이미 작업을 해서 그대로 두고
@@ -80,9 +81,9 @@ const getDailyMissionList = async (userkey, lang) => {
 
 //! 광고 보고 보상
 const getAdRewardList = async (userkey, lang, ad_no) => {
-
   let query = ``;
-  if(ad_no === 1){ //미션 광고 보상
+  if (ad_no === 1) {
+    //미션 광고 보상
     query = `
     , fn_get_max_ad_reward_value(${userkey}, 1, 'clear') first_clear
     , second_currency 
@@ -98,14 +99,16 @@ const getAdRewardList = async (userkey, lang, ad_no) => {
     ELSE first_count END AS total_count
     , concat(DATE_FORMAT(now(), '%Y-%m-%d'), ' 23:59:59') remain_date    
     `;
-  }else{  //타이머 광고 보상
+  } else {
+    //타이머 광고 보상
     query = `
     , fn_get_localize_text(car.content, '${lang}') content
     , DATE_FORMAT(DATE_ADD(ifnull(clear_date, '2022-01-01'), INTERVAL min_time MINUTE), '%Y-%m-%d %T') remain_date    
     `;
   }
 
-  const result = await DB(`
+  const result = await DB(
+    `
   SELECT 
   fn_get_localize_text(car.name, '${lang}') name
   , first_currency 
@@ -117,16 +120,17 @@ const getAdRewardList = async (userkey, lang, ad_no) => {
   ON car.ad_no = uarh.ad_no AND uarh.history_no = fn_get_max_ad_reward_value(?, car.ad_no, 'id')
   WHERE car.ad_no = ?
   AND is_public > 0;
-  `, [userkey, ad_no]);
-  if(result.state && result.row.length > 0){
+  `,
+    [userkey, ad_no]
+  );
+  if (result.state && result.row.length > 0) {
     const { remain_date } = result.row[0];
     const remainDate = new Date(remain_date);
-    result.row[0].remain_date_tick = remainDate.getTime(); // tick 넣어주기!  
+    result.row[0].remain_date_tick = remainDate.getTime(); // tick 넣어주기!
   }
 
   return result.row;
 };
-
 
 //! 일일 미션 보상 받기
 export const requestDailyMissionReward = async (req, res) => {
@@ -245,14 +249,10 @@ export const increaseDailyMissionCount = async (req, res) => {
   logAction(userkey, "ifyou_mission", req.body);
 };
 
-//! 미션 광고 보상 카운트 누적 처리 
+//! 미션 광고 보상 카운트 누적 처리
 export const increaseMissionAdReward = async (req, res) => {
-  
   const {
-    body:{
-      userkey,
-      lang = "KO", 
-    }
+    body: { userkey, lang = "KO" },
   } = req;
 
   const responseData = {};
@@ -268,32 +268,31 @@ export const increaseMissionAdReward = async (req, res) => {
   ON car.ad_no = uarh.ad_no AND uarh.history_no = fn_get_max_ad_reward_value(${userkey}, car.ad_no, 'id')
   WHERE car.ad_no = 1
   AND is_public > 0;`);
-  if(result.state && result.row.length > 0){
+  if (result.state && result.row.length > 0) {
+    const { history_no, clear_date } = result.row[0];
 
-    const { history_no, clear_date, } = result.row[0];
-    
     //이미 지급 받았으면 리턴
-    if(clear_date){
+    if (clear_date) {
       logger.error(`increaseMissionAdReward Error`);
       respondDB(res, 80025, "already done");
-      return;      
+      return;
     }
 
     //누적 데이터가 없으면 새데이터, 있으면 업데이트
-    if(history_no === 0){
+    if (history_no === 0) {
       currentQuery = `INSERT INTO user_ad_reward_history(userkey, ad_no, step, current_result) VALUES(?, 1, 1, 1);`;
       updateQuery += mysql.format(currentQuery, [userkey]);
-    }else{
+    } else {
       currentQuery = `UPDATE user_ad_reward_history SET current_result = current_result + 1 WHERE history_no = ?;`;
       updateQuery += mysql.format(currentQuery, [history_no]);
     }
-    
+
     //카운트 누적
     result = await DB(updateQuery);
-    if(!result.state){
+    if (!result.state) {
       logger.error(`increaseMissionAdReward Error ${result.error}`);
       respondDB(res, 80026, result.error);
-      return;         
+      return;
     }
   }
 
@@ -307,44 +306,38 @@ export const increaseMissionAdReward = async (req, res) => {
   responseData.missionAdReward = await getAdRewardList(userkey, lang, 1);
 
   //타이머 광고 보상
-  responseData.timerAdReward = await getAdRewardList(userkey, lang, 2);  
+  responseData.timerAdReward = await getAdRewardList(userkey, lang, 2);
 
   res.status(200).json(responseData);
   logAction(userkey, "ifyou_ad_count", req.body);
-
 };
 
-//! 미션, 타이머 광고 보상 처리 
-export const requestAdReward = async (req, res) =>{
-
+//! 미션, 타이머 광고 보상 처리
+export const requestAdReward = async (req, res) => {
   const {
-    body:{
-      userkey, 
-      ad_no = -1,
-      lang = "KO",
-    }
+    body: { userkey, ad_no = -1, lang = "KO" },
   } = req;
 
   const responseData = {};
   let whereQuery = ``;
   let currentQuery = ``;
-  let updateQuery = ``; 
+  let updateQuery = ``;
   let mailType = `mission_ad_reward`;
 
   //달성 횟수 초과된 경우
-  if(ad_no === 1){
+  if (ad_no === 1) {
     whereQuery = `
     AND current_result >= fn_get_max_ad_reward_value(${userkey}, step, 'total') 
     AND clear_date IS NULL
     `;
-  }else if(ad_no === 2){
+  } else if (ad_no === 2) {
     whereQuery = `
     AND ifnull(date_add(uarh.clear_date, INTERVAL car.min_time MINUTE), '2022-01-01 00:00:00') < now()
     `;
   }
 
   //메인 타입 변경
-  if(ad_no === 2) {
+  if (ad_no === 2) {
     mailType = `timer_ad_reward`;
   }
 
@@ -369,33 +362,39 @@ export const requestAdReward = async (req, res) =>{
   WHERE car.ad_no = ${ad_no}
   ${whereQuery}
   AND is_public > 0;`);
-  if(result.state && result.row.length > 0){
+  if (result.state && result.row.length > 0) {
+    const { history_no, clear_date, currency, quantity, step } = result.row[0];
 
-    const { history_no, clear_date, currency, quantity, step, } = result.row[0];
-
-    if(clear_date && ad_no === 1) {
+    if (clear_date && ad_no === 1) {
       logger.error(`requestAdReward Error`);
       respondDB(res, 80025, "already done");
-      return;  
+      return;
     }
 
     //메일 전송
     currentQuery = `
     INSERT INTO user_mail(userkey, mail_type, currency, quantity, expire_date, connected_project) 
     VALUES(?, ?, ?, ?, DATE_ADD(NOW(), INTERVAL 1 YEAR), -1);`;
-    updateQuery += mysql.format(currentQuery, [userkey, mailType, currency, quantity]);
-    
-    if(ad_no === 1){ //미션 광고 보상
+    updateQuery += mysql.format(currentQuery, [
+      userkey,
+      mailType,
+      currency,
+      quantity,
+    ]);
+
+    if (ad_no === 1) {
+      //미션 광고 보상
 
       currentQuery = `UPDATE user_ad_reward_history SET clear_date = now() WHERE history_no = ?;`;
       updateQuery += mysql.format(currentQuery, [history_no]);
 
       //다음 단계 insert(마지막 단계 제외)
-      if(step < 3){
+      if (step < 3) {
         currentQuery = `INSERT INTO user_ad_reward_history(userkey, ad_no, step, current_result) VALUES(?, ?, ?, 0);`;
-        updateQuery += mysql.format(currentQuery, [userkey, ad_no, step+1]);
+        updateQuery += mysql.format(currentQuery, [userkey, ad_no, step + 1]);
       }
-    }else{ //타이머 광고 보상
+    } else {
+      //타이머 광고 보상
       currentQuery = `
       INSERT INTO user_ad_reward_history(userkey, ad_no, clear_date) VALUES(?, ?, now());
       `;
@@ -403,10 +402,10 @@ export const requestAdReward = async (req, res) =>{
     }
 
     result = await transactionDB(updateQuery);
-    if(!result.state){
+    if (!result.state) {
       logger.error(`requestAdReward Error ${result.error}`);
       respondDB(res, 80026, result.error);
-      return;        
+      return;
     }
   }
 
@@ -420,11 +419,12 @@ export const requestAdReward = async (req, res) =>{
   responseData.missionAdReward = await getAdRewardList(userkey, lang, 1);
 
   //타이머 광고 보상
-  responseData.timerAdReward = await getAdRewardList(userkey, lang, 2);  
+  responseData.timerAdReward = await getAdRewardList(userkey, lang, 2);
+
+  responseData.unreadMailCount = await getUserUnreadMailCount(userkey);
 
   res.status(200).json(responseData);
   logAction(userkey, "ifyou_ad_reward", req.body);
-
 };
 
 //! 이프유 플레이 전체 리스트
