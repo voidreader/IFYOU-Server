@@ -3366,7 +3366,7 @@ export const requestRecommendProject = async (req, res) => {
     body: { userkey },
   } = req;
 
-  const responseData = {};
+  let responseData = {};
 
   //추천 작품 알고리즘 처리
   responseData.project_id = [];
@@ -3396,6 +3396,7 @@ export const requestRecommendProject = async (req, res) => {
       responseData.project_id = await pushRecommendProject(project_list);
     }
   }
+  responseData.project_id = [];
   
   res.status(200).json(responseData);
 };
