@@ -643,16 +643,7 @@ const getProjectBubbleSetVersionID = async (userInfo) => {
   const result = await slaveDB(
     `
     SELECT lp.bubble_set_id
-         , cbm.bubble_ver
-         , cbm.normal_font_size
-         , cbm.big_font_size
-         , cbm.line_space
-         , cbm.tag_color_affect
-         , cbm.tag_align_type
-         , cbm.tag_textarea_left
-         , cbm.tag_textarea_right
-         , cbm.tag_textarea_top
-         , cbm.tag_textarea_bottom
+         , cbm.*
     FROM list_project_master lp
        , com_bubble_master cbm 
    WHERE lp.project_id = ?
@@ -3253,13 +3244,17 @@ export const requestSelectionHint = async (req, res) => {
 };
 
 //! 추천 알고리즘
-// 2022.06.29 DB 서버 메모리 사용량(90%)까지 올라 기존의 프로시저에 있는 처리 부분을 소스로 뺌   
-const getRecommendPorject = async (userkey, genre, project_list, hashtag_list) => {
-
-  let result = ''; 
-  let projectList = '';
+// 2022.06.29 DB 서버 메모리 사용량(90%)까지 올라 기존의 프로시저에 있는 처리 부분을 소스로 뺌
+const getRecommendPorject = async (
+  userkey,
+  genre,
+  project_list,
+  hashtag_list
+) => {
+  let result = "";
+  let projectList = "";
   let setCaseValue = 0;
-  let setProjectCount = 0; 
+  let setProjectCount = 0;
 
   // 순위 정하기
   result = await slaveDB(`
@@ -3287,26 +3282,29 @@ const getRecommendPorject = async (userkey, genre, project_list, hashtag_list) =
   WHERE lph.project_id IN (${project_list})
   AND lph.hashtag_no IN (${hashtag_list});
   `);
-  if(result.state && result.row.length > 0){
+  if (result.state && result.row.length > 0) {
     //순위 정하기
     // eslint-disable-next-line no-restricted-syntax
-    for(const item of result.row){
-      const { case_value, project_count, } = item;
-      if(
-        (case_value === 1 && project_count > 2) || 
-        (case_value === 2 && project_count > 2 && setProjectCount < 3) || 
+    for (const item of result.row) {
+      const { case_value, project_count } = item;
+      if (
+        (case_value === 1 && project_count > 2) ||
+        (case_value === 2 && project_count > 2 && setProjectCount < 3) ||
         (case_value === 3 && project_count > 2 && setProjectCount < 3)
       ) {
         setCaseValue = case_value;
         setProjectCount = project_count;
       }
     }
-    if(setProjectCount < 3) setCaseValue = 0;  //작품 수가 3개 미만이면, 초기화
+    if (setProjectCount < 3) setCaseValue = 0; //작품 수가 3개 미만이면, 초기화
   }
 
-  logger.info(`${userkey} of recommend project >>> case: ${setCaseValue} genre: ${genre} project: ${project_list} hashtag: ${hashtag_list} `);
+  logger.info(
+    `${userkey} of recommend project >>> case: ${setCaseValue} genre: ${genre} project: ${project_list} hashtag: ${hashtag_list} `
+  );
 
-  if(setCaseValue === 1) {  // -- 1순위(동일 장르, 1개 이상의 동일 옵션 태그)
+  if (setCaseValue === 1) {
+    // -- 1순위(동일 장르, 1개 이상의 동일 옵션 태그)
     result = await slaveDB(`
     SELECT group_concat(DISTINCT lpm.project_id) project_list
     FROM list_project_master lpm, list_project_genre lpg, list_project_hashtag lph  
@@ -3315,14 +3313,16 @@ const getRecommendPorject = async (userkey, genre, project_list, hashtag_list) =
     AND lpg.genre_code = '${genre}'
     AND lpm.project_id IN (${project_list})
     AND lph.hashtag_no IN (${hashtag_list});`);
-  }else if(setCaseValue === 2){  //  -- 2순위(동일 장르)
+  } else if (setCaseValue === 2) {
+    //  -- 2순위(동일 장르)
     result = await slaveDB(`
     SELECT group_concat(DISTINCT lpg.project_id) project_list
 		FROM list_project_genre lpg 
 		WHERE lpg.project_id IN (${project_list})
 		AND lpg.genre_code = '${genre}';	
     `);
-  }else if(setCaseValue === 3){  //  -- 3순위(1개 이상의 동일 옵션 태그) 
+  } else if (setCaseValue === 3) {
+    //  -- 3순위(1개 이상의 동일 옵션 태그)
     result = await slaveDB(`
     SELECT group_concat(DISTINCT project_id) project_list
 		FROM list_project_hashtag lph 
@@ -3330,7 +3330,7 @@ const getRecommendPorject = async (userkey, genre, project_list, hashtag_list) =
     AND lph.hashtag_no IN (${hashtag_list});    
     `);
   }
-  if(result.state && result.row.length > 0){
+  if (result.state && result.row.length > 0) {
     projectList = result.row[0].project_list;
   }
 
@@ -3366,7 +3366,7 @@ export const requestRecommendProject = async (req, res) => {
     body: { userkey },
   } = req;
 
-  let responseData = {};
+  const responseData = {};
 
   //추천 작품 알고리즘 처리
   responseData.project_id = [];
@@ -3392,11 +3392,16 @@ export const requestRecommendProject = async (req, res) => {
 
     //아직 모든 작품을 플레이 하지 않은 경우(플레이를 아예 안했거나 다한 경우 제외)
     if (last_played_project && not_play_project) {
-      const project_list = await getRecommendPorject(userkey, genre, not_play_project, hashtag_list);
+      const project_list = await getRecommendPorject(
+        userkey,
+        genre,
+        not_play_project,
+        hashtag_list
+      );
       responseData.project_id = await pushRecommendProject(project_list);
     }
   }
   responseData.project_id = [];
-  
+
   res.status(200).json(responseData);
 };
