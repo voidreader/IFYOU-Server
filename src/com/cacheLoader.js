@@ -30,7 +30,7 @@ export const getCacheProduct = async (lang) => {
     AND lang.master_id = a.product_master_id 
     AND lang.lang  = '${lang}'
     AND now() BETWEEN a.from_date AND a.to_date
-    ORDER BY product_type, product_id;
+    ORDER BY product_type, a.from_date DESC, a.product_id;
     `
   );
 
