@@ -670,6 +670,9 @@ VALUES( ?, ?, ?, ?, ?, ?, ?, ? );
 export const UQ_SEND_MAIL_NEWBIE = `INSERT INTO user_mail( userkey, mail_type, currency, quantity, expire_date, connected_project ) 
 VALUES(?, 'newbie', ?, 1, DATE_ADD(NOW(), INTERVAL 1 YEAR), -1);`;
 
+export const UQ_SEND_MAIL_NEWBIE_GEM = `INSERT INTO user_mail( userkey, mail_type, currency, quantity, expire_date, connected_project ) 
+VALUES(?, 'newbie', 'gem', 100, DATE_ADD(NOW(), INTERVAL 1 YEAR), -1);`;
+
 // 작품별 꾸미기 저장 쿼리
 export const UQ_SAVE_STORY_PROFILE = `
 INSERT INTO user_story_profile ( userkey, project_id, currency, sorting_order, pos_x, pos_y, width, height, angle ) 
