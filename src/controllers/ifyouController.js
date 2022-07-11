@@ -117,11 +117,13 @@ const getAdRewardList = async (userkey, lang, ad_no) => {
   ${query}
   FROM com_ad_reward car
   LEFT OUTER JOIN user_ad_reward_history uarh 
-  ON car.ad_no = uarh.ad_no AND uarh.history_no = fn_get_max_ad_reward_value(?, car.ad_no, 'id')
+  ON car.ad_no = uarh.ad_no
+  AND uarh.userkey = ?
+  AND uarh.history_no = fn_get_max_ad_reward_value(?, car.ad_no, 'id')
   WHERE car.ad_no = ?
   AND is_public > 0;
   `,
-    [userkey, ad_no]
+    [userkey, userkey, ad_no]
   );
   if (result.state && result.row.length > 0) {
     const { remain_date } = result.row[0];
@@ -265,7 +267,9 @@ export const increaseMissionAdReward = async (req, res) => {
   , clear_date
   FROM com_ad_reward car
   LEFT OUTER JOIN user_ad_reward_history uarh 
-  ON car.ad_no = uarh.ad_no AND uarh.history_no = fn_get_max_ad_reward_value(${userkey}, car.ad_no, 'id')
+  ON car.ad_no = uarh.ad_no 
+  And uarh.userkey = ${userkey}
+  AND uarh.history_no = fn_get_max_ad_reward_value(${userkey}, car.ad_no, 'id')
   WHERE car.ad_no = 1
   AND is_public > 0;`);
   if (result.state && result.row.length > 0) {
@@ -358,7 +362,9 @@ export const requestAdReward = async (req, res) => {
   ELSE first_count END total_count
   FROM com_ad_reward car 
   LEFT OUTER JOIN user_ad_reward_history uarh
-  ON car.ad_no = uarh.ad_no AND uarh.history_no = fn_get_max_ad_reward_value(${userkey}, car.ad_no, 'id')
+  ON car.ad_no = uarh.ad_no 
+  AND uarh.userkey = ${userkey}
+  AND uarh.history_no = fn_get_max_ad_reward_value(${userkey}, car.ad_no, 'id')
   WHERE car.ad_no = ${ad_no}
   ${whereQuery}
   AND is_public > 0;`);
