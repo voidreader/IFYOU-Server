@@ -47,6 +47,7 @@ import {
   Q_SELECT_PROJECT_ALL_EMOTICONS,
   Q_SELECT_ENDING_HINT,
   Q_SELECT_SELECTION_HINT_PURCHASE,
+  UQ_SEND_MAIL_NEWBIE_GEM,
 } from "../USERQStore";
 
 import { logger } from "../logger";
@@ -1749,6 +1750,11 @@ export const registerClientAccount = async (req, res) => {
     // await DB(UQ_SEND_MAIL_NEWBIE, [userResult.row[0].userkey, "ifyouFrame02"]);
     // await DB(UQ_SEND_MAIL_NEWBIE, [userResult.row[0].userkey, "ifyouFrame03"]);
     // await DB(UQ_SEND_MAIL_NEWBIE, [userResult.row[0].userkey, "ifyouFrame04"]);
+    
+    // * 2022.07.10 
+    // 신규 가입시 100 스타 지급
+    await DB(UQ_SEND_MAIL_NEWBIE_GEM, [userResult.row[0].userkey]);
+    
   }
   //}
 
