@@ -85,6 +85,7 @@ import {
   getUserStoryAbilityRawList,
 } from "./abilityController";
 import { getUserSelectionPurchaseInfo } from "./selectionController";
+import { cache } from "../init";
 
 dotenv.config();
 
@@ -2294,7 +2295,7 @@ export const updateUserIllustHistory = async (req, res) => {
 
 // * 2021.12.19 프로젝트 리소스 한번에 가져오기
 // * 쿼리 통합
-const getProjectResources = async (project_id, lang, bubbleID, userkey) => {
+const getProjectResources = async (project_id, lang, userkey) => {
   const responseData = {};
 
   let query = "";
@@ -2307,16 +2308,10 @@ const getProjectResources = async (project_id, lang, bubbleID, userkey) => {
   query += mysql.format(Q_SELECT_PROJECT_MODEL_ALL_FILES, [project_id]); // 5. models 캐릭터 모델
   query += mysql.format(Q_SELECT_PROJECT_LIVE_OBJECT_ALL_FILES, [project_id]); // 6. liveObjects 라이브 오브제
   query += mysql.format(Q_SELECT_PROJECT_LIVE_ILLUST_ALL_FILES, [project_id]); // 7. liveIllusts 라이브 일러스트
-  query += mysql.format(Q_SELECT_PROJECT_BUBBLE_SPRITE, [
-    bubbleID,
-    bubbleID,
-    bubbleID,
-    bubbleID,
-  ]); // 8. bubbleSprite 말풍선 스프라이트
-  query += mysql.format(Q_SELECT_PROJECT_ALL_MINICUT, [lang, project_id]); // 9. minicuts 미니컷
+  query += mysql.format(Q_SELECT_PROJECT_ALL_MINICUT, [lang, project_id]); // 8. minicuts 미니컷
 
   // * 조정
-  query += mysql.format(Q_SELECT_EPISODE_LOADING, [project_id]); // [10]. 에피소드 로딩 리스트
+  query += mysql.format(Q_SELECT_EPISODE_LOADING, [project_id]); // [9]. 에피소드 로딩 리스트
   query += mysql.format(Q_SELECT_MISSION_ALL, [
     lang,
     lang,
@@ -2324,11 +2319,11 @@ const getProjectResources = async (project_id, lang, bubbleID, userkey) => {
     lang,
     userkey,
     project_id,
-  ]); // [11]. 미션 정보
+  ]); // [10]. 미션 정보
 
-  query += mysql.format(Q_USER_EPISODE_SCENE_PROGRESS, [userkey, project_id]); // [12] 유저별 에피소드 상황 히스토리
-  query += mysql.format(Q_SELECT_SCENE_HISTORY, [userkey, project_id]); // [13] 유저, 프로젝트에서 경험한 모든 사건 ID 목록
-  query += mysql.format(Q_USER_EPISODE_PURCHASE, [userkey, project_id]); // [14] 에피소드 구매 정보
+  query += mysql.format(Q_USER_EPISODE_SCENE_PROGRESS, [userkey, project_id]); // [11] 유저별 에피소드 상황 히스토리
+  query += mysql.format(Q_SELECT_SCENE_HISTORY, [userkey, project_id]); // [12] 유저, 프로젝트에서 경험한 모든 사건 ID 목록
+  query += mysql.format(Q_USER_EPISODE_PURCHASE, [userkey, project_id]); // [13] 에피소드 구매 정보
   query += mysql.format(Q_SELECT_SIDE_STORY, [
     lang,
     lang,
@@ -2345,20 +2340,20 @@ const getProjectResources = async (project_id, lang, bubbleID, userkey) => {
     userkey,
     lang,
     project_id,
-  ]); // [15]. 에피소드 사이드 스토리
-  query += mysql.format(Q_SELECT_EPISODE_PROGRESS, [userkey, project_id]); //  [16]. 에피소드 progress
-  query += mysql.format(Q_SELECT_EPISODE_HISTORY, [userkey, project_id]); // [17]. 에피소드 히스토리
-  query += mysql.format(Q_SELECT_PROJECT_ALL_BG, [project_id]); // [18] 프로젝트 모든 배경
-  query += mysql.format(Q_SELECT_PROJECT_ALL_EMOTICONS, [project_id]); // [19] 프로젝트 모든 이모티콘
-  query += mysql.format(Q_SELECT_ENDING_HINT, [project_id]); // [20] 엔딩 힌트
+  ]); // [14]. 에피소드 사이드 스토리
+  query += mysql.format(Q_SELECT_EPISODE_PROGRESS, [userkey, project_id]); //  [15]. 에피소드 progress
+  query += mysql.format(Q_SELECT_EPISODE_HISTORY, [userkey, project_id]); // [16]. 에피소드 히스토리
+  query += mysql.format(Q_SELECT_PROJECT_ALL_BG, [project_id]); // [17] 프로젝트 모든 배경
+  query += mysql.format(Q_SELECT_PROJECT_ALL_EMOTICONS, [project_id]); // [18] 프로젝트 모든 이모티콘
+  query += mysql.format(Q_SELECT_ENDING_HINT, [project_id]); // [19] 엔딩 힌트
   query += mysql.format(Q_SELECT_SELECTION_HINT_PURCHASE, [
     project_id,
     userkey,
-  ]); // [21] 선택지 힌트 구매
+  ]); // [20] 선택지 힌트 구매
   query += mysql.format(
     `SELECT * FROM user_mission_all_clear WHERE userkey = ? AND project_id = ?;`,
     [userkey, project_id]
-  ); // [22] 미션 올 클리어
+  ); // [21] 미션 올 클리어
 
   // * 모인 쿼리 실행
   const result = await slaveDB(query);
@@ -2430,9 +2425,9 @@ const getProjectResources = async (project_id, lang, bubbleID, userkey) => {
   }); // 라이브 일러스트 포장 끝
 
   //미션 힌트
-  if (result.row[11].length > 0) {
+  if (result.row[10].length > 0) {
     // eslint-disable-next-line no-restricted-syntax
-    for (const item of result.row[11]) {
+    for (const item of result.row[10]) {
       const { hint } = item;
       const hints = [];
 
@@ -2456,46 +2451,46 @@ const getProjectResources = async (project_id, lang, bubbleID, userkey) => {
     }
   }
 
-  // [12] 씬 프로그레스
+  // [11] 씬 프로그레스
   const scenceProgress = [];
-  if (result.row[12].length > 0) {
+  if (result.row[11].length > 0) {
     // eslint-disable-next-line no-restricted-syntax
-    for (const item of result.row[12]) {
+    for (const item of result.row[11]) {
       scenceProgress.push(item.scene_id);
     }
   }
 
-  // [13] 씬 히스토리
+  // [12] 씬 히스토리
   const scenceHistory = [];
-  if (result.row[13].length > 0) {
+  if (result.row[12].length > 0) {
     // eslint-disable-next-line no-restricted-syntax
-    for (const item of result.row[13]) {
+    for (const item of result.row[12]) {
       scenceHistory.push(item.scene_id);
     }
   }
 
-  // [16] 에피소드 프로그레스
+  // [15] 에피소드 프로그레스
   const episodeProgress = [];
-  if (result.row[16].length > 0) {
+  if (result.row[15].length > 0) {
     // eslint-disable-next-line no-restricted-syntax
-    for (const item of result.row[16]) {
+    for (const item of result.row[15]) {
       episodeProgress.push(item.episode_id);
     }
   }
 
-  // [17] 에피소드 히스토리
+  // [16] 에피소드 히스토리
   const episodeHistory = [];
-  if (result.row[17].length > 0) {
+  if (result.row[16].length > 0) {
     // eslint-disable-next-line no-restricted-syntax
-    for (const item of result.row[17]) {
+    for (const item of result.row[16]) {
       episodeHistory.push(item.episode_id);
     }
   }
 
-  // [20] 엔딩 힌트에 능력치 조건 추가
-  if (result.row[20].length > 0) {
+  // [19] 엔딩 힌트에 능력치 조건 추가
+  if (result.row[19].length > 0) {
     // eslint-disable-next-line no-restricted-syntax
-    for (const item of result.row[20]) {
+    for (const item of result.row[19]) {
       let { ability_condition } = item;
       const abilitys = [];
 
@@ -2532,10 +2527,10 @@ const getProjectResources = async (project_id, lang, bubbleID, userkey) => {
     }
   }
 
-  // [15] 스페셜 에피소드 힌트 관련 에피소드 추가
-  if (result.row[15].length > 0) {
+  // [14] 스페셜 에피소드 힌트 관련 에피소드 추가
+  if (result.row[14].length > 0) {
     // eslint-disable-next-line no-restricted-syntax
-    for (const item of result.row[15]) {
+    for (const item of result.row[14]) {
       const { side_hint } = item;
       const hints = [];
 
@@ -2559,11 +2554,11 @@ const getProjectResources = async (project_id, lang, bubbleID, userkey) => {
     }
   }
 
-  // [21] 선택지 힌트 구매
+  // [20] 선택지 힌트 구매
   const selectionHintPurchase = {};
-  if (result.row[21].length > 0) {
+  if (result.row[20].length > 0) {
     // eslint-disable-next-line no-restricted-syntax
-    for (const item of result.row[21]) {
+    for (const item of result.row[20]) {
       // 키 없으면 추가해준다.
       if (
         !Object.prototype.hasOwnProperty.call(
@@ -2583,25 +2578,24 @@ const getProjectResources = async (project_id, lang, bubbleID, userkey) => {
   responseData.nametag = result.row[2];
   responseData.bgms = result.row[3];
   responseData.illusts = result.row[4];
-  responseData.backgrounds = result.row[18];
+  responseData.backgrounds = result.row[17];
   responseData.emoticons = emoticons;
   responseData.models = models;
   responseData.liveObjects = liveObjects;
   responseData.liveIllusts = liveIllusts;
-  responseData.bubbleSprite = result.row[8];
-  responseData.minicuts = result.row[9];
-  responseData.episodeLoadingList = result.row[10];
-  responseData.missions = result.row[11];
+  responseData.minicuts = result.row[8];
+  responseData.episodeLoadingList = result.row[9];
+  responseData.missions = result.row[10];
   responseData.sceneProgress = scenceProgress;
   responseData.sceneHistory = scenceHistory;
   responseData.episodeProgress = episodeProgress;
   responseData.episodeHistory = episodeHistory;
   responseData.dressProgress = [];
-  responseData.episodePurchase = result.row[14];
-  responseData.sides = result.row[15];
-  responseData.endingHint = result.row[20];
+  responseData.episodePurchase = result.row[13];
+  responseData.sides = result.row[14];
+  responseData.endingHint = result.row[19];
   responseData.selectionHintPurchase = selectionHintPurchase;
-  responseData.missionAllClear = result.row[22].length > 0 ? 1 : 0;
+  responseData.missionAllClear = result.row[21].length > 0 ? 1 : 0;
 
   return responseData;
 };
@@ -2678,9 +2672,21 @@ export const getUserSelectedStory = async (req, res) => {
     lang,
   };
 
+
   // 프로젝트에 연결된 BubbleSet ID, Version 정보 추가
-  const bubbleMaster = await getProjectBubbleSetVersionID(userInfo);
-  // console.log(bubbleMaster);
+  let ProjectBubbleSetId = parseInt(clientBubbleSetID, 10);
+  const result = await slaveDB('SELECT * FROM list_project_master WHERE project_id = ?;', [project_id]);
+  if(result.state && result.row.length > 0) {
+    if(ProjectBubbleSetId !== result.row[0].bubble_set_id) ProjectBubbleSetId = result.row[0].bubble_set_id;
+  }
+
+  //버전 셋팅
+  let bubbleMaster = '';
+  const bubbleMasterCache = cache.get("bubble").bubbleMaster;
+  bubbleMasterCache.forEach((item) => {
+    if(item.bubbleID === ProjectBubbleSetId) bubbleMaster = item;
+  });
+  if(bubbleMaster === "") bubbleMaster = { bubbleID: 25, bubble_ver: 1, }; //없으면 디폴트로
 
   // 프로젝트와 연결된 말풍선 세트 정보를 따로 갖고 있는다. (아래에서 비교)
   userInfo.bubbleID = bubbleMaster.bubbleID;
@@ -2708,7 +2714,6 @@ export const getUserSelectedStory = async (req, res) => {
   const projectResources = await getProjectResources(
     userInfo.project_id,
     userInfo.lang,
-    userInfo.bubbleID,
     userInfo.userkey
   );
   if (projectResources == null) {
@@ -2728,7 +2733,7 @@ export const getUserSelectedStory = async (req, res) => {
   storyInfo.models = projectResources.models; // 캐릭터 모델 정보
   storyInfo.liveObjects = projectResources.liveObjects; // 라이브 오브젝트
   storyInfo.liveIllusts = projectResources.liveIllusts; // 라이브 일러스트
-  storyInfo.bubbleSprite = projectResources.bubbleSprite; // 프로젝트 말풍선 스프라이트 정보
+  storyInfo.bubbleSprite = cache.get("bubble").bubbleSprite[userInfo.bubbleID.toString()]; // 프로젝트 말풍선 스프라이트 정보
   storyInfo.episodeLoadingList = projectResources.episodeLoadingList; // 에피소드 로딩 리스트
   storyInfo.missions = projectResources.missions; // 프로젝트의 모든 도전과제
 
@@ -2763,7 +2768,7 @@ export const getUserSelectedStory = async (req, res) => {
     userInfo.clientBubbleSetID != userInfo.bubbleID
   ) {
     // logger.info(`!!! Response with BubbleSetDetail`);
-    const allBubbleSet = await getProjectBubbleSetDetail(userInfo); // * 프로젝트 말풍선 세트 상세 정보
+    const allBubbleSet = cache.get("bubble").bubbleSet[userInfo.bubbleID.toString()];  
 
     // 말풍선 세트를 Variation, Template 별로 정리합니다.
     storyInfo.bubbleSet = arrangeBubbleSet(allBubbleSet);

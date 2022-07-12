@@ -4,6 +4,7 @@ import { getProductDetailList } from "../controllers/shopController";
 import { cache, loadingCacheData } from "../init";
 import { logger } from "../logger";
 import { DB, slaveDB } from "../mysqldb";
+import { CACHE_BUBBLE_MASTER, CACHE_BUBBLE_SET, CACHE_BUBBLE_SPRITE } from "../QCACHE";
 
 // * 인앱상품 캐시 데이터 조회
 export const getCacheProduct = async (lang) => {
@@ -224,6 +225,77 @@ export const getCachePlatformEvent = async () => {
   return responseData;
 };
 
+const getBubbleDetail = async (key, kind) => {
+
+  let result;
+  if(kind === 'set'){
+    result = await slaveDB(CACHE_BUBBLE_SET, [key]);
+  }else{
+    result = await slaveDB(CACHE_BUBBLE_SPRITE, [key]);
+  }
+
+  return result.row;
+};
+
+// * 말풍선 정보
+const getCacheBubble = async () => {
+
+  let result = '';
+  let promise = [];
+  const responseData = {};
+  let bubbleObj = {};
+
+  // 말풍선 버전 
+  result = await slaveDB(CACHE_BUBBLE_MASTER);
+  responseData.bubbleMaster = result.row;
+
+  result.row.forEach(async (item) => {
+    const key = item.set_id.toString();
+    if (!Object.hasOwnProperty.call(bubbleObj, key)) {
+      bubbleObj[key] = [];
+    }
+    promise.push( getBubbleDetail(key, 'set') );
+  });
+  
+  // 말풍선 세트
+  await Promise.all(promise)
+    .then((values) => {
+      values.forEach((arr) => {
+        arr.forEach((item) => {
+          bubbleObj[item.set_id.toString()].push(item);
+        });
+      });
+    })
+    .catch((err) => {
+      console.log(err);
+  });
+  responseData.bubbleSet = bubbleObj;
+
+  // 말풍선 sprite
+  promise = [];
+  bubbleObj = {};
+  result.row.forEach(async (item) => {
+    const key = item.set_id.toString();
+    if (!Object.hasOwnProperty.call(bubbleObj, key)) {
+      bubbleObj[key] = [];
+    }
+    promise.push( getBubbleDetail(key, 'sprite') );
+  }); 
+  await Promise.all(promise)
+    .then((values) => {
+      values.forEach((arr) => {
+        arr.forEach((item) => {
+          bubbleObj[item.set_id.toString()].push(item);
+        });
+      });
+    })
+    .catch((err) => {
+      console.log(err);
+  });
+  responseData.bubbleSprite = bubbleObj;
+  return responseData;
+};
+
 // * 공지사항, 프로모션 캐시 리프레시
 export const refreshCachePlatformEvent = async (req, res) => {
   const cacheEvent = await getCachePlatformEvent();
@@ -284,6 +356,24 @@ export const refreshCacheProduct = async (req, res) => {
 
   if (res) res.status(200).send("Done");
 };
+
+// * 수정이 많지 않은 정보 캐시 리프레쉬
+export const refreshCacheFixedData = async(req, res) => {
+
+  let result = '';
+  
+  //말풍선 
+  const bubble = await getCacheBubble();
+  if(!cache.has("bubble")) cache.set("bubble", bubble);
+  else{
+    // 배포 했다면, 다시 캐싱 정보 업데이트 
+    result = await slaveDB("SELECT * FROM admin_deploy_history WHERE project_id = -1 AND server = 'ifyou' AND kind = 'bubble' AND deploy_date >= now();");
+    if(result.state && result.row.length > 0) cache.set("bubble", bubble);
+  }
+  
+  if (res) res.status(200).send("Done");
+};
+
 
 // 캐시 리프레시
 const schduleCacheRefresh = schedule.scheduleJob("*/2 * * * *", async () => {
