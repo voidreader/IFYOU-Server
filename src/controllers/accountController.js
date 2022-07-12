@@ -2672,34 +2672,25 @@ export const getUserSelectedStory = async (req, res) => {
     lang,
   };
 
-  // 프로젝트에 연결된 BubbleSet ID, Version 정보 추가
-  //const bubbleMaster = await getProjectBubbleSetVersionID(userInfo);
-  // console.log(bubbleMaster);
 
-  //버전 체크(보낸 버전이 맞으면 그대로, 아니면 작품 bubble_set_id로)
-  let checkBubbleVersion = 0;
-  const result = await slaveDB(`
-  SELECT 
-  CASE WHEN ${userBubbleVersion} = bubble_set_id THEN ${userBubbleVersion} ELSE bubble_set_id END checked_bubble_version
-  FROM list_project_master WHERE project_id = ?;`, [project_id]);
-  if(result.state && result.row.length > 0) checkBubbleVersion = result.row[0].checked_bubble_version;
+  // 프로젝트에 연결된 BubbleSet ID, Version 정보 추가
+  let ProjectBubbleSetId = parseInt(clientBubbleSetID, 10);
+  const result = await slaveDB('SELECT * FROM list_project_master WHERE project_id = ?;', [project_id]);
+  if(result.state && result.row.length > 0) {
+    if(ProjectBubbleSetId !== result.row[0].bubble_set_id) ProjectBubbleSetId = result.row[0].bubble_set_id;
+  }
 
   //버전 셋팅
-  const bubbleMasterCheck = cache.get("bubble").bubbleMaster;
   let bubbleMaster = '';
-  bubbleMasterCheck.forEach((item) => {
-    const { bubbleID, } = item;
-    if(bubbleID === checkBubbleVersion) bubbleMaster = item;
+  const bubbleMasterCache = cache.get("bubble").bubbleMaster;
+  bubbleMasterCache.forEach((item) => {
+    if(item.bubbleID === ProjectBubbleSetId) bubbleMaster = item;
   });
   if(bubbleMaster === "") bubbleMaster = { bubbleID: 25, bubble_ver: 1, }; //없으면 디폴트로
-  
+
   // 프로젝트와 연결된 말풍선 세트 정보를 따로 갖고 있는다. (아래에서 비교)
   userInfo.bubbleID = bubbleMaster.bubbleID;
   userInfo.bubble_ver = bubbleMaster.bubble_ver;
-
-  // 프로젝트 말풍선 세트, sprite
-  const bubbleSet = cache.get("bubble").bubbleSet[userInfo.bubbleID.toString()];  
-  const bubbleSprite = cache.get("bubble").bubbleSprite[userInfo.bubbleID.toString()];
 
   // logger.info(`>>> getUserSelectedStory [${JSON.stringify(userInfo)}]`);
 
@@ -2742,7 +2733,7 @@ export const getUserSelectedStory = async (req, res) => {
   storyInfo.models = projectResources.models; // 캐릭터 모델 정보
   storyInfo.liveObjects = projectResources.liveObjects; // 라이브 오브젝트
   storyInfo.liveIllusts = projectResources.liveIllusts; // 라이브 일러스트
-  storyInfo.bubbleSprite = bubbleSprite; // 프로젝트 말풍선 스프라이트 정보
+  storyInfo.bubbleSprite = cache.get("bubble").bubbleSprite[userInfo.bubbleID.toString()]; // 프로젝트 말풍선 스프라이트 정보
   storyInfo.episodeLoadingList = projectResources.episodeLoadingList; // 에피소드 로딩 리스트
   storyInfo.missions = projectResources.missions; // 프로젝트의 모든 도전과제
 
@@ -2777,7 +2768,7 @@ export const getUserSelectedStory = async (req, res) => {
     userInfo.clientBubbleSetID != userInfo.bubbleID
   ) {
     // logger.info(`!!! Response with BubbleSetDetail`);
-    const allBubbleSet = bubbleSet;
+    const allBubbleSet = cache.get("bubble").bubbleSet[userInfo.bubbleID.toString()];  
 
     // 말풍선 세트를 Variation, Template 별로 정리합니다.
     storyInfo.bubbleSet = arrangeBubbleSet(allBubbleSet);
