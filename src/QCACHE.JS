@@ -2,8 +2,8 @@
 
 
 export const CACHE_BUBBLE_MASTER= `
-SELECT lp.project_id 
-, lp.bubble_set_id AS bubbleID 
+SELECT 
+DISTINCT lp.bubble_set_id AS bubbleID 
 , cbm.*
 FROM list_project_master lp, com_bubble_master cbm 
 WHERE lp.project_id > 0
