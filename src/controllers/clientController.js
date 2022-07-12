@@ -171,6 +171,7 @@ import {
   refreshCachePlatformEvent,
   refreshCacheProduct,
   refreshCacheServerMaster,
+  refreshCacheFixedData,
 } from "../com/cacheLoader";
 import {
   createArabicGlossary,
@@ -1546,6 +1547,7 @@ export const clientHome = (req, res) => {
   else if (func === "translateSingleEpisode") translateSingleEpisode(req, res);
   else if (func === "refundPreviousInappStar")
     refundPreviousInappStar(req, res);
+  else if (func === "refreshCacheFixedData") refreshCacheFixedData(req, res);
   else {
     //  res.status(400).send(`Wrong Func : ${func}`);
     logger.error(`clientHome Error ${func}`);
