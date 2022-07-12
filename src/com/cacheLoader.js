@@ -247,14 +247,16 @@ const getCacheBubble = async () => {
 
   // 말풍선 버전 
   result = await slaveDB(CACHE_BUBBLE_MASTER);
+  responseData.bubbleMaster = result.row;
+
   result.row.forEach(async (item) => {
-    const key = item.bubbleID.toString();
+    const key = item.set_id.toString();
     if (!Object.hasOwnProperty.call(bubbleObj, key)) {
       bubbleObj[key] = [];
     }
     promise.push( getBubbleDetail(key, 'set') );
   });
- 
+  
   // 말풍선 세트
   await Promise.all(promise)
     .then((values) => {
@@ -273,7 +275,7 @@ const getCacheBubble = async () => {
   promise = [];
   bubbleObj = {};
   result.row.forEach(async (item) => {
-    const key = item.bubbleID.toString();
+    const key = item.set_id.toString();
     if (!Object.hasOwnProperty.call(bubbleObj, key)) {
       bubbleObj[key] = [];
     }
@@ -291,19 +293,6 @@ const getCacheBubble = async () => {
       console.log(err);
   });
   responseData.bubbleSprite = bubbleObj;
-
-  bubbleObj = {};
-  result.row.forEach((item) => {
-    const key = item.project_id.toString();
-    if (!Object.hasOwnProperty.call(bubbleObj, key)) {
-      bubbleObj[key] = [];
-    }
-    delete item.project_id;
-
-    bubbleObj[key].push(item);
-  });
-  responseData.bubbleMaster = bubbleObj;
-
   return responseData;
 };
 

@@ -2676,22 +2676,29 @@ export const getUserSelectedStory = async (req, res) => {
   //const bubbleMaster = await getProjectBubbleSetVersionID(userInfo);
   // console.log(bubbleMaster);
 
-  let bubbleMaster = '';
-  const isExist = Object.keys(cache.get("bubble").bubbleMaster).includes(project_id.toString());
-  if(!isExist){
-    bubbleMaster = {
-      bubbleID: 25, 
-      bubble_ver: 1,
-    }
-  }else{
-    bubbleMaster = cache.get("bubble").bubbleMaster[project_id.toString()][0];
-  }
+  //버전 체크(보낸 버전이 맞으면 그대로, 아니면 작품 bubble_set_id로)
+  let checkBubbleVersion = 0;
+  const result = await slaveDB(`
+  SELECT 
+  CASE WHEN ${userBubbleVersion} = bubble_set_id THEN ${userBubbleVersion} ELSE bubble_set_id END checked_bubble_version
+  FROM list_project_master WHERE project_id = ?;`, [project_id]);
+  if(result.state && result.row.length > 0) checkBubbleVersion = result.row[0].checked_bubble_version;
 
+  //버전 셋팅
+  const bubbleMasterCheck = cache.get("bubble").bubbleMaster;
+  let bubbleMaster = '';
+  bubbleMasterCheck.forEach((item) => {
+    const { bubbleID, } = item;
+    if(bubbleID === checkBubbleVersion) bubbleMaster = item;
+  });
+  if(bubbleMaster === "") bubbleMaster = { bubbleID: 25, bubble_ver: 1, }; //없으면 디폴트로
+  
   // 프로젝트와 연결된 말풍선 세트 정보를 따로 갖고 있는다. (아래에서 비교)
   userInfo.bubbleID = bubbleMaster.bubbleID;
   userInfo.bubble_ver = bubbleMaster.bubble_ver;
 
-  const bubbleSet = cache.get("bubble").bubbleSet[userInfo.bubbleID.toString()];  // * 프로젝트 말풍선 세트 상세 정보
+  // 프로젝트 말풍선 세트, sprite
+  const bubbleSet = cache.get("bubble").bubbleSet[userInfo.bubbleID.toString()];  
   const bubbleSprite = cache.get("bubble").bubbleSprite[userInfo.bubbleID.toString()];
 
   // logger.info(`>>> getUserSelectedStory [${JSON.stringify(userInfo)}]`);
