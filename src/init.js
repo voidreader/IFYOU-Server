@@ -14,6 +14,7 @@ import {
   refreshCacheServerMaster,
   refreshCacheLocalizedText,
   refreshCacheProduct,
+  refreshCacheFixedData,
 } from "./com/cacheLoader";
 
 dotenv.config();
@@ -47,6 +48,8 @@ export const loadingCacheData = async () => {
   await refreshCachePlatformEvent(); // 공지사항 및 프로모션
 
   await refreshCacheProduct(); // 인앱상품 리스트
+
+  await refreshCacheFixedData(); // 변경되지 않는 정보
 
   console.log(`Cache Done!`);
   // console.log(cache.size);
