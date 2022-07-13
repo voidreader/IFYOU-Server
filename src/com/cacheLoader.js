@@ -366,8 +366,14 @@ export const refreshCacheFixedData = async(req, res) => {
   const bubble = await getCacheBubble();
   if(!cache.has("bubble")) cache.set("bubble", bubble);
   else{
-    // 배포 했다면, 다시 캐싱 정보 업데이트 
-    result = await slaveDB("SELECT * FROM admin_deploy_history WHERE project_id = -1 AND server = 'ifyou' AND kind = 'bubble' AND deploy_date >= now();");
+    // 배포 했다면, 다시 캐싱 정보 업데이트(더 좋은 방법이 있으면 그걸로 변경 예정) 
+    result = await slaveDB(`
+    SELECT * 
+    FROM admin_deploy_history 
+    WHERE project_id = -1 
+    AND server = 'ifyou' 
+    AND kind = 'bubble' 
+    AND deploy_date >= date_add(now(), INTERVAL -2 MINUTE);`);
     if(result.state && result.row.length > 0) cache.set("bubble", bubble);
   }
   
