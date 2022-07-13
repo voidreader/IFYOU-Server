@@ -652,7 +652,8 @@ export const checkUserIdValidation = async (req, res) => {
   const validationResult = await slaveDB(
     `SELECT fn_get_userkey_info(${userkey}) uid
           , userkey 
-          , nickname 
+          , nickname
+          , country 
        FROM table_account 
       WHERE userkey = ${userkey} AND pincode = ?;`,
     [pin]
@@ -669,6 +670,7 @@ export const checkUserIdValidation = async (req, res) => {
   responseData.nickname = validationResult.row[0].nickname;
   responseData.coin = await getCurrencyQuantity(responseData.userkey, "coin");
   responseData.gem = await getCurrencyQuantity(responseData.userkey, "gem");
+  responseData.country = validationResult.row[0].country;
 
   res.status(200).json(responseData);
 };
