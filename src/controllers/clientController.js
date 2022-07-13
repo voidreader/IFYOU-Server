@@ -182,6 +182,12 @@ import {
   translateText,
   translateWithGlossary,
 } from "../com/com";
+import {
+  getSurveyMain,
+  getSurveyDetail,
+  receiveSurveyReward,
+  requestLocalizingSurvey,
+} from "./surveyController";
 
 dotenv.config();
 
@@ -1548,6 +1554,10 @@ export const clientHome = (req, res) => {
   else if (func === "refundPreviousInappStar")
     refundPreviousInappStar(req, res);
   else if (func === "refreshCacheFixedData") refreshCacheFixedData(req, res);
+  else if (func === "getSurveyMain") getSurveyMain(req, res); 
+  else if (func === "getSurveyDetail") getSurveyDetail(req, res);
+  else if (func === "receiveSurveyReward") receiveSurveyReward(req, res); 
+  else if (func === "requestLocalizingSurvey") requestLocalizingSurvey(req, res); //설문조사
   else {
     //  res.status(400).send(`Wrong Func : ${func}`);
     logger.error(`clientHome Error ${func}`);
