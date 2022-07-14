@@ -503,8 +503,6 @@ const getIfYouProjectList = async (req, res) => {
   , fn_get_design_info(b.category_thumbnail_id, 'key') category_thumbnail_key
   , fn_get_design_info(b.coin_banner_id, 'url') coin_banner_url
   , fn_get_design_info(b.coin_banner_id, 'key') coin_banner_key
-  , fn_get_design_info(b.fastplay_banner_id, 'url') fastplay_banner_url
-  , fn_get_design_info(b.fastplay_banner_id, 'key') fastplay_banner_key  
   , a.banner_model_id -- 메인배너 Live2D 모델ID
   , a.is_lock
   , a.color_rgb
@@ -1554,10 +1552,12 @@ export const clientHome = (req, res) => {
   else if (func === "refundPreviousInappStar")
     refundPreviousInappStar(req, res);
   else if (func === "refreshCacheFixedData") refreshCacheFixedData(req, res);
-  else if (func === "getSurveyMain") getSurveyMain(req, res); 
+  else if (func === "getSurveyMain") getSurveyMain(req, res);
   else if (func === "getSurveyDetail") getSurveyDetail(req, res);
-  else if (func === "receiveSurveyReward") receiveSurveyReward(req, res); 
-  else if (func === "requestLocalizingSurvey") requestLocalizingSurvey(req, res); //설문조사
+  else if (func === "receiveSurveyReward") receiveSurveyReward(req, res);
+  else if (func === "requestLocalizingSurvey")
+    requestLocalizingSurvey(req, res);
+  //설문조사
   else {
     //  res.status(400).send(`Wrong Func : ${func}`);
     logger.error(`clientHome Error ${func}`);
