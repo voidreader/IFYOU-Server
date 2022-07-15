@@ -111,7 +111,7 @@ export const readUserSingleMail = async (req, res, next) => {
     }
 
     // 4. state 변경(mail_type : inapp, ifyoupass인 경우에만 해당)
-    if (currentMail.mail_type === "inapp" || currentMail.mail_type === "ifyoupass") {
+    if (currentMail.mail_type === "inapp" || currentMail.mail_type === "ifyou_pass") {
       const updateState = await DB(
         `UPDATE user_purchase SET state = 2 WHERE purchase_no = ?;`,
         [currentMail.purchase_no]
