@@ -354,6 +354,7 @@ export const refreshCacheProduct = async (req, res) => {
 
   cache.set("product", product);
 
+
   if (res) res.status(200).send("Done");
 };
 
