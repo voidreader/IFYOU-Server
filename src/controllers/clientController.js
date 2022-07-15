@@ -97,6 +97,7 @@ import {
   purchaseInappProduct,
   updatePassTimeDeal,
   userPurchase,
+  purchaseInappProductByMail,
 } from "./shopController";
 import { getUserPropertyHistory, reportRequestError } from "./logController";
 import { useCoupon } from "./couponController";
@@ -1558,6 +1559,7 @@ export const clientHome = (req, res) => {
   else if (func === "getSurveyDetail") getSurveyDetail(req, res);
   else if (func === "receiveSurveyReward") receiveSurveyReward(req, res); 
   else if (func === "requestLocalizingSurvey") requestLocalizingSurvey(req, res); //설문조사
+  else if (func === "purchaseInappProductByMail") purchaseInappProductByMail(req, res); //우편 구매
   else {
     //  res.status(400).send(`Wrong Func : ${func}`);
     logger.error(`clientHome Error ${func}`);

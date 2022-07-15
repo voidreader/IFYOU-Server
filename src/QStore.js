@@ -215,6 +215,7 @@ SELECT ta.userkey
 , ifnull(ta.allpass_expiration, '2022-01-01') allpass_expiration
 , datediff(now(), ta.last_rate_date) diff_rate
 , ta.rate_result
+, ifyou_pass_day
 FROM table_account ta 
 LEFT OUTER JOIN user_tutorial t ON t.userkey = ta.userkey
 WHERE ta.gamebaseid  = ?;
@@ -240,6 +241,7 @@ SELECT ta.userkey
 , ifnull(ta.allpass_expiration, '2022-01-01') allpass_expiration 
 , datediff(now(), ta.last_rate_date) diff_rate
 , ta.rate_result
+, ifyou_pass_day
 FROM table_account ta 
 LEFT OUTER JOIN user_tutorial t ON t.userkey = ta.userkey
 WHERE ta.userkey = ?;
