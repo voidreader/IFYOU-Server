@@ -39,7 +39,7 @@ export const getProductDetailList = async (masterId, product_type) => {
     FROM list_product_daily WHERE master_id = ?;`,
       [masterId]
     );
-  }else if (product_type === "ifyoupass"){
+  }else if (product_type === "ifyou_pass"){
     result = await DB(`SELECT ${masterId} AS master_id, cip.* FROM com_ifyou_pass cip WHERE ifyou_pass_id = 1;`);
   } else {
     // console.log('general',  masterId);
@@ -787,7 +787,7 @@ export const purchaseInappProductByMail = async (req, res) => {
   
   // eslint-disable-next-line no-restricted-syntax
   for(const item of productMaster){    
-    if(item.product_type === 'ifyoupass'){
+    if(item.product_type === 'ifyou_pass'){
       productObj = {
         ...productObj,
         product_master_id: item.product_master_id, 
@@ -836,11 +836,11 @@ export const purchaseInappProductByMail = async (req, res) => {
 
   //즉시 지급
   query = `INSERT INTO user_mail(userkey, mail_type, currency, quantity, expire_date, connected_project, purchase_no) 
-  VALUES(${userkey}, 'ifyoupass', 'gem', ${star_directly_count}, DATE_ADD(NOW(), INTERVAL 1 DAY), -1, ${purchase_no});`;
+  VALUES(${userkey}, 'ifyou_pass', 'gem', ${star_directly_count}, DATE_ADD(NOW(), INTERVAL 1 YEAR), -1, ${purchase_no});`;
 
   //매일 지급
-  query += `INSERT INTO user_mail(userkey, mail_type, currency, quantity, expire_date, connected_project, contents, purchase_no) 
-  VALUES(${userkey}, 'ifyoupass', 'gem', ${star_daily_count}, DATE_ADD(NOW(), INTERVAL 1 DAY), -1, 1, ${purchase_no});`;
+  query += `INSERT INTO user_mail(userkey, mail_type, currency, quantity, expire_date, connected_project, contents) 
+  VALUES(${userkey}, 'daily_ifyou_pass', 'gem', ${star_daily_count}, DATE_ADD(NOW(), INTERVAL 1 DAY), -1, 1);`;
 
   //* 등급제 혜택 확인
   const userGradeResult = await DB(`
@@ -901,7 +901,11 @@ export const purchaseInappProductByMail = async (req, res) => {
     logger.error(`purchaseInappProductByMail Error ${result.error}`);
     respondDB(res, 80026, result.error);
     return;       
-  }  
+  }
+  
+  let ifyou_pass_day = 0;
+  result = await DB(`SELECT ifyou_pass_day FROM table_account WHERE userkey = ?;`, [userkey]);
+  if(result.state && result.row.length > 0) ifyou_pass_day = result.row[0].ifyou_pass_day;
 
   ///////////////////////////////////////////////////////////
 
@@ -911,6 +915,7 @@ export const purchaseInappProductByMail = async (req, res) => {
   responseData.userPurchaseHistory = await getUserPurchaseList(req, res, false); // 구매 히스토리
   responseData.allpass_expire_tick = await getUserAllpassExpireTick(userkey); // 올패스 만료시간
   responseData.product_id = product_id; // 구매한 제품 ID
+  responseData.ifyou_pass_day = ifyou_pass_day; //30일 이프유 패스 일수
 
   res.status(200).json(responseData); // 클라이언트에게 응답처리
 
