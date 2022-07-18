@@ -40,7 +40,9 @@ export const getProductDetailList = async (masterId, product_type) => {
       [masterId]
     );
   }else if (product_type === "ifyou_pass"){
-    result = await DB(`SELECT ${masterId} AS master_id, cip.* FROM com_ifyou_pass cip WHERE ifyou_pass_id = 1;`);
+    result = await DB(`SELECT ${masterId} AS master_id, '${product_type}' AS product_type, cip.* FROM com_ifyou_pass cip WHERE ifyou_pass_id = 1;`);
+  }else if (product_type === "oneday_pass"){
+    result = await DB(`SELECT ${masterId} AS master_id, '${product_type}' AS product_type, cip.* FROM com_ifyou_pass cip WHERE ifyou_pass_id = 2;`);
   } else {
     // console.log('general',  masterId);
     result = await DB(
