@@ -769,7 +769,7 @@ export const purchaseInappProductByMail = async (req, res) => {
   let result = await DB(`SELECT ifyou_pass_day FROM table_account WHERE userkey = ?;`, [userkey]);
   if(result.state && result.row.length > 0){
     const { ifyou_pass_day } = result.row[0];
-    if(ifyou_pass_day > 0){
+    if(ifyou_pass_day > 0 && ifyou_pass_day < 30){ //30일은 재구매 가능
       logger.error(`purchaseInappProductByMail Error [${userkey}/${ifyou_pass_day}]`);
       respondDB(res, 80137, "already purchased!!");
       return;      
