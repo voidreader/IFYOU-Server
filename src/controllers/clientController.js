@@ -98,6 +98,7 @@ import {
   updatePassTimeDeal,
   userPurchase,
   purchaseInappProductByMail,
+  getUserPurchaseListVer2,
 } from "./shopController";
 import { getUserPropertyHistory, reportRequestError } from "./logController";
 import { useCoupon } from "./couponController";
@@ -519,10 +520,13 @@ const getIfYouProjectList = async (req, res) => {
   , ifnull(sps.hit_count, 0) hit_count
   , ifnull(sps.like_count, 0) like_count
   , fn_get_project_hashtags(a.project_id, '${lang}') hashtags
+  , ifnull(DATE_FORMAT(DATE_ADD(uop.purchase_date, INTERVAL 24 HOUR), '%Y-%m-%d %T'), '') oneday_pass_expire
   FROM list_project_master a
   LEFT OUTER JOIN list_project_detail b ON b.project_id = a.project_id AND b.lang ='${lang}'
   LEFT OUTER JOIN gamelog.stat_project_sum sps ON sps.project_id = a.project_id
-  WHERE a.is_public > 0
+  LEFT OUTER JOIN user_oneday_pass uop ON a.project_id = uop.project_id AND uop.userkey = ${userkey}
+  WHERE a.project_id > 0 
+  AND a.is_public > 0
   AND a.service_package LIKE CONCAT('%', ?, '%')
   AND (locate('${lang}', a.exception_lang) IS NULL OR locate('${lang}', a.exception_lang) < 1)
   AND (locate('${country}', a.exception_country) IS NULL OR locate('${country}', a.exception_country) < 1)
@@ -539,6 +543,15 @@ const getIfYouProjectList = async (req, res) => {
     respondDB(res, 80026, result.error);
     return;
   }
+  // 원데이 완료시간 tick 추가
+  result.row.forEach((item) =>{
+    const { oneday_pass_expire } = item;
+    if(!oneday_pass_expire) item.oneday_pass_expire_tick = 0;
+    else{
+      const expireDate = new Date(oneday_pass_expire);
+      item.oneday_pass_expire_tick = expireDate.getTime();
+    }  
+  });
 
   console.log(`result of projects count : `, result.row.length);
 
@@ -1560,6 +1573,7 @@ export const clientHome = (req, res) => {
   else if (func === "receiveSurveyReward") receiveSurveyReward(req, res); 
   else if (func === "requestLocalizingSurvey") requestLocalizingSurvey(req, res); //설문조사
   else if (func === "purchaseInappProductByMail") purchaseInappProductByMail(req, res); //우편 구매
+  else if (func === "getUserPurchaseListVer2") getUserPurchaseListVer2(req, res); //구매 내역(뉴버전)
   else {
     //  res.status(400).send(`Wrong Func : ${func}`);
     logger.error(`clientHome Error ${func}`);
