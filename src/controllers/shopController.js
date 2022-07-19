@@ -117,6 +117,70 @@ export const getUserPurchaseList = async (req, res, isResponse = true) => {
   }
 };
 
+//! 상품 구매 리스트(뉴버전)
+export const getUserPurchaseListVer2 = async (req, res, isResponse = true) => {
+
+  const responseData = {};
+
+  const{
+    body: {userkey}
+  } = req;
+
+  // 일반 상품(이프유 패스도 포함)
+  let result = await DB(
+  `
+  SELECT up.purchase_no
+  , up.product_id 
+  , up.receipt
+  , up.state
+  , DATE_FORMAT(up.purchase_date, '%Y-%m-%d %T') purchase_date
+  , lpm.product_master_id
+  FROM user_purchase up
+     , list_product_master lpm 
+  WHERE userkey = ${userkey}
+    AND lpm.product_id = up.product_id 
+    AND up.purchase_date BETWEEN lpm.from_date AND lpm.to_date
+    AND lpm.product_type <> 'oneday_pass'
+  ORDER BY purchase_no DESC;
+  `);
+  responseData.normal = result.row; 
+
+  // 원데이 패스
+  result = await DB(
+  `
+  SELECT up.purchase_no
+  , up.product_id 
+  , up.receipt
+  , up.state
+  , DATE_FORMAT(up.purchase_date, '%Y-%m-%d %T') purchase_date
+  , DATE_FORMAT(DATE_ADD(up.purchase_date, INTERVAL 24 HOUR), '%Y-%m-%d %T') expire_date
+  , lpm.product_master_id
+  , uop.project_id
+  FROM user_purchase up
+     , list_product_master lpm
+     , user_oneday_pass uop
+  WHERE up.userkey = ${userkey}
+    AND lpm.product_id = up.product_id
+    AND up.purchase_no = uop.purchase_no
+    AND up.userkey = uop.userkey
+    AND up.purchase_date BETWEEN lpm.from_date AND lpm.to_date
+    AND lpm.product_type = 'oneday_pass'
+  ORDER BY purchase_no DESC;
+  `);
+  result.row.forEach((item) => {
+    const { expire_date } = item;
+    const expireDate = new Date(expire_date); 
+    item.expire_date_tick = expireDate.getTime(); // tick 넣어주기!
+  });
+  responseData.oneday_pass = result.row;
+
+  if (isResponse) {
+    res.status(200).json(responseData);
+  } else {
+    return responseData;
+  }
+};
+
 //! 상품 구매 및 구매 확정 메일 보내기
 export const userPurchase = async (req, res) => {
   let {
@@ -520,7 +584,7 @@ export const getUserAllpassExpireTick = async (userkey) => {
 
 // * 인앱 상품 구매 및 확정 처리 2022.06.20
 export const purchaseInappProduct = async (req, res) => {
-  // 기존에 메일함 수령방식을 구매 후 즉시 지급으로 변경한다.
+  // 기존에 메일함 수령방식을 구매 후 즉시 지급으로 변경한다. (이프유 패스 제외)
   let {
     body: {
       userkey = 0,
@@ -531,37 +595,56 @@ export const purchaseInappProduct = async (req, res) => {
       paymentSeq = "", // 게임베이스 거래 식별자 1
       purchaseToken = "", // 게임베이스 거래 식별자 2
       os = 0,
+      project_id = -1,
     },
   } = req;
+  let result = ``;
 
-  // * 사전예약 때문에 추가 처리
+  // 사전예약 때문에 추가 처리
   if (os === 0 && product_id === null && receipt === null && paymentSeq) {
     product_id = "pre_reward_pack";
     receipt = "pre_reward_pack";
-
     logger.info(
-      `### pre reward userPurchase ${userkey}/${product_id}/${receipt}`
+      `### pre reward purchaseInappProduct ${userkey}/${product_id}/${receipt}`
     );
   }
 
   logger.info(`purchaseInappProduct ${userkey}/${product_id}/${receipt}`);
-  //* 유효성 체크
-  if (!product_id || userkey === 0) {
+  
+  //! [0]. 유효성 검사
+  if (!product_id || userkey === 0 || product_id === 'ifyou_pass') {
     logger.error(`userPurchase Error [${product_id}]/[${userkey}]`);
     respondDB(res, 80019, "Wrong parameters");
     return;
+  }
+  if(product_id.includes('oneday_pass')){
+    //작품 있는지 확인
+    result = await slaveDB(`SELECT * FROM list_project_master WHERE project_id = ${project_id};`);
+    if(!result.state || result.row.length === 0){
+      logger.error(`purchaseInappProduct Error [${product_id}]/[${userkey}/[${project_id}]`);
+      respondDB(res, 80019, "No Data");
+      return;            
+    }
+
+    // 원데이 패스 구매 여부 확인
+    result = await slaveDB(`SELECT * FROM user_oneday_pass WHERE userkey = ? AND project_id = ?;`, [userkey, project_id]);
+    if(!result.state || result.row.length > 0){
+      logger.error(`purchaseInappProduct Error [${product_id}]/[${userkey}/[${project_id}]`);
+      respondDB(res, 80137, "already purchased!!");
+      return;      
+    }
   }
 
   // 구매 시작전에 로그 만들기
   logAction(userkey, "purchase_call", { product_id, receipt, paymentSeq });
 
-  // 상품 구매 INSERT . state 1로 입력한다.
-  let query = ``; // 처리 쿼리 만들기
-  query += `INSERT INTO user_purchase(userkey, product_id, receipt, price, product_currency, payment_seq, purchase_token, state, product_master_id) 
+  //! [1]. 상품 구매 내역 INSERT, state 1로 입력한다.
+  let query = ``; 
+  query = `INSERT INTO user_purchase(userkey, product_id, receipt, price, product_currency, payment_seq, purchase_token, state, product_master_id) 
             VALUES(${userkey}, '${product_id}', '${receipt}', ${price}, '${currency}', '${paymentSeq}', '${purchaseToken}', 1, fn_get_product_master_id('${product_id}', now()));`;
-
+  
   // 올패스 상품 처리(올패스는 재화를 지급하지 않는다)
-  if (product_id.includes(`allpass`)) {
+  if (product_id.includes('allpass')) {
     let addDay = 0;
     // 1,3,7일차에 대한 처리
     if (product_id === "allpass_1") addDay = 1;
@@ -587,134 +670,124 @@ export const purchaseInappProduct = async (req, res) => {
      return;
   }
 
-  //! 초기화 후에 재화 지급 처리 시작
+  //! [2]. product_id에 따라 재화 지급(+등급제 보너스 포함) / 히스토리 누적한다.
   query = ''; 
   let purchase_no = 0;
   let totalGem = 0;
 
-  //purchase_no 가져오기
+  // purchase_no 가져오기
   if(product_id.includes(`allpass`)) purchase_no = purchaseResult.row[0].insertId;
   else purchase_no = purchaseResult.row.insertId;
-  
-  //?  구매한 상품 유저에게 지급처리
+
   logger.info(`### purchase first done ::: ${product_id}/${purchase_no}`);
-  if (!product_id.includes(`allpass`)) {
-    // 등록된 재화 확인(사용중인 상품 내에서 확인)
-    const productInfo = await DB(
-      `
-      SELECT currency
-          , quantity 
-          , CASE WHEN first_purchase = '1' THEN  fn_check_first_purchase_master_id(${userkey}, a.product_master_id)
-            ELSE 0 END first_purchase_check
-          , first_purchase
-          , b.is_main is_main
-      FROM list_product_master a 
-            INNER JOIN list_product_detail b ON a.product_master_id = b.master_id
-            INNER JOIN user_purchase c ON a.product_id = c.product_id AND purchase_no = ${purchase_no}
-      WHERE a.product_id = ? 
-        AND c.purchase_date BETWEEN DATE_FORMAT(from_date, '%Y-%m-%d 00:00:00') AND DATE_FORMAT(to_date, '%Y-%m-%d 23:59:59')
-      UNION ALL 
-      SELECT currency
-          , quantity
-          , 0 first_purchase_check
-          , 0 first_purchase
-          , 1 is_main
-      FROM list_product_master a 
-          INNER JOIN list_product_daily b ON a.product_master_id = b.master_id
-          INNER JOIN user_purchase c ON a.product_id = c.product_id AND purchase_no = ${purchase_no}
-      WHERE a.product_id = ?
-        AND c.purchase_date BETWEEN DATE_FORMAT(from_date, '%Y-%m-%d 00:00:00') AND DATE_FORMAT(to_date, '%Y-%m-%d 23:59:59');`,
-      [
-        product_id,
-        product_id,
-      ]
-    );
-    if(!productInfo.state || productInfo.row.length === 0){
-      logger.error(
-        `NON-INAPP-PRODUCT : [${productInfo.row.length}]`
+  
+  // 구매한 상품 유저에게 지급처리
+  if(product_id.includes('oneday_pass')){
+    //원데이 패스 
+    //구매일자 가져오기
+    result = await DB(`SELECT DATE_FORMAT(purchase_date, '%Y-%m-%d %T') purchase_date FROM user_purchase WHERE purchase_no = ${purchase_no};`);
+    const { purchase_date } = result.row[0];
+
+    query = `INSERT INTO user_oneday_pass(userkey, project_id, purchase_no, purchase_date) VALUES(${userkey}, ${project_id}, ${purchase_no}, '${purchase_date}');`;
+  }else{
+    // 그외 상품
+    if (!product_id.includes('allpass')) {
+      // 등록된 재화 확인(사용중인 상품 내에서 확인)
+      const productInfo = await DB(
+        `
+        SELECT currency
+            , quantity 
+            , CASE WHEN first_purchase = '1' THEN  fn_check_first_purchase_master_id(${userkey}, a.product_master_id)
+              ELSE 0 END first_purchase_check
+            , first_purchase
+            , b.is_main is_main
+        FROM list_product_master a 
+              INNER JOIN list_product_detail b ON a.product_master_id = b.master_id
+              INNER JOIN user_purchase c ON a.product_id = c.product_id AND purchase_no = ${purchase_no}
+        WHERE a.product_id = '${product_id}' 
+          AND c.purchase_date BETWEEN DATE_FORMAT(from_date, '%Y-%m-%d 00:00:00') AND DATE_FORMAT(to_date, '%Y-%m-%d 23:59:59');`,
       );
-      respondDB(res, 80049);
-      return;      
-    }
-
-    productInfo.row.forEach((item) => {
-      logger.info(`productInfo : ${JSON.stringify(item)}`);
-      let firstCheck = true;
-      let type = "inapp";
-  
-      //* 첫구매일 경우 메일 타입 변경
-      if (item.first_purchase === 1) {
-        type = "first_purchase";
+      if(!productInfo.state || productInfo.row.length === 0){
+        logger.error(
+          `NON-INAPP-PRODUCT : [${productInfo.row.length}]`
+        );
+        respondDB(res, 80049);
+        return;      
       }
   
-      //* 첫 구매 보너스 체크
-      if (item.first_purchase_check !== 0) {
-        // 이미 첫 구매 보너스 지급됨
-        firstCheck = false;
+      productInfo.row.forEach((item) => {
+        logger.info(`productInfo : ${JSON.stringify(item)}`);
+        let firstCheck = true;
+        let type = "inapp";
+    
+        // 첫구매일 경우 메일 타입 변경
+        if (item.first_purchase === 1)  type = "first_purchase";
+    
+        // 첫구매 보너스 체크
+        if (item.first_purchase_check !== 0) firstCheck = false; // 이미 첫 구매 보너스 지급됨
+    
+        // 재화 다이렉트 지급
+        if (firstCheck) {
+          if (item.currency === "gem") totalGem += item.quantity; // 스타를 몇개 주는지 합산해놓는다.
+          query += `CALL pier.sp_insert_user_property_paid(${userkey}, '${item.currency}', ${item.quantity}, '${type}', ${item.is_main});`;
+        }
+    
+      });
+    } //? END of (if (!product_id.includes('allpass')))
+
+    // 등급제 혜택 확인
+    const userGradeResult = await DB(`
+    SELECT ta.grade
+         , cg.store_sale
+         , cg.store_limit
+         , fn_get_user_star_benefit_count(ta.userkey, ta.grade) current_count
+    FROM table_account ta
+       , com_grade cg 
+   WHERE userkey = ${userkey}
+     AND cg.grade = ta.grade ;
+    `);
+  
+    // 유저의 등급, 혜택 정보 가져온다.
+    const { grade, store_sale, store_limit, current_count } =
+      userGradeResult.row[0];
+  
+    const bonusStarPercentage = parseFloat(store_sale) * 0.01; // 보너스 스타 계산하기.
+    let isBonusAVailable = false;
+    if (store_limit > current_count)
+      // 보너스 제한 카운트 체크
+      isBonusAVailable = true;
+  
+    logger.info(
+      `### userGrade : [${userkey}]/[${grade}]/[${bonusStarPercentage}]/[${isBonusAVailable}/[${current_count}]`
+    );
+  
+    // 등급 보너스
+    if (isBonusAVailable && totalGem > 0) {
+      let bonusGem = totalGem * bonusStarPercentage;
+    
+      // 0보다 작은 수라면 1로 처리
+      if (bonusGem < 1) bonusGem = 1;
+      bonusGem = Math.round(bonusGem);
+    
+      // 보너스 스타 존재시에 쿼리에 추가 && user_grade_benefit 누적
+      if (bonusGem > 0) {
+        query += `CALL pier.sp_insert_user_property_paid(${userkey}, 'gem', ${bonusGem}, 'grade_bonus', 0);`;
+        query += `INSERT INTO user_grade_benefit (
+          userkey
+          , grade
+          , purchase_date
+          , bonus_star
+        ) VALUES (
+          ${userkey}
+          , ${grade}
+          , now()
+          , ${bonusGem}
+        );`;
       }
+    } //? END OF 등급제 보너스
+  } //? END OF 구매한 상품 유저에게 지급처리
   
-      if (firstCheck) {
-        // 스타를 몇개 주는지 합산해놓는다.
-        if (item.currency === "gem") totalGem += item.quantity;
-        query += `CALL pier.sp_insert_user_property_paid(${userkey}, '${item.currency}', ${item.quantity}, '${type}', ${item.is_main});`;
-      }
-  
-    });
-  }  // ? 구매한 상품 유저에게 지급처리 끝
-
-  //? 등급제 혜택 확인
-  const userGradeResult = await DB(`
-  SELECT ta.grade
-       , cg.store_sale
-       , cg.store_limit
-       , fn_get_user_star_benefit_count(ta.userkey, ta.grade) current_count
-  FROM table_account ta
-     , com_grade cg 
- WHERE userkey = ${userkey}
-   AND cg.grade = ta.grade ;
-  `);
-
-  //? 유저의 등급, 혜택 정보 가져온다.
-  const { grade, store_sale, store_limit, current_count } =
-    userGradeResult.row[0];
-
-  const bonusStarPercentage = parseFloat(store_sale) * 0.01; // 보너스 스타 계산하기.
-  let isBonusAVailable = false;
-  if (store_limit > current_count)
-    // 보너스 제한 카운트 체크
-    isBonusAVailable = true;
-
-  logger.info(
-    `### userGrade : [${userkey}]/[${grade}]/[${bonusStarPercentage}]/[${isBonusAVailable}/[${current_count}]`
-  );
-
-  //? 등급 보너스에 대한 처리 추가
-  if (isBonusAVailable && totalGem > 0) {
-    let bonusGem = totalGem * bonusStarPercentage;
-  
-    // 0보다 작은 수라면 1로 처리
-    if (bonusGem < 1) bonusGem = 1;
-    bonusGem = Math.round(bonusGem);
-  
-    // 보너스 스타 존재시에 쿼리에 추가해놓는다.
-    if (bonusGem > 0) {
-      query += `CALL pier.sp_insert_user_property_paid(${userkey}, 'gem', ${bonusGem}, 'grade_bonus', 0);`;
-      // user_grade_benefit 입력한다.
-      query += `INSERT INTO user_grade_benefit (
-        userkey
-        , grade
-        , purchase_date
-        , bonus_star
-      ) VALUES (
-        ${userkey}
-        , ${grade}
-        , now()
-        , ${bonusGem}
-      );`;
-    }
-  } // ? 등급 보너스에 대한 처리 추가 끝
-
-  //? 구매 확정 업데이트, 재화 바로 지급
+  //! [3]. 위의 쿼리들과 함께 구매확정으로 업데이트한다.
   query += `UPDATE user_purchase SET state = 2 WHERE purchase_no = ${purchase_no};`; 
   const giveProductResult = await transactionDB(query);
   if (!giveProductResult.state) {
@@ -724,19 +797,21 @@ export const purchaseInappProduct = async (req, res) => {
     respondDB(res, 80026, giveProductResult.error);
       return;
   }
-
-  ///////////////////////////////////////////////////////////
-
-  //? 응답값 만들기
+  
+  //! [4]. 응답값 만들기
   const responseData = {};
   responseData.bank = await getUserBankInfo(req.body); // 뱅크
-  responseData.userPurchaseHistory = await getUserPurchaseList(req, res, false); // 구매 히스토리
+  responseData.userPurchaseHistory = await getUserPurchaseListVer2(req, res, false); // 구매 히스토리
   responseData.allpass_expire_tick = await getUserAllpassExpireTick(userkey); // 올패스 만료시간
   responseData.product_id = product_id; // 구매한 제품 ID
 
   res.status(200).json(responseData); // 클라이언트에게 응답처리
 
-  // * 다 처리하고 마지막에 호출!!!
+  ///////////////////////////////////////////////////////////
+  ///////////////////////////////////////////////////////////
+  ///////////////////////////////////////////////////////////
+
+  // 다 처리하고 마지막에 호출!!!
   // 게임베이스 API 통신
   // 구매 상품 소비 처리 (마켓에 전달 )
   logAction(userkey, "purchase_complete", { product_id, receipt, paymentSeq });
@@ -761,7 +836,7 @@ export const purchaseInappProductByMail = async (req, res) => {
   } = req;
 
   //* 유효성 체크
-  if (!product_id || userkey === 0) {
+  if (!product_id || userkey === 0 || product_id !== 'ifyou_pass') {
     logger.error(`purchaseInappProductByMail Error [${product_id}]/[${userkey}]`);
     respondDB(res, 80019, "Wrong parameters");
     return;
@@ -914,7 +989,7 @@ export const purchaseInappProductByMail = async (req, res) => {
   // //? 응답값 만들기
   const responseData = {};
   responseData.bank = await getUserBankInfo(req.body); // 뱅크
-  responseData.userPurchaseHistory = await getUserPurchaseList(req, res, false); // 구매 히스토리
+  responseData.userPurchaseHistory = await getUserPurchaseListVer2(req, res, false); // 구매 히스토리
   responseData.allpass_expire_tick = await getUserAllpassExpireTick(userkey); // 올패스 만료시간
   responseData.product_id = product_id; // 구매한 제품 ID
   responseData.ifyou_pass_day = ifyou_pass_day; //30일 이프유 패스 일수
@@ -928,3 +1003,4 @@ export const purchaseInappProductByMail = async (req, res) => {
   const gamebaseResult = await gamebaseAPI.consume(paymentSeq, purchaseToken);
   console.log(gamebaseResult);  
 };
+
