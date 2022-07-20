@@ -144,11 +144,11 @@ export const receiveSurveyReward = async (req, res) =>{
     // 보상 재화, 개수
     const { currency, quantity, question_count, } = result.row[0];
 
-    if(rows.length !== question_count){
-        logger.info(`receiveSurveyReward Error 2`);
-        respondDB(res, 80132, "", lang);
-        return;           
-    }
+    // if(rows.length !== question_count){
+    //     logger.info(`receiveSurveyReward Error 2`);
+    //     respondDB(res, 80132, "", lang);
+    //     return;           
+    // }
 
     //이미 받았는지 확인
     result = await DB(`SELECT * FROM user_survey WHERE userkey = ? AND survey_id = ?;`, [userkey, survey_id]);
@@ -160,13 +160,33 @@ export const receiveSurveyReward = async (req, res) =>{
    
     //히스토리 누적 및 메일 발송 
     if(rows){
-        currentQuery = 'INSERT INTO user_survey(userkey, survey_id, question_id, answer, sortkey) VALUES(?, ?, ?, ?, ?);'
+
+        // 설문 답안
+        currentQuery = 'INSERT INTO user_survey(userkey, survey_id, question_id, answer, sortkey) VALUES(?, ?, ?, ?, ?);';        
+        const questionArr = [];
+        const resultArr = [];
+
         // eslint-disable-next-line no-restricted-syntax
         for(const item of rows){
+            if(!questionArr.includes(item.question_id)){
+                questionArr.push(item.question_id);
+                resultArr.push(item);
+            }else{
+                for(let i = 0;i<resultArr.length; i++){
+                    if(resultArr[i].question_id === item.question_id){
+                        resultArr[i].answer += `,${item.answer}`;
+                    }
+                }
+            }
+        }
+
+        // eslint-disable-next-line no-restricted-syntax
+        for(const item of resultArr){
             updateQuery += mysql.format(currentQuery, [userkey, survey_id, item.question_id, item.answer, index]);
             index += 1;
         }
 
+        // 우편 전송
         currentQuery = `
         INSERT INTO user_mail(userkey, mail_type, currency, quantity, expire_date, connected_project) 
         VALUES(?, 'survey', ?, ?, DATE_ADD(NOW(), INTERVAL 1 YEAR), -1);`;
