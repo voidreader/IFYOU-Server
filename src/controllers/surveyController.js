@@ -221,7 +221,7 @@ export const requestLocalizingSurvey = async(req,res) =>{
     id
     , ${lang} message 
     FROM com_localize
-    WHERE id IN (2000,6303,5034,6202,6205,6206,6207,6208,6210,6211,6213,6212,80133,80134,80135,80136,5067,5161,6209);`);
+    WHERE id IN (2000,6303,5034,6202,6205,6206,6207,6208,6210,6211,6213,6212,80133,80134,80135,80136,5067,5161,6209,5210);`);
     
     res.status(200).json(result.row);    
 };
