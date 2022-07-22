@@ -4,7 +4,7 @@ import { getProductDetailList } from "../controllers/shopController";
 import { cache, loadingCacheData } from "../init";
 import { logger } from "../logger";
 import { DB, slaveDB } from "../mysqldb";
-import { CACHE_BUBBLE_MASTER, CACHE_BUBBLE_SET, CACHE_BUBBLE_SPRITE } from "../QCACHE";
+import { CACHE_BUBBLE_MASTER, CACHE_BUBBLE_SET, CACHE_BUBBLE_SPRITE } from "../cacheQuery";
 
 // * 인앱상품 캐시 데이터 조회
 export const getCacheProduct = async (lang) => {
