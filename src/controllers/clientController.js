@@ -177,6 +177,7 @@ import {
 } from "../com/cacheLoader";
 import {
   createArabicGlossary,
+  createJapanGlossary,
   deleteGlossary,
   translateProjectDataWithGlossary,
   translateScriptWithGlossary,
@@ -542,13 +543,13 @@ const getIfYouProjectList = async (req, res) => {
     return;
   }
   // 원데이 완료시간 tick 추가
-  result.row.forEach((item) =>{
+  result.row.forEach((item) => {
     const { oneday_pass_expire } = item;
-    if(!oneday_pass_expire) item.oneday_pass_expire_tick = 0;
-    else{
+    if (!oneday_pass_expire) item.oneday_pass_expire_tick = 0;
+    else {
       const expireDate = new Date(oneday_pass_expire);
       item.oneday_pass_expire_tick = expireDate.getTime();
-    }  
+    }
   });
 
   console.log(`result of projects count : `, result.row.length);
@@ -1546,6 +1547,7 @@ export const clientHome = (req, res) => {
   else if (func === "translateText") translateText(req, res);
   else if (func === "translateWithGlossary") translateWithGlossary(req, res);
   else if (func === "createArabicGlossary") createArabicGlossary(req, res);
+  else if (func === "createJapanGlossary") createJapanGlossary(req, res);
   // 인앱상품 정보 캐시 재조회
   else if (func === "getIntroCharacterList") getIntroCharacterList(req, res);
   else if (func === "deleteGlossary") deleteGlossary(req, res);
@@ -1568,10 +1570,16 @@ export const clientHome = (req, res) => {
   else if (func === "refreshCacheFixedData") refreshCacheFixedData(req, res);
   else if (func === "getSurveyMain") getSurveyMain(req, res);
   else if (func === "getSurveyDetail") getSurveyDetail(req, res);
-  else if (func === "receiveSurveyReward") receiveSurveyReward(req, res); 
-  else if (func === "requestLocalizingSurvey") requestLocalizingSurvey(req, res); //설문조사
-  else if (func === "purchaseInappProductByMail") purchaseInappProductByMail(req, res); //우편 구매
-  else if (func === "getUserPurchaseListVer2") getUserPurchaseListVer2(req, res); //구매 내역(뉴버전)
+  else if (func === "receiveSurveyReward") receiveSurveyReward(req, res);
+  else if (func === "requestLocalizingSurvey")
+    requestLocalizingSurvey(req, res);
+  //설문조사
+  else if (func === "purchaseInappProductByMail")
+    purchaseInappProductByMail(req, res);
+  //우편 구매
+  else if (func === "getUserPurchaseListVer2")
+    getUserPurchaseListVer2(req, res);
+  //구매 내역(뉴버전)
   else {
     //  res.status(400).send(`Wrong Func : ${func}`);
     logger.error(`clientHome Error ${func}`);
