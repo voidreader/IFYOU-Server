@@ -144,16 +144,10 @@ export const receiveSurveyReward = async (req, res) =>{
     // 보상 재화, 개수
     const { currency, quantity, question_count, } = result.row[0];
 
-    // if(rows.length !== question_count){
-    //     logger.info(`receiveSurveyReward Error 2`);
-    //     respondDB(res, 80132, "", lang);
-    //     return;           
-    // }
-
     //이미 받았는지 확인
     result = await DB(`SELECT * FROM user_survey WHERE userkey = ? AND survey_id = ?;`, [userkey, survey_id]);
     if(!result.state || result.row.length > 0){
-        logger.info(`receiveSurveyReward Error 3`);
+        logger.info(`receiveSurveyReward Error 2`);
         respondDB(res, 80025, "", lang);
         return;            
     }
@@ -178,6 +172,12 @@ export const receiveSurveyReward = async (req, res) =>{
                     }
                 }
             }
+        }
+
+        if(question_count !== questionArr.length){
+            logger.info(`receiveSurveyReward Error 3`);
+            respondDB(res, 80132, "", lang);
+            return;           
         }
 
         // eslint-disable-next-line no-restricted-syntax
