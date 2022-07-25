@@ -234,20 +234,9 @@ export const translateProjectDataWithGlossary = async (req, res) => {
 
   console.log(req.body);
 
-  let glossaryConfig;
-
-  // 아랍어 일본어 구분
-  if (targetLang === "ar") {
-    glossaryConfig = {
-      glossary: `projects/${googleProjectID}/locations/us-central1/glossaries/${sourceLang}_${targetLang}_${project_id}`,
-    };
-  } else if (targetLang === "ja") {
-    glossaryConfig = {
-      glossary: `projects/${googleProjectID}/locations/us-central1/glossaries/${sourceLang}_${targetLang}_${project_id}`,
-    };
-  } else {
-    res.status(400).send("no lang");
-  }
+  const glossaryConfig = {
+    glossary: `projects/${googleProjectID}/locations/us-central1/glossaries/${sourceLang}_${targetLang}_${project_id}`,
+  };
 
   const episodeList = await DB(`
   SELECT led.episode_id, led.title, led.summary 
@@ -430,12 +419,11 @@ export const translateProjectDataWithGlossary = async (req, res) => {
 
   // 연결재화 로컬ID 자동번역 //////////////////////////////////////
   const currencyList = await DB(`
-  SELECT cl.id, cl.EN 
+  SELECT cl.id, cl.${sourceLang} sourceText
   FROM com_currency cc
      , com_localize cl 
  WHERE cc.connected_project  = ${project_id}
    AND cl.id = cc.local_code
-   AND cl.EN <> ''
 ;
   `);
 
@@ -446,7 +434,7 @@ export const translateProjectDataWithGlossary = async (req, res) => {
   for await (const currency of currencyList.row) {
     const requestTitle = {
       parent: `projects/${googleProjectID}/locations/us-central1`,
-      contents: [currency.EN],
+      contents: [currency.sourceText],
       mimeType: "text/plain", // mime types: text/plain, text/html
       sourceLanguageCode: sourceLang,
       targetLanguageCode: targetLang,
@@ -454,15 +442,15 @@ export const translateProjectDataWithGlossary = async (req, res) => {
     };
 
     const [responseTitle] = await translationClient.translateText(requestTitle);
-    currency.AR = responseTitle.glossaryTranslations[0].translatedText;
+    currency.sourceText = responseTitle.glossaryTranslations[0].translatedText;
 
     const updateResult = await DB(
       `
     update com_localize 
-       SET AR = ?
+       SET ${targetLang} = ?
      WHERE id = ?;
     `,
-      [currency.AR, currency.id]
+      [currency.sourceText, currency.id]
     );
 
     if (!updateResult.state) {
@@ -623,6 +611,7 @@ export const translateProjectDataWithGlossary = async (req, res) => {
    AND lil.illust_id = li.illust_id 
    AND lil.lang = upper('${sourceLang}')
    AND lil.illust_type = 'illust'
+   AND li.is_public > 0
  ORDER BY lil.illust_id;
 ;
   `);
@@ -689,6 +678,7 @@ export const translateProjectDataWithGlossary = async (req, res) => {
  WHERE li.project_id = ${project_id}
    AND lil.illust_id = li.live_illust_id  
    AND lil.lang = upper('${sourceLang}')
+   AND li.is_public > 0
    AND lil.illust_type = 'live2d';  
 ;
   `);
@@ -757,6 +747,7 @@ export const translateProjectDataWithGlossary = async (req, res) => {
  WHERE li.project_id = ${project_id}
    AND lil.minicut_id = li.minicut_id 
    AND lil.lang = upper('${sourceLang}')
+   AND li.is_public > 0
    AND lil.minicut_type = 'minicut';
   `);
 
@@ -822,6 +813,7 @@ export const translateProjectDataWithGlossary = async (req, res) => {
  WHERE li.project_id = ${project_id}
    AND lil.minicut_id = li.live_object_id  
    AND lil.lang = upper('${sourceLang}')
+   AND li.is_public > 0
    AND lil.minicut_type  = 'live2d';     
   `);
 
@@ -881,6 +873,66 @@ export const translateProjectDataWithGlossary = async (req, res) => {
   console.log(`${project_id} #### live object translatation end`);
   //////////////// 라이브 오브젝트 종료
 }; // ? 종료 프로젝트 데이터
+
+// * 프로젝트 특정 데이터 자동번역 (용어집 연계)
+export const translateProjectSpecificDataWithGlossary = async (req, res) => {
+  const {
+    body: { project_id, targetLang, sourceLang = "en" },
+  } = req;
+
+  console.log(req.body);
+
+  const glossaryConfig = {
+    glossary: `projects/${googleProjectID}/locations/us-central1/glossaries/${sourceLang}_${targetLang}_${project_id}`,
+  };
+
+  // 연결재화 로컬ID 자동번역 //////////////////////////////////////
+  const currencyList = await DB(`
+  SELECT cl.id, cl.${sourceLang} sourceText
+  FROM com_currency cc
+     , com_localize cl 
+ WHERE cc.connected_project  = ${project_id}
+   AND cl.id = cc.local_code
+;
+  `);
+
+  console.log(
+    `${project_id} currencyList count : [${currencyList.row.length}]`
+  );
+
+  for await (const currency of currencyList.row) {
+    const requestTitle = {
+      parent: `projects/${googleProjectID}/locations/us-central1`,
+      contents: [currency.sourceText],
+      mimeType: "text/plain", // mime types: text/plain, text/html
+      sourceLanguageCode: sourceLang,
+      targetLanguageCode: targetLang,
+      glossaryConfig,
+    };
+
+    const [responseTitle] = await translationClient.translateText(requestTitle);
+    currency.sourceText = responseTitle.glossaryTranslations[0].translatedText;
+
+    const updateResult = await DB(
+      `
+    update com_localize 
+       SET ${targetLang} = ?
+     WHERE id = ?;
+    `,
+      [currency.sourceText, currency.id]
+    );
+
+    if (!updateResult.state) {
+      logger.error(
+        `${JSON.stringify(updateResult.error)} / [${updateResult.query}]`
+      );
+      return;
+    }
+  } // ? end of 재화for
+  console.log(`${project_id} #### currency translatation end`);
+
+  res.status(200).send("ok");
+};
 
 // * 작품 스크립트 자동 번역 생성하기
 export const translateScriptWithGlossary = async (req, res) => {
