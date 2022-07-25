@@ -180,6 +180,7 @@ import {
   createJapanGlossary,
   deleteGlossary,
   translateProjectDataWithGlossary,
+  translateProjectSpecificDataWithGlossary,
   translateScriptWithGlossary,
   translateSingleEpisode,
   translateText,
@@ -1559,6 +1560,8 @@ export const clientHome = (req, res) => {
   else if (func === "purchaseInappProduct") purchaseInappProduct(req, res);
   else if (func === "translateProjectDataWithGlossary")
     translateProjectDataWithGlossary(req, res);
+  else if (func === "translateProjectSpecificDataWithGlossary")
+    translateProjectSpecificDataWithGlossary(req, res);
   else if (func === "increaseMissionAdReward")
     increaseMissionAdReward(req, res);
   // 미션 광고 보상 카운트 누적
