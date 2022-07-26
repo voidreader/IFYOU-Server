@@ -1751,11 +1751,10 @@ export const registerClientAccount = async (req, res) => {
     // await DB(UQ_SEND_MAIL_NEWBIE, [userResult.row[0].userkey, "ifyouFrame02"]);
     // await DB(UQ_SEND_MAIL_NEWBIE, [userResult.row[0].userkey, "ifyouFrame03"]);
     // await DB(UQ_SEND_MAIL_NEWBIE, [userResult.row[0].userkey, "ifyouFrame04"]);
-    
-    // * 2022.07.10 
+
+    // * 2022.07.10
     // 신규 가입시 100 스타 지급
     await DB(UQ_SEND_MAIL_NEWBIE_GEM, [userResult.row[0].userkey]);
-    
   }
   //}
 
@@ -1894,6 +1893,7 @@ export const changeAccountByGamebase = async (req, res) => {
 };
 
 // 신규. 위에 insertUserEpisodeSceneHistory 삭제.
+// 2022.07.26 삭제대상
 export const updateUserSceneRecord = async (req, res) => {
   const userInfo = req.body;
 
@@ -1906,15 +1906,15 @@ export const updateUserSceneRecord = async (req, res) => {
     userInfo.scene_id,
   ]);
 
-  const responseData = {};
-  responseData.sceneHistory = [];
-  responseData.sceneProgress = [];
-
   if (!result.state) {
     logger.error(`updateUserSceneRecord Error ${result.error}`);
     respondDB(res, 80026, result.error);
     return;
   }
+
+  const responseData = {};
+  responseData.sceneHistory = [];
+  responseData.sceneProgress = [];
 
   responseData.sceneProgress = await getUserEpisodeSceneProgress(userInfo); // 유저 사건ID 진행도
   responseData.sceneHistory = await getUserProjectSceneHistory(userInfo); // 유저가 한번이라도 오픈한 프로젝트별 사건ID (신규 입력만, 삭제나 변경 없음)
@@ -1927,6 +1927,30 @@ export const updateUserSceneRecord = async (req, res) => {
 
   res.status(200).json(responseData);
 };
+
+// * 2022.07.26 신규  유저 작품별 사건ID 기록 업데이트
+export const updateUserProjectSceneHist = async (req, res) => {
+  const {
+    body: { userkey, project_id, episode_id, scene_id },
+  } = req;
+
+  logger.info(`updateUserProjectSceneHist : ${JSON.stringify(req.body)}`);
+
+  // user_scene_progress, user_scene_hist에 데이터 입력
+  let currentQuery = ``;
+  currentQuery += `INSERT IGNORE INTO user_scene_progress (userkey, project_id, episode_id, scene_id) VALUES (${userkey}, ${project_id}, ${episode_id}, '${scene_id}');`;
+  currentQuery += `INSERT IGNORE INTO user_scene_hist (userkey, project_id, episode_id, scene_id) VALUES (${userkey}, ${project_id}, ${episode_id}, '${scene_id}');`;
+
+  // await 쓰지 않고 처리
+  const result = DB(currentQuery);
+  if (!result.state) {
+    logger.error(`updateUserProjectSceneHist Error ${result.error}`);
+    respondDB(res, 80026, result.error);
+    return;
+  }
+
+  res.status(200).send("");
+}; // ? end of updateUserProjectSceneHist
 
 // * drop 미션 해금
 export const updateUserScriptMission = async (req, res) => {
@@ -2672,21 +2696,24 @@ export const getUserSelectedStory = async (req, res) => {
     lang,
   };
 
-
   // 프로젝트에 연결된 BubbleSet ID, Version 정보 추가
   let ProjectBubbleSetId = parseInt(clientBubbleSetID, 10);
-  const result = await slaveDB('SELECT * FROM list_project_master WHERE project_id = ?;', [project_id]);
-  if(result.state && result.row.length > 0) {
-    if(ProjectBubbleSetId !== result.row[0].bubble_set_id) ProjectBubbleSetId = result.row[0].bubble_set_id;
+  const result = await slaveDB(
+    "SELECT * FROM list_project_master WHERE project_id = ?;",
+    [project_id]
+  );
+  if (result.state && result.row.length > 0) {
+    if (ProjectBubbleSetId !== result.row[0].bubble_set_id)
+      ProjectBubbleSetId = result.row[0].bubble_set_id;
   }
 
   //버전 셋팅
-  let bubbleMaster = '';
+  let bubbleMaster = "";
   const bubbleMasterCache = cache.get("bubble").bubbleMaster;
   bubbleMasterCache.forEach((item) => {
-    if(item.bubbleID === ProjectBubbleSetId) bubbleMaster = item;
+    if (item.bubbleID === ProjectBubbleSetId) bubbleMaster = item;
   });
-  if(bubbleMaster === "") bubbleMaster = { bubbleID: 25, bubble_ver: 1, }; //없으면 디폴트로
+  if (bubbleMaster === "") bubbleMaster = { bubbleID: 25, bubble_ver: 1 }; //없으면 디폴트로
 
   // 프로젝트와 연결된 말풍선 세트 정보를 따로 갖고 있는다. (아래에서 비교)
   userInfo.bubbleID = bubbleMaster.bubbleID;
@@ -2733,7 +2760,8 @@ export const getUserSelectedStory = async (req, res) => {
   storyInfo.models = projectResources.models; // 캐릭터 모델 정보
   storyInfo.liveObjects = projectResources.liveObjects; // 라이브 오브젝트
   storyInfo.liveIllusts = projectResources.liveIllusts; // 라이브 일러스트
-  storyInfo.bubbleSprite = cache.get("bubble").bubbleSprite[userInfo.bubbleID.toString()]; // 프로젝트 말풍선 스프라이트 정보
+  storyInfo.bubbleSprite =
+    cache.get("bubble").bubbleSprite[userInfo.bubbleID.toString()]; // 프로젝트 말풍선 스프라이트 정보
   storyInfo.episodeLoadingList = projectResources.episodeLoadingList; // 에피소드 로딩 리스트
   storyInfo.missions = projectResources.missions; // 프로젝트의 모든 도전과제
 
@@ -2768,7 +2796,8 @@ export const getUserSelectedStory = async (req, res) => {
     userInfo.clientBubbleSetID != userInfo.bubbleID
   ) {
     // logger.info(`!!! Response with BubbleSetDetail`);
-    const allBubbleSet = cache.get("bubble").bubbleSet[userInfo.bubbleID.toString()];  
+    const allBubbleSet =
+      cache.get("bubble").bubbleSet[userInfo.bubbleID.toString()];
 
     // 말풍선 세트를 Variation, Template 별로 정리합니다.
     storyInfo.bubbleSet = arrangeBubbleSet(allBubbleSet);

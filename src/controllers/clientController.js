@@ -49,6 +49,7 @@ import {
   purchasePremiumPass,
   requestSelectionHint,
   requestRecommendProject,
+  updateUserProjectSceneHist,
 } from "./accountController";
 import { logger } from "../logger";
 
@@ -594,18 +595,6 @@ const getIfYouProjectList = async (req, res) => {
 
   res.status(200).json(responseData);
 }; // ? end of getIfYouProjectList
-
-const getCharacterModel = async (req, res) => {
-  const userInfo = req.body;
-  console.log(`getCharacterModel : ${userInfo}`);
-
-  const result = await slaveDB(Q_MODEL_RESOURCE_INFO, [
-    userInfo.project_id,
-    userInfo.speaker,
-  ]);
-
-  res.status(200).send(result.row);
-};
 
 //! 메인 로딩 이미지 랜덤 출력
 export const getMainLoadingImageRandom = async (req, res) => {
@@ -1302,7 +1291,6 @@ export const clientHome = (req, res) => {
 
   // 스크립트 전체 행 조회
   if (func === "getEpisodeScript") getEpisodeScriptWithResources(req, res);
-  else if (func === "getCharacterModel") getCharacterModel(req, res);
   else if (func === "loginClient") loginClient(req, res);
   else if (func === "getUserSelectedStory") getUserSelectedStory(req, res);
   else if (func === "clearUserEpisodeSceneHistory")
@@ -1311,6 +1299,8 @@ export const clientHome = (req, res) => {
     insertUserEpisodeSceneHistory(req, res);
   else if (func === "updateUserEpisodeSceneRecord")
     updateUserSceneRecord(req, res);
+  else if (func === "updateUserProjectSceneHist")
+    updateUserProjectSceneHist(req, res);
   else if (func === "updateUserIllustHistory")
     updateUserIllustHistory(req, res);
   else if (func === "updateUserMissionHistory")
