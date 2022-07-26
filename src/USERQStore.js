@@ -419,7 +419,8 @@ export const Q_SELECT_MISSION_ALL = `
 SELECT a.mission_id
   , fn_get_mission_name(a.mission_id, ?) mission_name
   , fn_get_mission_hint(a.mission_id, ?) mission_hint
-  , a.mission_type 
+  , a.mission_type
+  , ifnull(a.id_condition, '') id_condition
   , a.is_hidden 
   , a.reward_currency 
   , a.reward_quantity 
