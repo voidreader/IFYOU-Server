@@ -130,7 +130,7 @@ export const checkSideUnlockByEpisode = async (userInfo) => {
   /////////////
 }; // ? checkSideUnlockByEpisode 끝!
 
-//! 사건ID 해금 조회
+//! 사건ID 해금 조회 (삭제 대상)
 export const checkSideUnlockByScene = async (userInfo) => {
   const { userkey, project_id, scene_id, lang = "KO" } = userInfo;
 
@@ -145,7 +145,7 @@ export const checkSideUnlockByScene = async (userInfo) => {
   AND a.unlock_style = 'event'
   AND a.unlock_scenes IS NOT NULL 
   AND a.unlock_scenes <> ''
-  AND a.unlock_scenes LIKE CONCAT('%', ${scene_id}, '%')
+  AND find_in_set('${scene_id}', a.unlock_scenes) 
   AND a.episode_id NOT IN (SELECT z.episode_id FROM user_side z WHERE z.userkey = ?);  
   `,
     [lang, project_id, userkey]
