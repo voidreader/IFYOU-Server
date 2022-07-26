@@ -48,6 +48,7 @@ import {
   Q_SELECT_ENDING_HINT,
   Q_SELECT_SELECTION_HINT_PURCHASE,
   UQ_SEND_MAIL_NEWBIE_GEM,
+  Q_SELECT_PREMIUM_PASS_REWARD,
 } from "../USERQStore";
 
 import { logger } from "../logger";
@@ -2354,6 +2355,7 @@ const getProjectResources = async (project_id, lang, userkey) => {
     `SELECT * FROM user_mission_all_clear WHERE userkey = ? AND project_id = ?;`,
     [userkey, project_id]
   ); // [21] 미션 올 클리어
+  query += mysql.format(Q_SELECT_PREMIUM_PASS_REWARD, [userkey, project_id, project_id]); // [22] 프리미엄 패스 챌린지 보상 리스트
 
   // * 모인 쿼리 실행
   const result = await slaveDB(query);
@@ -2573,6 +2575,50 @@ const getProjectResources = async (project_id, lang, userkey) => {
     }
   }
 
+  // [22] 프리미엄 챌린지 보상 
+  const premiumMaster = [];
+  const premiumDetail = {};
+  if(result.row[22].length > 0){
+    let index = 0;
+    // eslint-disable-next-line no-restricted-syntax
+    for(const item of result.row[22]){
+
+      //마스터 
+      if(index === 0) {
+        premiumMaster.push({
+          premium_id: item.premium_id,
+          product_id: item.product_id,
+          product_price: item.product_price,
+          sale_id: item.sale_id,
+          sale_price: item.sale_price,
+          step: item.step,
+        });
+      }
+
+      //디테일 
+      // 키 없으면 추가해준다.
+      if (
+        !Object.prototype.hasOwnProperty.call(
+          premiumDetail,
+          item.chapter_number.toString()
+        )
+      ) {
+        premiumDetail[item.chapter_number.toString()] = [];
+      }
+
+      premiumDetail[item.chapter_number.toString()].push({
+        detail_no: item.detail_no,
+        free_currency: item.free_currency,
+        free_quantity: item.free_quantity, 
+        free_reward_date: item.free_reward_date,
+        premium_currency: item.premium_currency,
+        premium_quantity: item.premium_quantity,
+        premium_reward_date: item.premium_reward_date,
+      }); // 배열에 추가한다.      
+      index += 1;
+    }
+  }
+
   responseData.detail = result.row[0];
   responseData.dressCode = result.row[1];
   responseData.nametag = result.row[2];
@@ -2596,6 +2642,8 @@ const getProjectResources = async (project_id, lang, userkey) => {
   responseData.endingHint = result.row[19];
   responseData.selectionHintPurchase = selectionHintPurchase;
   responseData.missionAllClear = result.row[21].length > 0 ? 1 : 0;
+  responseData.premiumMaster = premiumMaster;
+  responseData.premiumDetail = premiumDetail;
 
   return responseData;
 };
@@ -2747,7 +2795,7 @@ export const getUserSelectedStory = async (req, res) => {
   storyInfo.episodePurchase = projectResources.episodePurchase; // 에피소드 구매 정보
   storyInfo.sides = projectResources.sides; // 유저의 사이드 에피소드 리스트
 
-  storyInfo.premiumPrice = await getCurrentProjectPassPrice(userInfo); // 현재 작품의 프리미엄 패스 가격정보
+  //storyInfo.premiumPrice = await getCurrentProjectPassPrice(userInfo); // 현재 작품의 프리미엄 패스 가격정보
 
   storyInfo.selectionProgress = await getUserProjectSelectionProgress(userInfo); // 프로젝트 선택지 Progress
 
@@ -2779,9 +2827,11 @@ export const getUserSelectedStory = async (req, res) => {
   storyInfo.selectionPurchase = await getUserSelectionPurchaseInfo(userInfo); // 과금 선택지 정보
   storyInfo.selectionHistory = await getUserStorySelectionHistory(req.body); // 선택지 히스토리
 
-  storyInfo.endingHint = projectResources.endingHint;
-  storyInfo.selectionHintPurchase = projectResources.selectionHintPurchase;
-  storyInfo.missionAllClear = projectResources.missionAllClear;
+  storyInfo.endingHint = projectResources.endingHint; //엔딩힌트
+  storyInfo.selectionHintPurchase = projectResources.selectionHintPurchase; //선택지힌트 구매
+  storyInfo.missionAllClear = projectResources.missionAllClear; //미션 올클리어
+  storyInfo.premiumMaster = projectResources.premiumMaster; //프리미엄 패스 마스터
+  storyInfo.premiumDetail = projectResources.premiumDetail; //프리미엄 패스 디테일
 
   // response
   res.status(200).json(storyInfo);
@@ -3415,4 +3465,118 @@ export const requestRecommendProject = async (req, res) => {
   responseData.project_id = [];
 
   res.status(200).json(responseData);
+};
+
+//! 프리미엄 챌린지 보상
+export const getPremiumReward = async (req, res) =>{
+
+  const {
+    body:{
+      userkey,
+      project_id,
+      premium_id,
+      chapter_number,
+      kind = 0,
+    }
+  } = req;
+
+
+  let result = '';
+  let currentQuery = '';
+  let updateQuery = '';
+  const responseData = {};
+
+  //이미 받았는지 확인
+  result = await DB(`SELECT * FROM user_premium_reward WHERE userkey = ${userkey} AND project_id = ${project_id} AND premium_id = ${premium_id} AND chapter_number = ${chapter_number};`);
+  if(result.state && result.row.length > 0){
+    const { free_reward_date, premium_reward_date, } = result.row[0];
+
+    if((kind === 0 && free_reward_date) || (kind === 1 && premium_reward_date)){
+      logger.error(`getPremiumReward Error`);
+      respondDB(res, 80025, 'already rewarded');
+      return;  
+    }
+  }
+
+  //프리미엄 패스 유저인지 확인
+  if(kind === 1){
+    result = await DB(`SELECT * FROM user_premium_pass WHERE userkey = ? AND project_id = ?;`, [userkey, project_id]);
+    if(!result.state || result.row.length === 0){
+      logger.error(`getPremiumReward Error`);
+      respondDB(res, 80039);
+      return;    
+    }
+  }
+
+  //보상 조회
+  result = await DB(`
+  SELECT 
+  ifnull(upr.reward_no, 0) AS reward_no 
+  , free_currency 
+  , free_quantity 
+  , premium_currency 
+  , premium_quantity 
+  FROM com_premium_detail cpd
+  LEFT OUTER JOIN user_premium_reward upr 
+  ON cpd.premium_id = upr.premium_id AND cpd.chapter_number = upr.chapter_number AND upr.userkey = ?
+  WHERE cpd.premium_id = ? 
+  AND cpd.chapter_number = ?;`, [userkey, premium_id, chapter_number]);
+  if(result.state && result.row.length > 0){
+    const { reward_no, free_currency, free_quantity, premium_currency, premium_quantity, } = result.row[0];
+
+    let currency = free_currency;
+    let quantity = free_quantity;
+    if(kind === 1){
+      currency = premium_currency;
+      quantity = premium_quantity;
+    }
+
+    //보상 지급(우편전송)
+    currentQuery = `
+    INSERT INTO user_mail(userkey, mail_type, currency, quantity, expire_date, connected_project) 
+    VALUES(?, 'premium_pass', ?, ?, DATE_ADD(NOW(), INTERVAL 1 YEAR), ?);
+    `;
+    updateQuery += mysql.format(currentQuery, [userkey, currency, quantity, project_id]);
+
+    //히스토리 내역
+    if(reward_no === 0){ //새로 누적
+      let free_reward_date = 'NULL';
+      let premium_reward_date = 'NULL';
+
+      if(kind === 0) free_reward_date = 'now()';
+      else  premium_reward_date = 'now()';
+
+      currentQuery = `
+      INSERT INTO user_premium_reward(userkey, project_id, premium_id, chapter_number, free_reward_date, premium_reward_date) 
+      VALUES(${userkey}, ${project_id}, ${premium_id}, ${chapter_number}, ${free_reward_date}, ${premium_reward_date});
+      `;
+    }else if(kind === 0){ //무료 보상
+      currentQuery = `
+      UPDATE user_premium_reward
+      SET free_reward_date = now()
+      WHERE reward_no = ${reward_no};
+      `;
+    }else{  //프리미엄 보상
+      currentQuery = `
+      UPDATE user_premium_reward
+      SET premium_reward_date = now()
+      WHERE reward_no = ${reward_no};
+      `;
+    }
+    updateQuery += mysql.format(currentQuery);
+
+    result = await transactionDB(updateQuery);
+    if(!result.state){
+      logger.error(`getPremiumReward Error ${result.error}`);
+      respondDB(res, 80026, result.error);
+      return;         
+    }
+  }
+
+  responseData.unreadMailCount = await getUserUnreadMailCount(userkey);
+  result = await DB(`SELECT * FROM user_premium_reward WHERE userkey = ? AND project_id = ?;`, [userkey, project_id]);
+  responseData.premiumReward = result.row;
+
+  res.status(200).json(responseData);
+  
 };
