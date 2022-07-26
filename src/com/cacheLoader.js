@@ -51,20 +51,23 @@ export const getCacheProduct = async (lang) => {
       productInfo[key] = [];
     }
 
-    // * 상품의 product_type에 따른 디테일 정보를 배열에 푸시해주기
-    promise.push(
-      getProductDetailList(item.product_master_id, item.product_type)
-    );
+    // * 상품의 product_type에 따른 디테일 정보를 배열에 푸시해주기(프리미엄 패스 제외)
+    // * 프리미엄 패스는 getUserSelectedStory()에서 호출
+    if(item.product_type !== 'premium_pass'){
+      promise.push(
+        getProductDetailList(item.product_master_id, item.product_type)
+      );
+    }
   });
 
   await Promise.all(promise)
     .then((values) => {
       // * promise에 넣어둔 모든 getProductDetailList 실행이 종료되면, 결과가 한번에 들어온다.
       values.forEach((arr) => {
-        //* productInfo의 key랑 arr[i].master_id 가 똑같으면,
-        arr.forEach((item) => {
-          productInfo[item.master_id.toString()].push(item);
-        });
+          //* productInfo의 key랑 arr[i].master_id 가 똑같으면,
+          arr.forEach((item) => {
+            productInfo[item.master_id.toString()].push(item);
+          });
       });
     })
     .catch((err) => {
@@ -353,7 +356,6 @@ export const refreshCacheProduct = async (req, res) => {
   };
 
   cache.set("product", product);
-
 
   if (res) res.status(200).send("Done");
 };
