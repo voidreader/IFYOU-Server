@@ -140,7 +140,7 @@ export const getUserPurchaseListVer2 = async (req, res, isResponse = true) => {
   WHERE userkey = ${userkey}
     AND lpm.product_id = up.product_id 
     AND up.purchase_date BETWEEN lpm.from_date AND lpm.to_date
-    AND lpm.product_type <> 'oneday_pass'
+    AND lpm.product_type NOT IN ('oneday_pass', 'premium_pass')
   ORDER BY purchase_no DESC;
   `);
   responseData.normal = result.row; 
@@ -165,7 +165,7 @@ export const getUserPurchaseListVer2 = async (req, res, isResponse = true) => {
     AND up.userkey = uop.userkey
     AND up.purchase_date BETWEEN lpm.from_date AND lpm.to_date
     AND lpm.product_type = 'oneday_pass'
-  ORDER BY purchase_no DESC;
+  ORDER BY up.purchase_no DESC;
   `);
   result.row.forEach((item) => {
     const { expire_date } = item;
@@ -173,6 +173,28 @@ export const getUserPurchaseListVer2 = async (req, res, isResponse = true) => {
     item.expire_date_tick = expireDate.getTime(); // tick 넣어주기!
   });
   responseData.oneday_pass = result.row;
+
+  //프리미엄 패스
+  result = await DB(`
+  SELECT up.purchase_no
+  , up.product_id 
+  , up.receipt
+  , up.state
+  , DATE_FORMAT(up.purchase_date, '%Y-%m-%d %T') purchase_date
+  , lpm.product_master_id
+  , upp.project_id 
+  FROM user_purchase up
+     , list_product_master lpm
+     , user_premium_pass upp 
+  WHERE up.userkey = ${userkey}
+    AND lpm.product_id = up.product_id
+    AND up.purchase_no = upp.purchase_no
+    AND up.userkey = upp.userkey
+    AND up.purchase_date BETWEEN lpm.from_date AND lpm.to_date
+    AND lpm.product_type = 'premium_pass'
+  ORDER BY up.purchase_no DESC;
+  `);
+  responseData.premium_pass = result.row;
 
   if (isResponse) {
     res.status(200).json(responseData);
@@ -617,7 +639,7 @@ export const purchaseInappProduct = async (req, res) => {
     respondDB(res, 80019, "Wrong parameters");
     return;
   }
-  if(product_id.includes('oneday_pass')){
+  if(product_id.includes('oneday_pass') || product_id.includes('story_pack')){
     //작품 있는지 확인
     result = await slaveDB(`SELECT * FROM list_project_master WHERE project_id = ${project_id};`);
     if(!result.state || result.row.length === 0){
@@ -626,8 +648,11 @@ export const purchaseInappProduct = async (req, res) => {
       return;            
     }
 
-    // 원데이 패스 구매 여부 확인
-    result = await slaveDB(`SELECT * FROM user_oneday_pass WHERE userkey = ? AND project_id = ?;`, [userkey, project_id]);
+    let TABLE = 'user_oneday_pass';
+    if(product_id.includes('story_pack')) TABLE = 'user_premium_pass';
+
+    // 원데이/프리미엄 패스 구매 여부 확인
+    result = await slaveDB(`SELECT * FROM ${TABLE} WHERE userkey = ? AND project_id = ?;`, [userkey, project_id]);
     if(!result.state || result.row.length > 0){
       logger.error(`purchaseInappProduct Error [${product_id}]/[${userkey}/[${project_id}]`);
       respondDB(res, 80137, "already purchased!!");
@@ -682,13 +707,16 @@ export const purchaseInappProduct = async (req, res) => {
   logger.info(`### purchase first done ::: ${product_id}/${purchase_no}`);
   
   // 구매한 상품 유저에게 지급처리
-  if(product_id.includes('oneday_pass')){
-    //원데이 패스 
+  if(product_id.includes('oneday_pass') || product_id.includes('story_pack')){
+    //원데이 패스, 프리미엄 패스
     //구매일자 가져오기
     result = await DB(`SELECT DATE_FORMAT(purchase_date, '%Y-%m-%d %T') purchase_date FROM user_purchase WHERE purchase_no = ${purchase_no};`);
     const { purchase_date } = result.row[0];
 
-    query = `INSERT INTO user_oneday_pass(userkey, project_id, purchase_no, purchase_date) VALUES(${userkey}, ${project_id}, ${purchase_no}, '${purchase_date}');`;
+    let TABLE = 'user_oneday_pass';
+    if(product_id.includes('story_pack')) TABLE = 'user_premium_pass';
+
+    query = `INSERT INTO ${TABLE}(userkey, project_id, purchase_no, purchase_date) VALUES(${userkey}, ${project_id}, ${purchase_no}, '${purchase_date}');`;
   }else{
     // 그외 상품
     if (!product_id.includes('allpass')) {

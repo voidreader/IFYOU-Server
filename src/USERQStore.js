@@ -733,3 +733,26 @@ AND a.project_id = ?
 AND userkey = ?
 ORDER BY sortkey, episode_id; 
 `;
+
+//프리미엄 패스 챌린지 리스트
+export const Q_SELECT_PREMIUM_PASS_REWARD = `
+SELECT 
+cpm.premium_id
+, cpm.product_id
+, cpm.product_price
+, cpm.sale_id
+, cpm.sale_price
+, cpm.step
+, cpd.detail_no
+, cpd.chapter_number 
+, cpd.free_currency
+, cpd.free_quantity
+, ifnull(upr.free_reward_date, '') AS free_reward_date
+, cpd.premium_currency
+, cpd.premium_quantity
+, ifnull(upr.premium_reward_date, '') AS premium_reward_date
+FROM com_premium_master cpm
+INNER JOIN com_premium_detail cpd ON cpm.premium_id = cpd.premium_id 
+LEFT OUTER JOIN user_premium_reward upr ON cpd.premium_id = upr.premium_id AND upr.userkey = ? AND upr.project_id = ? AND cpd.chapter_number = upr.chapter_number 
+WHERE cpm.project_id = ?;
+`;
