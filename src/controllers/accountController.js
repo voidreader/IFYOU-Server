@@ -465,8 +465,8 @@ const requestSideEpisodeList = async (userInfo) => {
   , a.depend_episode
   , TRIM(fn_get_episode_title_lang(a.depend_episode, '${userInfo.lang}')) depend_episode_title
   , a.unlock_style 
-  , a.unlock_episodes 
-  , a.unlock_scenes 
+  , ifnull(a.unlock_episodes, '') unlock_episodes
+  , ifnull(a.unlock_scenes, '') unlock_scenes 
   , a.unlock_coupon 
   , a.sale_price 
   , a.one_currency
@@ -533,8 +533,8 @@ const requestMainEpisodeList = async (userInfo) => {
   , a.depend_episode
   , TRIM(fn_get_episode_title_lang(a.depend_episode, '${userInfo.lang}')) depend_episode_title
   , a.unlock_style 
-  , a.unlock_episodes 
-  , a.unlock_scenes 
+  , ifnull(a.unlock_episodes, '') unlock_episodes
+  , ifnull(a.unlock_scenes, '') unlock_scenes 
   , a.unlock_coupon 
   , a.sale_price
   , a.one_currency
@@ -1262,186 +1262,6 @@ const getEpisodeFisrtClearReward = async (userkey, episodeID) => {
   }
 
   return rewardResult.row;
-};
-
-// ! 유저 에피소드 플레이 기록(Hist, Progress) 업데이트
-// ! 유저가 에피소드 플레이를 완료한 시점에 호출
-export const updateUserEpisodePlayRecord = async (req, res) => {
-  // * nextEpisodeID가 ending의 경우는 user_ending에 따로 추가로 수집한다.
-  // * 플레이 기록은 에피소드 플레이 완료시에 쌓이기 때문에
-  // * 엔딩의 플레이를 완료하지 않아도 엔딩정보를 수집해야 한다.
-
-  // * 2021.07 : 사이드 에피소드의 해금을 체크해야한다.(unlockSide)
-  // * 2021.08 : 미션 해금을 체크한다.(unlockMission)
-  // * 2021.08.09 : OneTime. 1회 플레이에 대한 처리를 진행한다. (user_episode_purchase, episodePurchase 갱신 필요)
-  // * 2021.12.12 : ending 선택지 로그 히스토리 때문에 sp_insert_user_ending_new 프로시저로 변경 - JE
-  const {
-    body: {
-      userkey,
-      project_id,
-      episodeID,
-      nextEpisodeID = -1,
-      useRecord = true,
-      lang = "KO",
-      ver = 0,
-    },
-  } = req;
-
-  logger.info(`updateUserEpisodePlayRecord [${JSON.stringify(req.body)}]`);
-  req.body.episode_id = episodeID; // 이름.. 실수..
-
-  const histQuery = `CALL sp_insert_user_episode_hist(?, ?, ?);`;
-  const progressQuery = `CALL sp_update_user_episode_done(?, ?, ?);`;
-  const endingQuery = `CALL sp_insert_user_ending_new(?,?,?,?);`;
-
-  // * 2021.09.18 첫 클리어 보상을 위한 추가 로직
-  // * 첫 클리어 보상 정보 가져온다.
-  let firstClearResult = await getEpisodeFisrtClearReward(userkey, episodeID);
-
-  const histResult = await DB(histQuery, [userkey, project_id, episodeID]); // 히스토리 입력
-  const progressResult = await DB(progressQuery, [
-    userkey,
-    project_id,
-    episodeID,
-  ]); // 진행도 입력
-
-  // ! 2021.08.26 projectCurrent
-  // * nextEpisodeID가 0보다 작은 경우는 막다른 길이다.
-  // * 스페셜 에피소드는 다음 에피소드 지정이 되지 않는다.
-  // * 엔딩에서도 다음 에피소드 지정이 되지 않는다.
-  // * 파라매터로 막다른 길임을 알려준다.
-  const updateCurrentParam = {
-    userkey,
-    project_id,
-    episodeID: nextEpisodeID < 0 ? episodeID : nextEpisodeID, // 다음 에피소드 설정이 있을때만 다음 에피소드 ID로 지정
-    is_final: nextEpisodeID < 0 ? 1 : 0, // 다음 에피소드 설정이 없으면 1로 처리 (엔딩이나 설정 문제)
-  };
-
-  logger.info(`updateCurrentParam : ${JSON.stringify(updateCurrentParam)}`);
-
-  let projectCurrent;
-  if (useRecord) {
-    projectCurrent = await requestUpdateProjectCurrent(updateCurrentParam);
-  } else {
-    projectCurrent = await getUserProjectCurrent(req.body); // useRecord false 인경우는 갱신없음.
-  }
-
-  // 플레이 위치 저장 (배열로 받음)
-
-  // 배열로 받은 projectCurrent를 responseData.projectCurrent에 넣어준다.
-  const responseData = { projectCurrent }; // * response 값
-
-  // console.log(`responseData Check : `, responseData);
-
-  // 히스토리 처리
-  if (histResult.state && histResult.row[0].length > 0) {
-    responseData.episodeHistory = [];
-    histResult.row[0].forEach((element) => {
-      responseData.episodeHistory.push(element.episode_id);
-    });
-  } else {
-    logger.error(
-      `updateUserEpisodePlayRecord error in episode hist ${histResult.error}`
-    );
-    respondDB(res, 80026, histResult.error);
-    return;
-  }
-
-  // 진행도 처리
-  // TODO 업데이트 전까지 배열과 object 배열을 함께준다.
-  if (progressResult.state) {
-    responseData.episodeProgress = [];
-    progressResult.row[0].forEach((element) => {
-      responseData.episodeProgress.push(element.episode_id);
-    });
-  } else {
-    logger.error(`updateUserEpisodePlayRecord Error 1 ${progressResult.error}`);
-    respondDB(res, 80026, progressResult.error);
-    return;
-  }
-
-  // 이 시점에 클리어 로그
-  logAction(userkey, "episode_clear", req.body);
-
-  // 엔딩 수집 추가 처리 (2021.07.05) -
-
-  // 플레이 회차 확인
-  const playResult = await DB(
-    `
-  SELECT DISTINCT play_count 
-  FROM user_selection_current
-  WHERE userkey = ? AND project_id = ?;
-  `,
-    [userkey, project_id]
-  );
-  let playCount = 0;
-  if (playResult.row.length > 0) playCount = playResult.row[0].play_count;
-
-  const endingResult = await DB(endingQuery, [
-    userkey,
-    nextEpisodeID,
-    project_id,
-    playCount,
-  ]);
-  if (!endingResult.state) {
-    logger.error(`updateUserEpisodePlayRecord Error 2 ${endingResult.error}`); // 로그만 남긴다.
-  }
-
-  // * 사이드 에피소드 해금 처리(2021.07.05)
-  responseData.unlockSide = await checkSideUnlockByEpisode(req.body);
-
-  // scene Count 정보(2021.08.05)
-  responseData.playedSceneCount = await getEpisodeSceneCount(
-    userkey,
-    episodeID
-  );
-
-  // * 미션 해금 정보(2021.08.06)
-  responseData.unlockMission = await checkMissionByEpisode(req.body);
-
-  // * 2021.09.18 처리할꺼 다 하고, 첫 클리어 보상 입력처리.
-  // * 2022.01.24 1.1.10 버전부터는 팝업 호출 이후에 획득 처리한다.
-  if (ver < 10) {
-    const rewardPromise = [];
-    firstClearResult = firstClearResult.filter((reward) => reward.quantity > 0);
-    firstClearResult.forEach((reward) => {
-      console.log("first clear : ", reward);
-      rewardPromise.push(
-        addUserProperty(
-          userkey,
-          reward.currency,
-          reward.quantity,
-          "first_clear"
-        )
-      );
-    });
-
-    await Promise.all(rewardPromise)
-      .then((values) => {
-        console.log(values);
-      })
-      .catch((err) => {
-        console.log(err);
-        logger.error(err);
-      });
-  } // ? 구버전 처리 끝
-
-  // * 2021.09.18 첫결제 보상 추가되면서 bank 추가
-  // 첫 결제 보상 정보
-  responseData.firstClearResult = firstClearResult;
-  // bank 정보 refresh
-  responseData.bank = await getUserBankInfo(req.body);
-
-  const logResponse = {};
-  logResponse.projectCurrent = responseData.projectCurrent;
-  logResponse.unlockSide = responseData.unlockSide;
-
-  logger.info(JSON.stringify(responseData));
-
-  res.status(200).json(responseData);
-
-  // 이 시점에 클리어 후에 처리를 위한 로그 추가
-  logAction(userkey, "episode_clear_after", logResponse);
 };
 
 // * 유저 에피소드 첫 클리어 보상 요청 (실제 수신 처리)
@@ -2379,7 +2199,11 @@ const getProjectResources = async (project_id, lang, userkey) => {
     `SELECT * FROM user_mission_all_clear WHERE userkey = ? AND project_id = ?;`,
     [userkey, project_id]
   ); // [21] 미션 올 클리어
-  query += mysql.format(Q_SELECT_PREMIUM_PASS_REWARD, [userkey, project_id, project_id]); // [22] 프리미엄 패스 챌린지 보상 리스트
+  query += mysql.format(Q_SELECT_PREMIUM_PASS_REWARD, [
+    userkey,
+    project_id,
+    project_id,
+  ]); // [22] 프리미엄 패스 챌린지 보상 리스트
 
   // * 모인 쿼리 실행
   const result = await slaveDB(query);
@@ -2599,16 +2423,15 @@ const getProjectResources = async (project_id, lang, userkey) => {
     }
   }
 
-  // [22] 프리미엄 챌린지 보상 
+  // [22] 프리미엄 챌린지 보상
   const premiumMaster = [];
   const premiumDetail = {};
-  if(result.row[22].length > 0){
+  if (result.row[22].length > 0) {
     let index = 0;
     // eslint-disable-next-line no-restricted-syntax
-    for(const item of result.row[22]){
-
-      //마스터 
-      if(index === 0) {
+    for (const item of result.row[22]) {
+      //마스터
+      if (index === 0) {
         premiumMaster.push({
           premium_id: item.premium_id,
           product_id: item.product_id,
@@ -2619,7 +2442,7 @@ const getProjectResources = async (project_id, lang, userkey) => {
         });
       }
 
-      //디테일 
+      //디테일
       // 키 없으면 추가해준다.
       if (
         !Object.prototype.hasOwnProperty.call(
@@ -2633,12 +2456,12 @@ const getProjectResources = async (project_id, lang, userkey) => {
       premiumDetail[item.chapter_number.toString()].push({
         detail_no: item.detail_no,
         free_currency: item.free_currency,
-        free_quantity: item.free_quantity, 
+        free_quantity: item.free_quantity,
         free_reward_date: item.free_reward_date,
         premium_currency: item.premium_currency,
         premium_quantity: item.premium_quantity,
         premium_reward_date: item.premium_reward_date,
-      }); // 배열에 추가한다.      
+      }); // 배열에 추가한다.
       index += 1;
     }
   }
@@ -3497,48 +3320,49 @@ export const requestRecommendProject = async (req, res) => {
 };
 
 //! 프리미엄 챌린지 보상
-export const getPremiumReward = async (req, res) =>{
-
+export const getPremiumReward = async (req, res) => {
   const {
-    body:{
-      userkey,
-      project_id,
-      premium_id,
-      chapter_number,
-      kind = 0,
-    }
+    body: { userkey, project_id, premium_id, chapter_number, kind = 0 },
   } = req;
 
-
-  let result = '';
-  let currentQuery = '';
-  let updateQuery = '';
+  let result = "";
+  let currentQuery = "";
+  let updateQuery = "";
   const responseData = {};
 
   //이미 받았는지 확인
-  result = await DB(`SELECT * FROM user_premium_reward WHERE userkey = ${userkey} AND project_id = ${project_id} AND premium_id = ${premium_id} AND chapter_number = ${chapter_number};`);
-  if(result.state && result.row.length > 0){
-    const { free_reward_date, premium_reward_date, } = result.row[0];
+  result = await DB(
+    `SELECT * FROM user_premium_reward WHERE userkey = ${userkey} AND project_id = ${project_id} AND premium_id = ${premium_id} AND chapter_number = ${chapter_number};`
+  );
+  if (result.state && result.row.length > 0) {
+    const { free_reward_date, premium_reward_date } = result.row[0];
 
-    if((kind === 0 && free_reward_date) || (kind === 1 && premium_reward_date)){
+    if (
+      (kind === 0 && free_reward_date) ||
+      (kind === 1 && premium_reward_date)
+    ) {
       logger.error(`getPremiumReward Error`);
-      respondDB(res, 80025, 'already rewarded');
-      return;  
+      respondDB(res, 80025, "already rewarded");
+      return;
     }
   }
 
   //프리미엄 패스 유저인지 확인
-  if(kind === 1){
-    result = await DB(`SELECT * FROM user_premium_pass WHERE userkey = ? AND project_id = ?;`, [userkey, project_id]);
-    if(!result.state || result.row.length === 0){
+  if (kind === 1) {
+    result = await DB(
+      `SELECT * FROM user_premium_pass WHERE userkey = ? AND project_id = ?;`,
+      [userkey, project_id]
+    );
+    if (!result.state || result.row.length === 0) {
       logger.error(`getPremiumReward Error`);
       respondDB(res, 80039);
-      return;    
+      return;
     }
   }
 
   //보상 조회
-  result = await DB(`
+  result = await DB(
+    `
   SELECT 
   ifnull(upr.reward_no, 0) AS reward_no 
   , free_currency 
@@ -3549,13 +3373,21 @@ export const getPremiumReward = async (req, res) =>{
   LEFT OUTER JOIN user_premium_reward upr 
   ON cpd.premium_id = upr.premium_id AND cpd.chapter_number = upr.chapter_number AND upr.userkey = ?
   WHERE cpd.premium_id = ? 
-  AND cpd.chapter_number = ?;`, [userkey, premium_id, chapter_number]);
-  if(result.state && result.row.length > 0){
-    const { reward_no, free_currency, free_quantity, premium_currency, premium_quantity, } = result.row[0];
+  AND cpd.chapter_number = ?;`,
+    [userkey, premium_id, chapter_number]
+  );
+  if (result.state && result.row.length > 0) {
+    const {
+      reward_no,
+      free_currency,
+      free_quantity,
+      premium_currency,
+      premium_quantity,
+    } = result.row[0];
 
     let currency = free_currency;
     let quantity = free_quantity;
-    if(kind === 1){
+    if (kind === 1) {
       currency = premium_currency;
       quantity = premium_quantity;
     }
@@ -3565,27 +3397,35 @@ export const getPremiumReward = async (req, res) =>{
     INSERT INTO user_mail(userkey, mail_type, currency, quantity, expire_date, connected_project) 
     VALUES(?, 'premium_pass', ?, ?, DATE_ADD(NOW(), INTERVAL 1 YEAR), ?);
     `;
-    updateQuery += mysql.format(currentQuery, [userkey, currency, quantity, project_id]);
+    updateQuery += mysql.format(currentQuery, [
+      userkey,
+      currency,
+      quantity,
+      project_id,
+    ]);
 
     //히스토리 내역
-    if(reward_no === 0){ //새로 누적
-      let free_reward_date = 'NULL';
-      let premium_reward_date = 'NULL';
+    if (reward_no === 0) {
+      //새로 누적
+      let free_reward_date = "NULL";
+      let premium_reward_date = "NULL";
 
-      if(kind === 0) free_reward_date = 'now()';
-      else  premium_reward_date = 'now()';
+      if (kind === 0) free_reward_date = "now()";
+      else premium_reward_date = "now()";
 
       currentQuery = `
       INSERT INTO user_premium_reward(userkey, project_id, premium_id, chapter_number, free_reward_date, premium_reward_date) 
       VALUES(${userkey}, ${project_id}, ${premium_id}, ${chapter_number}, ${free_reward_date}, ${premium_reward_date});
       `;
-    }else if(kind === 0){ //무료 보상
+    } else if (kind === 0) {
+      //무료 보상
       currentQuery = `
       UPDATE user_premium_reward
       SET free_reward_date = now()
       WHERE reward_no = ${reward_no};
       `;
-    }else{  //프리미엄 보상
+    } else {
+      //프리미엄 보상
       currentQuery = `
       UPDATE user_premium_reward
       SET premium_reward_date = now()
@@ -3595,17 +3435,19 @@ export const getPremiumReward = async (req, res) =>{
     updateQuery += mysql.format(currentQuery);
 
     result = await transactionDB(updateQuery);
-    if(!result.state){
+    if (!result.state) {
       logger.error(`getPremiumReward Error ${result.error}`);
       respondDB(res, 80026, result.error);
-      return;         
+      return;
     }
   }
 
   responseData.unreadMailCount = await getUserUnreadMailCount(userkey);
-  result = await DB(`SELECT * FROM user_premium_reward WHERE userkey = ? AND project_id = ?;`, [userkey, project_id]);
+  result = await DB(
+    `SELECT * FROM user_premium_reward WHERE userkey = ? AND project_id = ?;`,
+    [userkey, project_id]
+  );
   responseData.premiumReward = result.row;
 
   res.status(200).json(responseData);
-  
 };
