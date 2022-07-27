@@ -1762,15 +1762,14 @@ export const updateUserProjectSceneHist = async (req, res) => {
   currentQuery += `INSERT IGNORE INTO user_scene_progress (userkey, project_id, episode_id, scene_id) VALUES (${userkey}, ${project_id}, ${episode_id}, '${scene_id}');`;
   currentQuery += `INSERT IGNORE INTO user_scene_hist (userkey, project_id, episode_id, scene_id) VALUES (${userkey}, ${project_id}, ${episode_id}, '${scene_id}');`;
 
+  res.status(200).send("");
+
   // await 쓰지 않고 처리
-  const result = DB(currentQuery);
+  const result = await DB(currentQuery);
   if (!result.state) {
     logger.error(`updateUserProjectSceneHist Error ${result.error}`);
     respondDB(res, 80026, result.error);
-    return;
   }
-
-  res.status(200).send("");
 }; // ? end of updateUserProjectSceneHist
 
 // * drop 미션 해금
