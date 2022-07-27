@@ -161,7 +161,10 @@ import {
 import { getIFyouWebMainPageInfo, receiveInquiry } from "./webController";
 import {
   requestCompleteEpisode,
+  requestCompleteEpisodeType2,
   requestEpisodeFirstClear,
+  requestUnlockMission,
+  requestUnlockSpecialEpisode,
 } from "./playingStoryAPI";
 import {
   requestIfyouPlayList,
@@ -1488,6 +1491,10 @@ export const clientHome = (req, res) => {
   else if (func === "collectAllProjectRetention")
     collectAllProjectRetention(req, res);
   else if (func === "requestCompleteEpisode") requestCompleteEpisode(req, res);
+  // 삭제 대상
+  else if (func === "requestCompleteEpisodeType2")
+    requestCompleteEpisodeType2(req, res);
+  //신규 2022.07.27
   else if (func === "requestEpisodeFirstClear")
     requestEpisodeFirstClear(req, res);
   // 타임딜 생성 처리
@@ -1579,6 +1586,12 @@ export const clientHome = (req, res) => {
   else if (func === "getPremiumReward")
     //프리미엄 챌린지 보상
     getPremiumReward(req, res);
+  else if (func === "requestUnlockSpecialEpisode")
+    // 스페셜 에피소드 해금
+    requestUnlockSpecialEpisode(req, res);
+  else if (func === "requestUnlockMission")
+    // 미션 해금
+    requestUnlockMission(req, res);
   else {
     //  res.status(400).send(`Wrong Func : ${func}`);
     logger.error(`clientHome Error ${func}`);
