@@ -500,18 +500,20 @@ const getIfYouProjectList = async (req, res) => {
   , a.is_credit 
   , fn_get_design_info(b.ifyou_banner_id, 'url') ifyou_image_url
   , fn_get_design_info(b.ifyou_banner_id, 'key') ifyou_image_key
-  , fn_get_design_info(b.ifyou_thumbnail_id, 'url') ifyou_thumbnail_url
-  , fn_get_design_info(b.ifyou_thumbnail_id, 'key') ifyou_thumbnail_key
+  , fn_get_design_info(a.ifyou_thumbnail_id, 'url') ifyou_thumbnail_url
+  , fn_get_design_info(a.ifyou_thumbnail_id, 'key') ifyou_thumbnail_key
   , fn_get_design_info(b.circle_image_id, 'url') circle_image_url
   , fn_get_design_info(b.circle_image_id, 'key') circle_image_key
-  , fn_get_design_info(b.episode_finish_id, 'url') episode_finish_url
-  , fn_get_design_info(b.episode_finish_id, 'key') episode_finish_key
-  , fn_get_design_info(b.premium_pass_id, 'url') premium_pass_url
-  , fn_get_design_info(b.premium_pass_id, 'key') premium_pass_key
+  , fn_get_design_info(a.episode_finish_id, 'url') episode_finish_url
+  , fn_get_design_info(a.episode_finish_id, 'key') episode_finish_key
+  , fn_get_design_info(a.premium_pass_id, 'url') premium_pass_url
+  , fn_get_design_info(a.premium_pass_id, 'key') premium_pass_key
   , fn_get_design_info(b.category_thumbnail_id, 'url') category_thumbnail_url
   , fn_get_design_info(b.category_thumbnail_id, 'key') category_thumbnail_key
-  , fn_get_design_info(b.coin_banner_id, 'url') coin_banner_url
-  , fn_get_design_info(b.coin_banner_id, 'key') coin_banner_key
+  , fn_get_design_info(a.coin_banner_id, 'url') coin_banner_url
+  , fn_get_design_info(a.coin_banner_id, 'key') coin_banner_key
+  , fn_get_design_info(b.introduce_image_id, 'url') introduce_image_url
+  , fn_get_design_info(b.introduce_image_id, 'key') introduce_image_key
   , a.banner_model_id -- 메인배너 Live2D 모델ID
   , a.is_lock
   , a.color_rgb
