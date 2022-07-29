@@ -2423,7 +2423,7 @@ const getProjectResources = async (project_id, lang, userkey) => {
   }
 
   // [22] 프리미엄 챌린지 보상
-  const premiumMaster = [];
+  let premiumMaster = {};
   const premiumDetail = {};
   if (result.row[22].length > 0) {
     let index = 0;
@@ -2431,14 +2431,14 @@ const getProjectResources = async (project_id, lang, userkey) => {
     for (const item of result.row[22]) {
       //마스터
       if (index === 0) {
-        premiumMaster.push({
+        premiumMaster = {
           premium_id: item.premium_id,
           product_id: item.product_id,
           product_price: item.product_price,
           sale_id: item.sale_id,
           sale_price: item.sale_price,
           step: item.step,
-        });
+        };
       }
 
       //디테일
