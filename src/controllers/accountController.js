@@ -2449,10 +2449,10 @@ const getProjectResources = async (project_id, lang, userkey) => {
           item.chapter_number.toString()
         )
       ) {
-        premiumDetail[item.chapter_number.toString()] = [];
+        premiumDetail[item.chapter_number.toString()] = {};
       }
 
-      premiumDetail[item.chapter_number.toString()].push({
+      premiumDetail[item.chapter_number.toString()] = {
         detail_no: item.detail_no,
         free_currency: item.free_currency,
         free_quantity: item.free_quantity,
@@ -2460,7 +2460,8 @@ const getProjectResources = async (project_id, lang, userkey) => {
         premium_currency: item.premium_currency,
         premium_quantity: item.premium_quantity,
         premium_reward_date: item.premium_reward_date,
-      }); // 배열에 추가한다.
+      };
+
       index += 1;
     }
   }
