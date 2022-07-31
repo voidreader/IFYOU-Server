@@ -508,6 +508,8 @@ const getIfYouProjectList = async (req, res) => {
   , fn_get_design_info(a.episode_finish_id, 'key') episode_finish_key
   , fn_get_design_info(a.premium_pass_id, 'url') premium_pass_url
   , fn_get_design_info(a.premium_pass_id, 'key') premium_pass_key
+  , fn_get_design_info(a.premium_badge_id, 'url') premium_badge_url
+  , fn_get_design_info(a.premium_badge_id, 'key') premium_badge_key
   , fn_get_design_info(b.category_thumbnail_id, 'url') category_thumbnail_url
   , fn_get_design_info(b.category_thumbnail_id, 'key') category_thumbnail_key
   , fn_get_design_info(a.coin_banner_id, 'url') coin_banner_url
