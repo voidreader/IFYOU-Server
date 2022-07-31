@@ -557,7 +557,9 @@ const requestMainEpisodeList = async (userInfo) => {
   , a.next_open_min
   , CASE WHEN ifnull(a.publish_date, '2020-01-01') > now() THEN 1 ELSE 0 END is_serial -- 
   , date_format(ifnull(a.publish_date, '2020-01-01'), '%Y-%m-%d %T') publish_date
+  , ifnull(ueh.episode_id, 0) is_clear
 FROM list_episode a
+LEFT OUTER JOIN user_episode_hist ueh ON ueh.userkey = ${userInfo.userkey} AND ueh.project_id = a.project_id AND ueh.episode_id = a.episode_id
 WHERE a.project_id = ${userInfo.project_id}
 AND a.episode_type IN ('chapter', 'ending')
 ORDER BY a.episode_type, a.sortkey;  
@@ -2183,6 +2185,7 @@ const getProjectResources = async (project_id, lang, userkey) => {
     lang,
     userkey,
     lang,
+    userkey,
     project_id,
   ]); // [14]. 에피소드 사이드 스토리
   query += mysql.format(Q_SELECT_EPISODE_PROGRESS, [userkey, project_id]); //  [15]. 에피소드 progress
