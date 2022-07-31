@@ -495,7 +495,9 @@ SELECT a.episode_id
 , CASE WHEN unlock_style = 'episode' THEN fn_get_unlock_list(?, a.project_id, a.episode_id, ?, a.unlock_style) 
        WHEN unlock_style = 'event' THEN fn_get_unlock_list(?, a.project_id, a.episode_id, ?, a.unlock_style)
 ELSE '' END side_hint
+, ifnull(ueh.episode_id, 0) is_clear
 FROM list_episode a
+LEFT OUTER JOIN user_episode_hist ueh ON ueh.userkey = ? AND ueh.project_id = a.project_id AND ueh.episode_id = a.episode_id
 WHERE a.project_id = ?
 AND a.episode_type = 'side'
 AND a.unlock_style <> 'coupon'
