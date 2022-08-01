@@ -850,6 +850,7 @@ export const purchaseInappProduct = async (req, res) => {
   ); // 구매 히스토리
   // responseData.allpass_expire_tick = await getUserAllpassExpireTick(userkey); // 올패스 만료시간
   responseData.product_id = product_id; // 구매한 제품 ID
+  responseData.project_id = project_id; // 연결된 작품 ID
 
   // * 2022.07.29 원데이 패스에 대한 처리
   if (product_id === "oneday_pass") {
