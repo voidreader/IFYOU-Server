@@ -651,8 +651,12 @@ export const purchaseInappProduct = async (req, res) => {
     );
     if (!result.state || result.row.length === 0) {
       logger.error(
-        `purchaseInappProduct Error [${product_id}]/[${userkey}/[${project_id}]`
+        `purchaseInappProduct Error #1 [${product_id}]/[${userkey}/[${project_id}]`
       );
+
+      // consume 처리 진행한다.
+      gamebaseAPI.consume(paymentSeq, purchaseToken);
+
       respondDB(res, 80019, "No Data");
       return;
     }
@@ -667,7 +671,7 @@ export const purchaseInappProduct = async (req, res) => {
     );
     if (!result.state || result.row.length > 0) {
       logger.error(
-        `purchaseInappProduct Error [${product_id}]/[${userkey}/[${project_id}]`
+        `purchaseInappProduct Error #2 [${product_id}]/[${userkey}/[${project_id}]`
       );
       respondDB(res, 80137, "already purchased!!");
       return;
