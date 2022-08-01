@@ -2463,6 +2463,7 @@ const getProjectResources = async (project_id, lang, userkey) => {
         premium_currency: item.premium_currency,
         premium_quantity: item.premium_quantity,
         premium_reward_date: item.premium_reward_date,
+        premium_id: item.premium_id,
       };
 
       index += 1;
@@ -3398,7 +3399,7 @@ export const getPremiumReward = async (req, res) => {
     //보상 지급(우편전송)
     currentQuery = `
     INSERT INTO user_mail(userkey, mail_type, currency, quantity, expire_date, connected_project) 
-    VALUES(?, 'premium_pass', ?, ?, DATE_ADD(NOW(), INTERVAL 1 YEAR), ?);
+    VALUES(?, 'challenge', ?, ?, DATE_ADD(NOW(), INTERVAL 1 YEAR), ?);
     `;
     updateQuery += mysql.format(currentQuery, [
       userkey,
