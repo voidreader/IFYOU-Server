@@ -72,25 +72,16 @@ export const purchaseSelection = async (req, res) => {
 
     result = await DB(
       `
-    SELECT 
-    ( SELECT admin FROM table_account ta WHERE userkey = ? ) admin
-    , ( SELECT currency FROM user_property up WHERE userkey = ? AND currency = concat('Free', '${project_id}') ) free_check
-    , ( SELECT ifnull(count(*), 0) FROM user_selection_purchase WHERE userkey = ? AND project_id = ? AND episode_id = ? AND selection_group = ? AND selection_no = ?) purchase_check
-    , (SELECT CASE WHEN ta.allpass_expiration > now() THEN 1 ELSE 0 END
-        FROM table_account ta   WHERE ta.userkey  = ${userkey})  allpass
-    FROM DUAL;`,
-      [
-        userkey,
-        userkey,
-        project_id,
-        userkey,
-        project_id,
-        episode_id,
-        selection_group,
-        selection_no,
-        lang,
-      ]
+    SELECT (SELECT admin FROM table_account ta WHERE userkey = ${userkey}) admin
+         , (SELECT up.project_id FROM user_premium_pass up WHERE userkey = ${userkey} AND up.project_id = ${project_id}) free_check
+         , (SELECT ifnull(count(*), 0) 
+             FROM user_selection_purchase 
+            WHERE userkey = ${userkey} AND project_id = ${project_id} AND episode_id = ${episode_id} AND selection_group = ${selection_group} AND selection_no = ${selection_no}) purchase_check
+         , (SELECT CASE WHEN ta.allpass_expiration > now() THEN 1 ELSE 0 END
+              FROM table_account ta  WHERE ta.userkey  = ${userkey})  allpass
+      FROM DUAL;`
     );
+
     if (result.state && result.row.length > 0) {
       const { admin, free_check, purchase_check, allpass } = result.row[0];
 
