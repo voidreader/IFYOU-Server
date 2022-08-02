@@ -532,7 +532,8 @@ const getIfYouProjectList = async (req, res) => {
   , ifnull(DATE_FORMAT(DATE_ADD(uop.purchase_date, INTERVAL 24 HOUR), '%Y-%m-%d %T'), '') oneday_pass_expire
   , ifnull(upp.purchase_no, 0) premium_pass_exist
   , ifnull(cpm.product_id, '') premium_product_id 
-  , ifnull(cpm.sale_id, '') premium_sale_id 
+  , ifnull(cpm.sale_id, '') premium_sale_id
+  , ifnull(b.translator, '') translator
   FROM list_project_master a
   LEFT OUTER JOIN list_project_detail b ON b.project_id = a.project_id AND b.lang ='${lang}'
   LEFT OUTER JOIN gamelog.stat_project_sum sps ON sps.project_id = a.project_id
