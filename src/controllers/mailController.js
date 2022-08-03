@@ -23,7 +23,7 @@ SELECT a.mail_no
 , a.purchase_no 
 , fn_get_design_info(cc.icon_image_id, 'url') icon_image_url
 , fn_get_design_info(cc.icon_image_id, 'key') icon_image_key
-, a.contents
+, ifnull(a.contents, '') contents
 FROM user_mail a
 LEFT OUTER JOIN com_currency cc ON cc.currency = a.currency 
 WHERE a.userkey = ?
@@ -111,7 +111,10 @@ export const readUserSingleMail = async (req, res, next) => {
     }
 
     // 4. state 변경(mail_type : inapp, ifyoupass인 경우에만 해당)
-    if (currentMail.mail_type === "inapp" || currentMail.mail_type === "ifyou_pass") {
+    if (
+      currentMail.mail_type === "inapp" ||
+      currentMail.mail_type === "ifyou_pass"
+    ) {
       const updateState = await DB(
         `UPDATE user_purchase SET state = 2 WHERE purchase_no = ?;`,
         [currentMail.purchase_no]

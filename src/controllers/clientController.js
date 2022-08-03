@@ -1358,7 +1358,6 @@ export const clientHome = (req, res) => {
   else if (func === "getAllProductList") getAllProductList(req, res);
   else if (func === "getUserPurchaseList") getUserPurchaseList(req, res);
   else if (func === "getUserRawPurchaseList") getUserRawPurchaseList(req, res);
-  else if (func === "userPurchase") userPurchase(req, res);
   else if (func === "updateTutorialStep") updateTutorialStep(req, res);
   else if (func === "updateTutorialSelection")
     updateTutorialSelection(req, res);
