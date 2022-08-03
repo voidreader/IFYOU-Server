@@ -7,6 +7,7 @@ import { respondDB } from "../respondent";
 import { gamebaseAPI, inappAPI } from "../com/gamebaseAPI";
 import { getUserBankInfo } from "./bankController";
 import { cache } from "../init";
+import { getUserUnreadMailCount } from "./clientController";
 
 //* 상품 시작
 const queryUserPurchaseHistory = `
@@ -945,6 +946,7 @@ export const purchaseInappProductByMail = async (req, res) => {
   responseData.allpass_expire_tick = await getUserAllpassExpireTick(userkey); // 올패스 만료시간
   responseData.product_id = product_id; // 구매한 제품 ID
   responseData.ifyou_pass_day = ifyou_pass_day; //30일 이프유 패스 일수
+  responseData.unreadMailCount = await getUserUnreadMailCount(userkey);
 
   res.status(200).json(responseData); // 클라이언트에게 응답처리
 
