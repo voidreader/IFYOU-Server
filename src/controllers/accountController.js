@@ -3359,7 +3359,7 @@ export const getPremiumReward = async (req, res) => {
       (kind === 0 && free_reward_date) ||
       (kind === 1 && premium_reward_date)
     ) {
-      logger.error(`getPremiumReward Error`);
+      logger.error(`already received ${JSON.stringify(req.body)}`);
       respondDB(res, 80025, "already rewarded");
       return;
     }
