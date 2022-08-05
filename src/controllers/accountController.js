@@ -1807,18 +1807,32 @@ export const resetUserEpisodeProgressType2 = async (req, res) => {
   const userCoin = await getCurrencyQuantity(userkey, "coin"); // 유저 보유 코인수
   let resetPrice = price; // 리셋 가격 (고정가격으로 변경)
 
-  // * 프리미엄 패스 재화코드는 Free+프로젝트ID (Free73)
-  const userFreePass = await getCurrencyQuantity(
-    userkey,
-    `Free${project_id.toString()}`
-  ); // 프리패스 보유체크
+  // 클라이언트에서 체크하겠지만 한번 더 체크..
+  const freepassCheck = await slaveDB(`
+    SELECT a.userkey, a.purchase_no 
+    FROM user_premium_pass a
+   WHERE a.userkey = ${userkey} 
+     AND a.project_id = ${project_id};
+    `);
+
+  const onedayCheck = await slaveDB(`
+    SELECT a.userkey 
+    FROM user_oneday_pass a
+   WHERE a.userkey = ${userkey}
+     AND a.project_id = ${project_id}
+     AND now() BETWEEN purchase_date AND date_add(a.purchase_date, INTERVAL 1 day);
+    `);
+
+  // * 프리미엄 패스 및 이프유 패스, 원데이 패스 보유 중
+  if (
+    (freepassCheck.state && freepassCheck.row.length > 0) ||
+    (onedayCheck.state && onedayCheck.row.length > 0)
+  ) {
+    // logger.info(`freepass user [${userkey}]`);
+    resetPrice = 0;
+  } // ? 자유이용권 보유 체크 종료
 
   let useQuery = ``;
-
-  // * 프리미엄패스 유저의 경우 resetPrice는 0원.
-  if (userFreePass > 0) {
-    resetPrice = 0;
-  }
 
   // * 코인 부족한 경우 종료
   if (userCoin < resetPrice) {

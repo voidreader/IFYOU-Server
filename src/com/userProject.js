@@ -6,11 +6,7 @@ import {
   getCurrencyQuantity,
   getUserBankInfo,
 } from "../controllers/bankController";
-import {
-  Q_USER_EPISODE_PURCHASE,
-  UQ_CHECK_PROJECT_USER_FREEPASS,
-  UQ_USE_CURRENCY,
-} from "../USERQStore";
+import { Q_USER_EPISODE_PURCHASE, UQ_USE_CURRENCY } from "../USERQStore";
 import { cache } from "../init";
 
 // 유저 에피소드 구매 정보 !
@@ -980,33 +976,45 @@ export const purchaseEpisodeType2 = async (req, res, needResponse = true) => {
 
   logger.info(`purchaseEpisodeType2 start [${JSON.stringify(req.body)}]`);
 
-  let useCurrency = currency; // 사용되는 화폐
-  let useQuantity = currencyQuantity; // 사용되는 화폐 개수
+  const useCurrency = currency; // 사용되는 화폐
+  const useQuantity = currencyQuantity; // 사용되는 화폐 개수
   let hasFreepass = false; // 자유이용권 갖고 있는지 true/false
-  let freepassCode = ""; // 연결된 작품의 자유이용권 코드
   let currentPurchaseType = purchaseType; // 입력되는 구매 형태
 
   // 구매 형태(purchase_type은 list_standard.purchase_type 참조)
 
   const responseData = {}; // 응답데이터
 
-  // ! 자유이용권 구매자인지 체크할것!
+  // ! 프리미엄 패스, 원데이 패스, 이프유 패스 구매 확인
   // 클라이언트에서 체크하겠지만 한번 더 체크..
-  const freepassCheck = await slaveDB(UQ_CHECK_PROJECT_USER_FREEPASS, [
-    userkey,
-    project_id,
-  ]);
+  const freepassCheck = await slaveDB(`
+  SELECT a.userkey, a.purchase_no 
+  FROM user_premium_pass a
+ WHERE a.userkey = ${userkey} 
+   AND a.project_id = ${project_id};
+  `);
 
-  // * 자유이용권 보유중!!
-  if (freepassCheck.state && freepassCheck.row.length > 0) {
+  const ifyouCheck = await slaveDB(`
+  SELECT ta.userkey  FROM table_account ta WHERE userkey = ${userkey} AND ifyou_pass_day > 0;
+  `);
+
+  const onedayCheck = await slaveDB(`
+  SELECT a.userkey 
+  FROM user_oneday_pass a
+ WHERE a.userkey = ${userkey}
+   AND a.project_id = ${project_id}
+   AND now() BETWEEN purchase_date AND date_add(a.purchase_date, INTERVAL 1 day);
+  `);
+
+  // * 프리미엄 패스 및 이프유 패스, 원데이 패스 보유 중
+  if (
+    (freepassCheck.state && freepassCheck.row.length > 0) ||
+    (ifyouCheck.state && ifyouCheck.row.length > 0) ||
+    (onedayCheck.state && onedayCheck.row.length > 0)
+  ) {
     logger.info(`freepass user [${userkey}]`);
 
     hasFreepass = true;
-    freepassCode = freepassCheck.row[0].currency;
-
-    // 자유이용권 이용자는 화폐를 프리패스로 변경.
-    useCurrency = freepassCode;
-    useQuantity = 1;
     currentPurchaseType = "Permanent"; // 프리패스 이용자는 무조건 소장처리
   } // ? 자유이용권 보유 체크 종료
 
