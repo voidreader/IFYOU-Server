@@ -215,6 +215,7 @@ SELECT ta.userkey
 , ifnull(ta.allpass_expiration, '2022-01-01') allpass_expiration
 , datediff(now(), ta.last_rate_date) diff_rate
 , ta.rate_result
+, ifyou_pass_day
 FROM table_account ta 
 LEFT OUTER JOIN user_tutorial t ON t.userkey = ta.userkey
 WHERE ta.gamebaseid  = ?;
@@ -240,6 +241,7 @@ SELECT ta.userkey
 , ifnull(ta.allpass_expiration, '2022-01-01') allpass_expiration 
 , datediff(now(), ta.last_rate_date) diff_rate
 , ta.rate_result
+, ifyou_pass_day
 FROM table_account ta 
 LEFT OUTER JOIN user_tutorial t ON t.userkey = ta.userkey
 WHERE ta.userkey = ?;
@@ -481,8 +483,8 @@ SELECT a.episode_id
      , a.depend_episode
      , TRIM(fn_get_episode_title_lang(a.depend_episode, ?)) depend_episode_title
      , a.unlock_style 
-     , a.unlock_episodes 
-     , a.unlock_scenes 
+     , ifnull(a.unlock_episodes, '') unlock_episodes
+     , ifnull(a.unlock_scenes, '') unlock_scenes
      , a.unlock_coupon 
      , a.currency -- 프리미엄 플레이 재화
      , a.price 
