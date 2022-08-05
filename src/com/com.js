@@ -32,13 +32,13 @@ const translationClient = new TranslationServiceClient({ credentials });
 // * 단일 에피소드 자동번역
 export const translateSingleEpisode = async (req, res) => {
   const {
-    body: { project_id, episode_id, targetLang },
+    body: { project_id, episode_id, targetLang, sourceLang = "en" },
   } = req;
 
   logger.info(`translateSingleEpisode ${JSON.stringify(req.body)}`);
 
   // 용어집 ID 만들기
-  const glossary_id = `en_${targetLang}_${project_id}`;
+  const glossary_id = `${sourceLang}_${targetLang}_${project_id}`;
   const glossaryConfig = {
     glossary: `projects/${googleProjectID}/locations/us-central1/glossaries/${glossary_id}`,
   };
@@ -51,7 +51,7 @@ export const translateSingleEpisode = async (req, res) => {
      , list_episode_detail led 
  WHERE a.project_id = ${project_id}
    AND led.episode_id = ${episode_id}
-   AND led.lang  = 'EN'
+   AND led.lang  = UPPER('${sourceLang}')
   `);
 
   if (!episodeInfo.state || episodeInfo.row.length === 0) {
@@ -67,7 +67,7 @@ export const translateSingleEpisode = async (req, res) => {
     parent: `projects/${googleProjectID}/locations/us-central1`,
     contents: [episode.title],
     mimeType: "text/plain", // mime types: text/plain, text/html
-    sourceLanguageCode: "en",
+    sourceLanguageCode: sourceLang,
     targetLanguageCode: targetLang,
     glossaryConfig,
   };
@@ -79,7 +79,7 @@ export const translateSingleEpisode = async (req, res) => {
     parent: `projects/${googleProjectID}/locations/us-central1`,
     contents: [episode.summary],
     mimeType: "text/plain", // mime types: text/plain, text/html
-    sourceLanguageCode: "en",
+    sourceLanguageCode: sourceLang,
     targetLanguageCode: targetLang,
     glossaryConfig,
   };
@@ -171,7 +171,7 @@ export const translateSingleEpisode = async (req, res) => {
     , selection_no
       FROM list_script a
       WHERE a.episode_id = ${episode_id}
-        AND a.lang = 'EN'
+        AND a.lang = UPPER('${sourceLang}')
       ORDER BY a.script_no;
   `);
 
@@ -199,7 +199,7 @@ export const translateSingleEpisode = async (req, res) => {
       parent: `projects/${googleProjectID}/locations/us-central1`,
       contents: [scriptRow.script_data],
       mimeType: "text/plain", // mime types: text/plain, text/html
-      sourceLanguageCode: "en",
+      sourceLanguageCode: sourceLang,
       targetLanguageCode: targetLang,
       glossaryConfig,
     };
@@ -227,13 +227,15 @@ export const translateSingleEpisode = async (req, res) => {
 // * 프로젝트 데이터 자동번역(용어집연계)
 export const translateProjectDataWithGlossary = async (req, res) => {
   const {
-    body: { project_id, targetLang },
+    body: { project_id, targetLang, sourceLang = "en" },
   } = req;
 
   res.status(200).send("go!");
 
+  console.log(req.body);
+
   const glossaryConfig = {
-    glossary: `projects/${googleProjectID}/locations/us-central1/glossaries/en_${targetLang}_${project_id}`,
+    glossary: `projects/${googleProjectID}/locations/us-central1/glossaries/${sourceLang}_${targetLang}_${project_id}`,
   };
 
   const episodeList = await DB(`
@@ -242,7 +244,7 @@ export const translateProjectDataWithGlossary = async (req, res) => {
      , list_episode_detail led 
  WHERE a.project_id = ${project_id}
    AND led.episode_id = a.episode_id 
-   AND led.lang  = 'EN'
+   AND led.lang  = upper('${sourceLang}')
  ORDER BY a.episode_type , a.chapter_number ;
   `);
 
@@ -255,7 +257,7 @@ export const translateProjectDataWithGlossary = async (req, res) => {
       parent: `projects/${googleProjectID}/locations/us-central1`,
       contents: [episode.title],
       mimeType: "text/plain", // mime types: text/plain, text/html
-      sourceLanguageCode: "en",
+      sourceLanguageCode: sourceLang,
       targetLanguageCode: targetLang,
       glossaryConfig,
     };
@@ -267,7 +269,7 @@ export const translateProjectDataWithGlossary = async (req, res) => {
       parent: `projects/${googleProjectID}/locations/us-central1`,
       contents: [episode.summary],
       mimeType: "text/plain", // mime types: text/plain, text/html
-      sourceLanguageCode: "en",
+      sourceLanguageCode: sourceLang,
       targetLanguageCode: targetLang,
       glossaryConfig,
     };
@@ -307,7 +309,7 @@ export const translateProjectDataWithGlossary = async (req, res) => {
      , list_mission_lang lml 
  WHERE lm.project_id = ${project_id}
    AND lm.mission_id = lml.mission_id 
-   AND lml.lang = 'EN'
+   AND lml.lang = upper('${sourceLang}')
   ORDER BY lml.mission_id;
   `);
 
@@ -320,7 +322,7 @@ export const translateProjectDataWithGlossary = async (req, res) => {
       parent: `projects/${googleProjectID}/locations/us-central1`,
       contents: [mission.mission_name],
       mimeType: "text/plain", // mime types: text/plain, text/html
-      sourceLanguageCode: "en",
+      sourceLanguageCode: sourceLang,
       targetLanguageCode: targetLang,
       glossaryConfig,
     };
@@ -332,7 +334,7 @@ export const translateProjectDataWithGlossary = async (req, res) => {
       parent: `projects/${googleProjectID}/locations/us-central1`,
       contents: [mission.mission_hint],
       mimeType: "text/plain", // mime types: text/plain, text/html
-      sourceLanguageCode: "en",
+      sourceLanguageCode: sourceLang,
       targetLanguageCode: targetLang,
       glossaryConfig,
     };
@@ -378,7 +380,7 @@ export const translateProjectDataWithGlossary = async (req, res) => {
   WHERE cc.currency = ccp.currency
     AND cc.connected_project = ${project_id}
     AND ccpd.coin_product_id = ccp.coin_product_id 
-    AND ccpd.lang = 'EN'
+    AND ccpd.lang = upper('${sourceLang}')
   ;
   `);
 
@@ -389,7 +391,7 @@ export const translateProjectDataWithGlossary = async (req, res) => {
       parent: `projects/${googleProjectID}/locations/us-central1`,
       contents: [coin.name],
       mimeType: "text/plain", // mime types: text/plain, text/html
-      sourceLanguageCode: "en",
+      sourceLanguageCode: sourceLang,
       targetLanguageCode: targetLang,
       glossaryConfig,
     };
@@ -417,12 +419,11 @@ export const translateProjectDataWithGlossary = async (req, res) => {
 
   // 연결재화 로컬ID 자동번역 //////////////////////////////////////
   const currencyList = await DB(`
-  SELECT cl.id, cl.EN 
+  SELECT cl.id, cl.${sourceLang} sourceText
   FROM com_currency cc
      , com_localize cl 
  WHERE cc.connected_project  = ${project_id}
    AND cl.id = cc.local_code
-   AND cl.EN <> ''
 ;
   `);
 
@@ -433,23 +434,23 @@ export const translateProjectDataWithGlossary = async (req, res) => {
   for await (const currency of currencyList.row) {
     const requestTitle = {
       parent: `projects/${googleProjectID}/locations/us-central1`,
-      contents: [currency.EN],
+      contents: [currency.sourceText],
       mimeType: "text/plain", // mime types: text/plain, text/html
-      sourceLanguageCode: "en",
+      sourceLanguageCode: sourceLang,
       targetLanguageCode: targetLang,
       glossaryConfig,
     };
 
     const [responseTitle] = await translationClient.translateText(requestTitle);
-    currency.AR = responseTitle.glossaryTranslations[0].translatedText;
+    currency.sourceText = responseTitle.glossaryTranslations[0].translatedText;
 
     const updateResult = await DB(
       `
     update com_localize 
-       SET AR = ?
+       SET ${targetLang} = ?
      WHERE id = ?;
     `,
-      [currency.AR, currency.id]
+      [currency.sourceText, currency.id]
     );
 
     if (!updateResult.state) {
@@ -470,7 +471,7 @@ export const translateProjectDataWithGlossary = async (req, res) => {
  WHERE ls.project_id = ${project_id}
    AND ls.is_public > 0
    AND lsl.sound_id = ls.sound_id 
-   AND lsl.lang = 'EN'
+   AND lsl.lang = upper('${sourceLang}')
 ;
   `);
 
@@ -481,7 +482,7 @@ export const translateProjectDataWithGlossary = async (req, res) => {
       parent: `projects/${googleProjectID}/locations/us-central1`,
       contents: [sound.public_name],
       mimeType: "text/plain", // mime types: text/plain, text/html
-      sourceLanguageCode: "en",
+      sourceLanguageCode: sourceLang,
       targetLanguageCode: targetLang,
       glossaryConfig,
     };
@@ -515,7 +516,7 @@ export const translateProjectDataWithGlossary = async (req, res) => {
        , com_currency_bubble ccb 
    WHERE cc.connected_project  = ${project_id}
      AND ccb.currency = cc.currency
-     AND ccb.lang  = 'EN'
+     AND ccb.lang  = upper('${sourceLang}')
   ;
     `);
 
@@ -526,7 +527,7 @@ export const translateProjectDataWithGlossary = async (req, res) => {
       parent: `projects/${googleProjectID}/locations/us-central1`,
       contents: [bubble.bubble],
       mimeType: "text/plain", // mime types: text/plain, text/html
-      sourceLanguageCode: "en",
+      sourceLanguageCode: sourceLang,
       targetLanguageCode: targetLang,
       glossaryConfig,
     };
@@ -559,7 +560,7 @@ export const translateProjectDataWithGlossary = async (req, res) => {
     FROM list_loading ll
        , list_loading_detail lld 
    WHERE ll.project_id = ${project_id}
-     AND lld.lang = 'EN'
+     AND lld.lang = upper('${sourceLang}')
      AND lld.loading_id = ll.loading_id;
     `);
 
@@ -567,7 +568,7 @@ export const translateProjectDataWithGlossary = async (req, res) => {
 
   // 여기는 예외로 타겟언어를 삭제하고 시작한다
   const deleteLoading = await DB(`
-  DELETE FROM list_loading_detail lld WHERE lang = UPPER('${targetLang}') AND loading_id  IN (SELECT z.loading_id FROM list_loading z WHERE z.project_id = 57);
+  DELETE FROM list_loading_detail lld WHERE lang = UPPER('${targetLang}') AND loading_id  IN (SELECT z.loading_id FROM list_loading z WHERE z.project_id = ${project_id});
   `);
 
   for await (const loading of loadingList.row) {
@@ -575,7 +576,7 @@ export const translateProjectDataWithGlossary = async (req, res) => {
       parent: `projects/${googleProjectID}/locations/us-central1`,
       contents: [loading.loading_text],
       mimeType: "text/plain", // mime types: text/plain, text/html
-      sourceLanguageCode: "en",
+      sourceLanguageCode: sourceLang,
       targetLanguageCode: targetLang,
       glossaryConfig,
     };
@@ -608,8 +609,9 @@ export const translateProjectDataWithGlossary = async (req, res) => {
      , list_illust li 
  WHERE li.project_id = ${project_id}
    AND lil.illust_id = li.illust_id 
-   AND lil.lang = 'EN'
+   AND lil.lang = upper('${sourceLang}')
    AND lil.illust_type = 'illust'
+   AND li.is_public > 0
  ORDER BY lil.illust_id;
 ;
   `);
@@ -621,7 +623,7 @@ export const translateProjectDataWithGlossary = async (req, res) => {
       parent: `projects/${googleProjectID}/locations/us-central1`,
       contents: [illust.public_name],
       mimeType: "text/plain", // mime types: text/plain, text/html
-      sourceLanguageCode: "en",
+      sourceLanguageCode: sourceLang,
       targetLanguageCode: targetLang,
       glossaryConfig,
     };
@@ -633,7 +635,7 @@ export const translateProjectDataWithGlossary = async (req, res) => {
       parent: `projects/${googleProjectID}/locations/us-central1`,
       contents: [illust.summary],
       mimeType: "text/plain", // mime types: text/plain, text/html
-      sourceLanguageCode: "en",
+      sourceLanguageCode: sourceLang,
       targetLanguageCode: targetLang,
       glossaryConfig,
     };
@@ -675,7 +677,8 @@ export const translateProjectDataWithGlossary = async (req, res) => {
      , list_live_illust li 
  WHERE li.project_id = ${project_id}
    AND lil.illust_id = li.live_illust_id  
-   AND lil.lang = 'EN'
+   AND lil.lang = upper('${sourceLang}')
+   AND li.is_public > 0
    AND lil.illust_type = 'live2d';  
 ;
   `);
@@ -689,7 +692,7 @@ export const translateProjectDataWithGlossary = async (req, res) => {
       parent: `projects/${googleProjectID}/locations/us-central1`,
       contents: [illust.public_name],
       mimeType: "text/plain", // mime types: text/plain, text/html
-      sourceLanguageCode: "en",
+      sourceLanguageCode: sourceLang,
       targetLanguageCode: targetLang,
       glossaryConfig,
     };
@@ -701,7 +704,7 @@ export const translateProjectDataWithGlossary = async (req, res) => {
       parent: `projects/${googleProjectID}/locations/us-central1`,
       contents: [illust.summary],
       mimeType: "text/plain", // mime types: text/plain, text/html
-      sourceLanguageCode: "en",
+      sourceLanguageCode: sourceLang,
       targetLanguageCode: targetLang,
       glossaryConfig,
     };
@@ -743,7 +746,8 @@ export const translateProjectDataWithGlossary = async (req, res) => {
      , list_minicut li 
  WHERE li.project_id = ${project_id}
    AND lil.minicut_id = li.minicut_id 
-   AND lil.lang = 'EN'
+   AND lil.lang = upper('${sourceLang}')
+   AND li.is_public > 0
    AND lil.minicut_type = 'minicut';
   `);
 
@@ -754,7 +758,7 @@ export const translateProjectDataWithGlossary = async (req, res) => {
       parent: `projects/${googleProjectID}/locations/us-central1`,
       contents: [minicut.public_name],
       mimeType: "text/plain", // mime types: text/plain, text/html
-      sourceLanguageCode: "en",
+      sourceLanguageCode: sourceLang,
       targetLanguageCode: targetLang,
       glossaryConfig,
     };
@@ -766,7 +770,7 @@ export const translateProjectDataWithGlossary = async (req, res) => {
       parent: `projects/${googleProjectID}/locations/us-central1`,
       contents: [minicut.summary],
       mimeType: "text/plain", // mime types: text/plain, text/html
-      sourceLanguageCode: "en",
+      sourceLanguageCode: sourceLang,
       targetLanguageCode: targetLang,
       glossaryConfig,
     };
@@ -808,7 +812,8 @@ export const translateProjectDataWithGlossary = async (req, res) => {
      , list_live_object li 
  WHERE li.project_id = ${project_id}
    AND lil.minicut_id = li.live_object_id  
-   AND lil.lang = 'EN'
+   AND lil.lang = upper('${sourceLang}')
+   AND li.is_public > 0
    AND lil.minicut_type  = 'live2d';     
   `);
 
@@ -821,7 +826,7 @@ export const translateProjectDataWithGlossary = async (req, res) => {
       parent: `projects/${googleProjectID}/locations/us-central1`,
       contents: [minicut.public_name],
       mimeType: "text/plain", // mime types: text/plain, text/html
-      sourceLanguageCode: "en",
+      sourceLanguageCode: sourceLang,
       targetLanguageCode: targetLang,
       glossaryConfig,
     };
@@ -833,7 +838,7 @@ export const translateProjectDataWithGlossary = async (req, res) => {
       parent: `projects/${googleProjectID}/locations/us-central1`,
       contents: [minicut.summary],
       mimeType: "text/plain", // mime types: text/plain, text/html
-      sourceLanguageCode: "en",
+      sourceLanguageCode: sourceLang,
       targetLanguageCode: targetLang,
       glossaryConfig,
     };
@@ -868,6 +873,66 @@ export const translateProjectDataWithGlossary = async (req, res) => {
   console.log(`${project_id} #### live object translatation end`);
   //////////////// 라이브 오브젝트 종료
 }; // ? 종료 프로젝트 데이터
+
+// * 프로젝트 특정 데이터 자동번역 (용어집 연계)
+export const translateProjectSpecificDataWithGlossary = async (req, res) => {
+  const {
+    body: { project_id, targetLang, sourceLang = "en" },
+  } = req;
+
+  console.log(req.body);
+
+  const glossaryConfig = {
+    glossary: `projects/${googleProjectID}/locations/us-central1/glossaries/${sourceLang}_${targetLang}_${project_id}`,
+  };
+
+  // 연결재화 로컬ID 자동번역 //////////////////////////////////////
+  const currencyList = await DB(`
+  SELECT cl.id, cl.${sourceLang} sourceText
+  FROM com_currency cc
+     , com_localize cl 
+ WHERE cc.connected_project  = ${project_id}
+   AND cl.id = cc.local_code
+;
+  `);
+
+  console.log(
+    `${project_id} currencyList count : [${currencyList.row.length}]`
+  );
+
+  for await (const currency of currencyList.row) {
+    const requestTitle = {
+      parent: `projects/${googleProjectID}/locations/us-central1`,
+      contents: [currency.sourceText],
+      mimeType: "text/plain", // mime types: text/plain, text/html
+      sourceLanguageCode: sourceLang,
+      targetLanguageCode: targetLang,
+      glossaryConfig,
+    };
+
+    const [responseTitle] = await translationClient.translateText(requestTitle);
+    currency.sourceText = responseTitle.glossaryTranslations[0].translatedText;
+
+    const updateResult = await DB(
+      `
+    update com_localize 
+       SET ${targetLang} = ?
+     WHERE id = ?;
+    `,
+      [currency.sourceText, currency.id]
+    );
+
+    if (!updateResult.state) {
+      logger.error(
+        `${JSON.stringify(updateResult.error)} / [${updateResult.query}]`
+      );
+      return;
+    }
+  } // ? end of 재화for
+  console.log(`${project_id} #### currency translatation end`);
+
+  res.status(200).send("ok");
+};
 
 // * 작품 스크립트 자동 번역 생성하기
 export const translateScriptWithGlossary = async (req, res) => {
@@ -1067,6 +1132,42 @@ export const translateText = async (req, res) => {
 
   res.status(200).send(translations[0]);
 }; // 번역 API 종료
+
+export const createJapanGlossary = async (req, res) => {
+  const {
+    body: { filename, glossary_id },
+  } = req;
+
+  // Construct glossary
+  const glossary = {
+    languageCodesSet: {
+      languageCodes: ["ko", "ja", "en"],
+    },
+    inputConfig: {
+      gcsSource: {
+        inputUri: `gs://ifyou/translate/${filename}`,
+      },
+    },
+    name: `projects/${googleProjectID}/locations/us-central1/glossaries/${glossary_id}`,
+  };
+
+  // Construct request
+  const request = {
+    parent: `projects/${googleProjectID}/locations/us-central1`,
+    glossary,
+  };
+
+  // Create glossary using a long-running operation
+  const [operation] = await translationClient.createGlossary(request);
+
+  // Wait for the operation to complete
+  await operation.promise();
+
+  console.log("Created glossary:");
+  console.log(`InputUri ${request.glossary.inputConfig.gcsSource.inputUri}`);
+
+  res.status(200).send("OK");
+};
 
 export const createArabicGlossary = async (req, res) => {
   const {

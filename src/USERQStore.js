@@ -419,7 +419,8 @@ export const Q_SELECT_MISSION_ALL = `
 SELECT a.mission_id
   , fn_get_mission_name(a.mission_id, ?) mission_name
   , fn_get_mission_hint(a.mission_id, ?) mission_hint
-  , a.mission_type 
+  , a.mission_type
+  , ifnull(a.id_condition, '') id_condition
   , a.is_hidden 
   , a.reward_currency 
   , a.reward_quantity 
@@ -468,8 +469,8 @@ SELECT a.episode_id
 , a.depend_episode
 , TRIM(fn_get_episode_title_lang(a.depend_episode, ?)) depend_episode_title
 , a.unlock_style 
-, a.unlock_episodes 
-, a.unlock_scenes 
+, ifnull(a.unlock_episodes, '') unlock_episodes
+, ifnull(a.unlock_scenes, '') unlock_scenes
 , a.unlock_coupon 
 , a.sale_price 
 , a.one_currency
@@ -494,7 +495,9 @@ SELECT a.episode_id
 , CASE WHEN unlock_style = 'episode' THEN fn_get_unlock_list(?, a.project_id, a.episode_id, ?, a.unlock_style) 
        WHEN unlock_style = 'event' THEN fn_get_unlock_list(?, a.project_id, a.episode_id, ?, a.unlock_style)
 ELSE '' END side_hint
+, ifnull(ueh.episode_id, 0) is_clear
 FROM list_episode a
+LEFT OUTER JOIN user_episode_hist ueh ON ueh.userkey = ? AND ueh.project_id = a.project_id AND ueh.episode_id = a.episode_id
 WHERE a.project_id = ?
 AND a.episode_type = 'side'
 AND a.unlock_style <> 'coupon'
@@ -531,8 +534,8 @@ SELECT a.episode_id
      , a.depend_episode
      , TRIM(fn_get_episode_title_lang(a.depend_episode, 'KO')) depend_episode_title
      , a.unlock_style 
-     , a.unlock_episodes 
-     , a.unlock_scenes 
+     , ifnull(a.unlock_episodes, '') unlock_episodes
+     , ifnull(a.unlock_scenes, '') unlock_scenes 
      , a.unlock_coupon 
      , a.sale_price
      , a.one_currency
@@ -572,8 +575,8 @@ SELECT a.episode_id
      , a.depend_episode
      , TRIM(fn_get_episode_title_lang(a.depend_episode, 'KO')) depend_episode_title
      , a.unlock_style 
-     , a.unlock_episodes 
-     , a.unlock_scenes 
+     , ifnull(a.unlock_episodes, '') unlock_episodes
+     , ifnull(a.unlock_scenes, '') unlock_scenes 
      , a.unlock_coupon 
      , a.sale_price 
      , a.one_currency
@@ -731,4 +734,27 @@ WHERE a.episode_id = b.episode_id
 AND a.project_id = ? 
 AND userkey = ?
 ORDER BY sortkey, episode_id; 
+`;
+
+//프리미엄 패스 챌린지 리스트
+export const Q_SELECT_PREMIUM_PASS_REWARD = `
+SELECT 
+cpm.premium_id
+, cpm.product_id
+, cpm.product_price
+, cpm.sale_id
+, cpm.sale_price
+, cpm.step
+, cpd.detail_no
+, cpd.chapter_number 
+, cpd.free_currency
+, cpd.free_quantity
+, ifnull(upr.free_reward_date, '') AS free_reward_date
+, cpd.premium_currency
+, cpd.premium_quantity
+, ifnull(upr.premium_reward_date, '') AS premium_reward_date
+FROM com_premium_master cpm
+INNER JOIN com_premium_detail cpd ON cpm.premium_id = cpd.premium_id 
+LEFT OUTER JOIN user_premium_reward upr ON cpd.premium_id = upr.premium_id AND upr.userkey = ? AND upr.project_id = ? AND cpd.chapter_number = upr.chapter_number 
+WHERE cpm.project_id = ?;
 `;

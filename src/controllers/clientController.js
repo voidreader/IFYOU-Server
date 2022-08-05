@@ -49,6 +49,8 @@ import {
   purchasePremiumPass,
   requestSelectionHint,
   requestRecommendProject,
+  getPremiumReward,
+  updateUserProjectSceneHist,
 } from "./accountController";
 import { logger } from "../logger";
 
@@ -97,6 +99,8 @@ import {
   purchaseInappProduct,
   updatePassTimeDeal,
   userPurchase,
+  purchaseInappProductByMail,
+  getUserPurchaseListVer2,
 } from "./shopController";
 import { getUserPropertyHistory, reportRequestError } from "./logController";
 import { useCoupon } from "./couponController";
@@ -157,7 +161,10 @@ import {
 import { getIFyouWebMainPageInfo, receiveInquiry } from "./webController";
 import {
   requestCompleteEpisode,
+  requestCompleteEpisodeType2,
   requestEpisodeFirstClear,
+  requestUnlockMission,
+  requestUnlockSpecialEpisode,
 } from "./playingStoryAPI";
 import {
   requestIfyouPlayList,
@@ -175,8 +182,10 @@ import {
 } from "../com/cacheLoader";
 import {
   createArabicGlossary,
+  createJapanGlossary,
   deleteGlossary,
   translateProjectDataWithGlossary,
+  translateProjectSpecificDataWithGlossary,
   translateScriptWithGlossary,
   translateSingleEpisode,
   translateText,
@@ -491,18 +500,22 @@ const getIfYouProjectList = async (req, res) => {
   , a.is_credit 
   , fn_get_design_info(b.ifyou_banner_id, 'url') ifyou_image_url
   , fn_get_design_info(b.ifyou_banner_id, 'key') ifyou_image_key
-  , fn_get_design_info(b.ifyou_thumbnail_id, 'url') ifyou_thumbnail_url
-  , fn_get_design_info(b.ifyou_thumbnail_id, 'key') ifyou_thumbnail_key
+  , fn_get_design_info(a.ifyou_thumbnail_id, 'url') ifyou_thumbnail_url
+  , fn_get_design_info(a.ifyou_thumbnail_id, 'key') ifyou_thumbnail_key
   , fn_get_design_info(b.circle_image_id, 'url') circle_image_url
   , fn_get_design_info(b.circle_image_id, 'key') circle_image_key
-  , fn_get_design_info(b.episode_finish_id, 'url') episode_finish_url
-  , fn_get_design_info(b.episode_finish_id, 'key') episode_finish_key
-  , fn_get_design_info(b.premium_pass_id, 'url') premium_pass_url
-  , fn_get_design_info(b.premium_pass_id, 'key') premium_pass_key
+  , fn_get_design_info(a.episode_finish_id, 'url') episode_finish_url
+  , fn_get_design_info(a.episode_finish_id, 'key') episode_finish_key
+  , fn_get_design_info(a.premium_pass_id, 'url') premium_pass_url
+  , fn_get_design_info(a.premium_pass_id, 'key') premium_pass_key
+  , fn_get_design_info(a.premium_badge_id, 'url') premium_badge_url
+  , fn_get_design_info(a.premium_badge_id, 'key') premium_badge_key
   , fn_get_design_info(b.category_thumbnail_id, 'url') category_thumbnail_url
   , fn_get_design_info(b.category_thumbnail_id, 'key') category_thumbnail_key
-  , fn_get_design_info(b.coin_banner_id, 'url') coin_banner_url
-  , fn_get_design_info(b.coin_banner_id, 'key') coin_banner_key
+  , fn_get_design_info(a.coin_banner_id, 'url') coin_banner_url
+  , fn_get_design_info(a.coin_banner_id, 'key') coin_banner_key
+  , fn_get_design_info(b.introduce_image_id, 'url') introduce_image_url
+  , fn_get_design_info(b.introduce_image_id, 'key') introduce_image_key
   , a.banner_model_id -- 메인배너 Live2D 모델ID
   , a.is_lock
   , a.color_rgb
@@ -516,10 +529,19 @@ const getIfYouProjectList = async (req, res) => {
   , ifnull(sps.hit_count, 0) hit_count
   , ifnull(sps.like_count, 0) like_count
   , fn_get_project_hashtags(a.project_id, '${lang}') hashtags
+  , ifnull(DATE_FORMAT(DATE_ADD(uop.purchase_date, INTERVAL 24 HOUR), '%Y-%m-%d %T'), '') oneday_pass_expire
+  , ifnull(upp.purchase_no, 0) premium_pass_exist
+  , ifnull(cpm.product_id, '') premium_product_id 
+  , ifnull(cpm.sale_id, '') premium_sale_id
+  , ifnull(b.translator, '') translator
   FROM list_project_master a
   LEFT OUTER JOIN list_project_detail b ON b.project_id = a.project_id AND b.lang ='${lang}'
   LEFT OUTER JOIN gamelog.stat_project_sum sps ON sps.project_id = a.project_id
-  WHERE a.is_public > 0
+  LEFT OUTER JOIN user_oneday_pass uop ON a.project_id = uop.project_id AND uop.userkey = ${userkey}
+  LEFT OUTER JOIN user_premium_pass upp ON a.project_id = upp.project_id AND upp.userkey = ${userkey}
+  LEFT OUTER JOIN com_premium_master cpm ON a.project_id = cpm.project_id
+  WHERE a.project_id > 0 
+  AND a.is_public > 0
   AND a.service_package LIKE CONCAT('%', ?, '%')
   AND (locate('${lang}', a.exception_lang) IS NULL OR locate('${lang}', a.exception_lang) < 1)
   AND (locate('${country}', a.exception_country) IS NULL OR locate('${country}', a.exception_country) < 1)
@@ -536,6 +558,15 @@ const getIfYouProjectList = async (req, res) => {
     respondDB(res, 80026, result.error);
     return;
   }
+  // 원데이 완료시간 tick 추가
+  result.row.forEach((item) => {
+    const { oneday_pass_expire } = item;
+    if (!oneday_pass_expire) item.oneday_pass_expire_tick = 0;
+    else {
+      const expireDate = new Date(oneday_pass_expire);
+      item.oneday_pass_expire_tick = expireDate.getTime();
+    }
+  });
 
   console.log(`result of projects count : `, result.row.length);
 
@@ -578,18 +609,6 @@ const getIfYouProjectList = async (req, res) => {
 
   res.status(200).json(responseData);
 }; // ? end of getIfYouProjectList
-
-const getCharacterModel = async (req, res) => {
-  const userInfo = req.body;
-  console.log(`getCharacterModel : ${userInfo}`);
-
-  const result = await slaveDB(Q_MODEL_RESOURCE_INFO, [
-    userInfo.project_id,
-    userInfo.speaker,
-  ]);
-
-  res.status(200).send(result.row);
-};
 
 //! 메인 로딩 이미지 랜덤 출력
 export const getMainLoadingImageRandom = async (req, res) => {
@@ -1286,7 +1305,6 @@ export const clientHome = (req, res) => {
 
   // 스크립트 전체 행 조회
   if (func === "getEpisodeScript") getEpisodeScriptWithResources(req, res);
-  else if (func === "getCharacterModel") getCharacterModel(req, res);
   else if (func === "loginClient") loginClient(req, res);
   else if (func === "getUserSelectedStory") getUserSelectedStory(req, res);
   else if (func === "clearUserEpisodeSceneHistory")
@@ -1295,6 +1313,8 @@ export const clientHome = (req, res) => {
     insertUserEpisodeSceneHistory(req, res);
   else if (func === "updateUserEpisodeSceneRecord")
     updateUserSceneRecord(req, res);
+  else if (func === "updateUserProjectSceneHist")
+    updateUserProjectSceneHist(req, res);
   else if (func === "updateUserIllustHistory")
     updateUserIllustHistory(req, res);
   else if (func === "updateUserMissionHistory")
@@ -1338,7 +1358,6 @@ export const clientHome = (req, res) => {
   else if (func === "getAllProductList") getAllProductList(req, res);
   else if (func === "getUserPurchaseList") getUserPurchaseList(req, res);
   else if (func === "getUserRawPurchaseList") getUserRawPurchaseList(req, res);
-  else if (func === "userPurchase") userPurchase(req, res);
   else if (func === "updateTutorialStep") updateTutorialStep(req, res);
   else if (func === "updateTutorialSelection")
     updateTutorialSelection(req, res);
@@ -1479,6 +1498,10 @@ export const clientHome = (req, res) => {
   else if (func === "collectAllProjectRetention")
     collectAllProjectRetention(req, res);
   else if (func === "requestCompleteEpisode") requestCompleteEpisode(req, res);
+  // 삭제 대상
+  else if (func === "requestCompleteEpisodeType2")
+    requestCompleteEpisodeType2(req, res);
+  //신규 2022.07.27
   else if (func === "requestEpisodeFirstClear")
     requestEpisodeFirstClear(req, res);
   // 타임딜 생성 처리
@@ -1532,6 +1555,7 @@ export const clientHome = (req, res) => {
   else if (func === "translateText") translateText(req, res);
   else if (func === "translateWithGlossary") translateWithGlossary(req, res);
   else if (func === "createArabicGlossary") createArabicGlossary(req, res);
+  else if (func === "createJapanGlossary") createJapanGlossary(req, res);
   // 인앱상품 정보 캐시 재조회
   else if (func === "getIntroCharacterList") getIntroCharacterList(req, res);
   else if (func === "deleteGlossary") deleteGlossary(req, res);
@@ -1543,6 +1567,8 @@ export const clientHome = (req, res) => {
   else if (func === "purchaseInappProduct") purchaseInappProduct(req, res);
   else if (func === "translateProjectDataWithGlossary")
     translateProjectDataWithGlossary(req, res);
+  else if (func === "translateProjectSpecificDataWithGlossary")
+    translateProjectSpecificDataWithGlossary(req, res);
   else if (func === "increaseMissionAdReward")
     increaseMissionAdReward(req, res);
   // 미션 광고 보상 카운트 누적
@@ -1556,8 +1582,23 @@ export const clientHome = (req, res) => {
   else if (func === "getSurveyDetail") getSurveyDetail(req, res);
   else if (func === "receiveSurveyReward") receiveSurveyReward(req, res);
   else if (func === "requestLocalizingSurvey")
+    //설문조사
     requestLocalizingSurvey(req, res);
-  //설문조사
+  else if (func === "purchaseInappProductByMail")
+    //우편 구매
+    purchaseInappProductByMail(req, res);
+  else if (func === "getUserPurchaseListVer2")
+    //구매 내역(뉴버전)
+    getUserPurchaseListVer2(req, res);
+  else if (func === "getPremiumReward")
+    //프리미엄 챌린지 보상
+    getPremiumReward(req, res);
+  else if (func === "requestUnlockSpecialEpisode")
+    // 스페셜 에피소드 해금
+    requestUnlockSpecialEpisode(req, res);
+  else if (func === "requestUnlockMission")
+    // 미션 해금
+    requestUnlockMission(req, res);
   else {
     //  res.status(400).send(`Wrong Func : ${func}`);
     logger.error(`clientHome Error ${func}`);
