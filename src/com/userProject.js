@@ -164,20 +164,41 @@ export const requestUpdateProjectCurrent = async ({
   scene_id = null,
   script_no = 0,
   is_final = 0, // 막다른 길
+  callby = "",
 }) => {
-  console.log(
-    `requestUpdateProjectCurrent ${userkey}/${project_id}/${episodeID}/${scene_id}/${script_no}/${is_final}`
+  let episode_id = episodeID;
+
+  logger.info(
+    `requestUpdateProjectCurrent ${userkey}/${project_id}/${episodeID}/${scene_id}/${script_no}/${is_final}/${callby}`
   );
+
+  // 에피소드 ID가 없는 경우.
+  if (episodeID == null || episodeID === "") {
+    logger.error(
+      `No EpisodeID ${userkey}/${project_id}/${episodeID}/${scene_id}/${script_no}/${is_final}/${callby}`
+    );
+
+    // 현재 project_current의 정보를 불러온다.
+    const userCurrent = await DB(`SELECT a.episode_id 
+    FROM user_project_current a
+   WHERE a.userkey = ${userkey}
+     AND a.project_id = ${project_id}
+     AND a.is_special = 0;`);
+
+    if (userCurrent.state && userCurrent.row.length > 0) {
+      episode_id = userCurrent.row[0].episode_id;
+    }
+  }
 
   const result = await DB(
     `
       CALL sp_update_user_project_current(?,?,?,?,?,?);
       `,
-    [userkey, project_id, episodeID, scene_id, script_no, is_final]
+    [userkey, project_id, episode_id, scene_id, script_no, is_final]
   );
 
   if (!result.state) {
-    logger.error(result.error);
+    logger.error(`${userkey}/${project_id} : ${result.error}`);
     return [];
   }
 
@@ -1042,6 +1063,17 @@ export const purchaseEpisodeType2 = async (req, res, needResponse = true) => {
       validationCheck.row[0].is_purchased > 0
     ) {
       // * 이미 구입했으면 클라이언트에서 정상 동작하도록 처리해준다.(2021.11.18)
+      // 한번 봤던 에피소드는 Permanent로 변경해준다. (광고를 두번보게 하지 않음?  )
+      /*
+      await DB(`
+      UPDATE user_episode_purchase 
+        SET purchase_type = 'Permanent'
+          , permanent  = 1
+      WHERE userkey = ${userkey}
+        AND episode_id  = ${episodeID};
+      `)
+      */
+
       responseData.episodePurchase = await getUserEpisodePurchaseInfo(req.body); // 구매기록
       responseData.bank = await getUserBankInfo(req.body); // bank.
       responseData.userProperty = {}; // 삭제 대상 노드
