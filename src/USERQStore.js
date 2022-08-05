@@ -637,15 +637,6 @@ WHERE uep.userkey = ?
  AND uep.permanent = 1;
 `;
 
-// 유저가 보유한 작품 프리패스 체크용 쿼리
-export const UQ_CHECK_PROJECT_USER_FREEPASS = `
-SELECT up.*
-  FROM user_property up
- WHERE up.userkey = ?
-   AND currency = fn_get_project_freepass(?);
-   
-`;
-
 // 유저가 보유한 작품 1회권 개수 조회 쿼리
 export const UQ_GET_PROJECT_USER_ONETIME_COUNT = `
 SELECT fn_get_user_property(?, fn_get_project_onetime(?)) onetime_count
