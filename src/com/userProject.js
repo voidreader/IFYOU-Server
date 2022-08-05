@@ -843,7 +843,7 @@ export const requestRemoveCurrentAD = async (req, res) => {
     project_id,
     episode_id,
     "coin",
-    20,
+    price,
     "Permanent",
   ]);
 
