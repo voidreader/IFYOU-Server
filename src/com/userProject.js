@@ -188,7 +188,9 @@ export const requestUpdateProjectCurrent = async ({
     if (userCurrent.state && userCurrent.row.length > 0) {
       episode_id = userCurrent.row[0].episode_id;
     }
-  }
+  } // 에피소드 정보가 없는 경우에 대한 처리
+
+  // 프로젝트 ID가 없는 경우..!?
 
   const result = await DB(
     `

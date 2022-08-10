@@ -524,7 +524,8 @@ const getIfYouProjectList = async (req, res) => {
   , b.original
   , ifnull(a.serial_day, -1) serial_day
   , ifnull(fn_get_origin_pass_price (a.project_id), 100) pass_price
-  , ROUND(fn_get_current_pass_price(${userkey}, a.project_id), 2) pass_discount
+  , fn_get_discount_pass_price(${userkey}, a.project_id) discount_pass_price
+  , ROUND(0.1, 2) pass_discount
   , fn_get_user_project_notification(${userkey}, a.project_id) is_notify
   , ifnull(sps.hit_count, 0) hit_count
   , ifnull(sps.like_count, 0) like_count
