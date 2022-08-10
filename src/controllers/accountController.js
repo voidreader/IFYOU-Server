@@ -2769,41 +2769,22 @@ export const getProfileCurrencyOwnList = async (req, res) => {
   res.status(200).json(responseData);
 };
 
-// * 프리미엄 패스 구매하기 (2022.04.21)
+// * 프리미엄 패스 구매하기 (2022.08.10)
 export const purchasePremiumPass = async (req, res) => {
   const {
-    body: {
-      currency,
-      userkey,
-      project_id,
-      originPrice = 0,
-      salePrice = 0,
-      timedeal_id = -1,
-    },
+    body: { userkey, project_id, price = 0 },
   } = req;
 
-  // currency 체크
-  const currencyCheck = await slaveDB(`
-  SELECT cc.currency 
-  FROM com_currency cc 
- WHERE connected_project = ${project_id} 
-   AND currency_type = 'nonconsumable'
-   AND currency = '${currency}'
-   ;`);
-
-  // 화폐가 없어..!?
-  if (currencyCheck.row.length === 0) {
-    respondDB(res, 80059, "프리패스 구매 과정에서 오류가 발생했습니다.");
-    return;
-  }
-
   // 이미 프리패스 구매자인지 체크
-  const freepassExists = await DB(`
-  SELECT up.currency FROM user_property up WHERE userkey = ${userkey} AND currency = '${currency}';
+  const premiumPassExists = await slaveDB(`
+  SELECT upp.project_id 
+  FROM user_premium_pass upp 
+ WHERE upp.userkey = ${userkey}
+   AND upp.project_id = ${project_id};
   `);
 
   // 이미 기존에 구매한 경우에 대한 처리
-  if (freepassExists.row.length > 0) {
+  if (premiumPassExists.row.length > 0) {
     respondDB(res, 80060, "이미 프리패스를 구매하였습니다.");
     return;
   }
@@ -2811,85 +2792,45 @@ export const purchasePremiumPass = async (req, res) => {
   // * 프리패스 구매에 필요한 가격 조회 및 보유량 체크
   const currentGem = await getCurrencyQuantity(userkey, "gem"); // 현재 유저의 젬 보유량
 
+  const serverValidation = await slaveDB(`
+  SELECT fn_get_discount_pass_price(${userkey}, ${project_id}) server_price
+   FROM DUAL;
+  `);
+
+  // 서버에서 검증을 위해, 가격 한번 더 체크한다.
+  const serverPrice = serverValidation.row[0].server_price;
   logger.info(
-    `purchaseFreepass [${userkey}] param [${originPrice}/${salePrice}]`
+    `purchaseFreepass [${userkey}] param [${price}], serverPrice [${serverPrice}]`
   );
 
   // 여기서 이상한 유저들 걸러낸다.
-  if (salePrice < 3 || originPrice < 3 || originPrice < salePrice) {
+  // 서버 검증 가격보다 파라매터 가격이 싼 경우 의심한다.
+  if (price < serverPrice) {
     logger.error(`Error in purchasePremiumPass ${JSON.stringify(req.body)}`);
     respondDB(res, 80026, "Error in premium pass purchase");
     return;
   }
 
   // 현재 보유량이 가격보다 적은 경우! return
-  if (currentGem < salePrice) {
+  if (currentGem < price) {
     respondDB(res, 80014, "젬이 부족합니다");
     return;
   } // ? 젬 부족
 
-  // * 프리미엄 패스와 연결된 뱃지 조회
-  let passBadgeCurrnecy = "";
-  const passBadgeSelect = await slaveDB(`
-  SELECT a.currency 
-  FROM com_currency a
- WHERE a.connected_project = ${project_id}
-   AND a.currency_type = 'badge'
-   AND a.currency LIKE '%premiumpass%';
-  `);
-
-  if (passBadgeSelect.state && passBadgeSelect.row.length > 0) {
-    passBadgeCurrnecy = passBadgeSelect.row[0].currency; // 세팅
-  }
-
   // 조건들을 다 통과했으면 실제 구매처리를 시작한다.
   // TransactionDB 사용
-  const useQuery = mysql.format(`CALL sp_use_user_property(?,?,?,?,?);`, [
-    userkey,
-    "gem",
-    salePrice,
-    "freepass",
-    project_id,
-  ]);
+  // purchase_no 2로 입력한다.
+  let useQuery = mysql.format(`
+  INSERT INTO user_premium_pass (userkey, project_id, purchase_no, star_price) VALUES(${userkey}, ${project_id}, 1, ${price});
+  `);
 
-  let buyQuery = mysql.format(`CALL sp_insert_user_property(?,?,?,?);`, [
-    userkey,
-    currency,
-    1,
-    "freepass",
-  ]);
-
-  // 연결된 뱃지 아이템 있으면 같이 지급하기.
-  if (passBadgeCurrnecy !== "") {
-    buyQuery += mysql.format(`CALL sp_insert_user_property(?,?,?,?);`, [
-      userkey,
-      passBadgeCurrnecy,
-      1,
-      "freepass",
-    ]);
-  }
-
-  // * 2022.03 구매 후 처리 로직 추가
-  // user_project_current 수정
-  let updateQuery = `
-  UPDATE user_project_current 
-    SET next_open_time = now()
-  WHERE userkey = ${userkey}
-    AND project_id = ${project_id}
-    AND is_special = 0;
-  `;
-
-  // * 모든 정규 에피소드 구매처리
-  updateQuery += mysql.format(`call sp_purchase_regular_episodes(?,?,?);`, [
-    userkey,
-    project_id,
-    currency,
-  ]);
+  useQuery += mysql.format(
+    `CALL sp_use_user_property(?, 'gem', ?, 'freepass', ?);`,
+    [userkey, price, project_id]
+  );
 
   // 최종 재화 소모 및, 프리패스 구매 처리
-  const finalResult = await transactionDB(
-    `${useQuery}${buyQuery}${updateQuery}`
-  );
+  const finalResult = await transactionDB(`${useQuery}`);
 
   if (!finalResult.state) {
     respondDB(res, 80059, finalResult.error);
@@ -2899,15 +2840,15 @@ export const purchasePremiumPass = async (req, res) => {
   // * 성공했으면 bank와 userProperty(프로젝트) 갱신해서 전달해주기
   const responseData = {};
   responseData.bank = await getUserBankInfo(req.body);
-  responseData.projectCurrent = await getUserProjectCurrent(req.body); // 프로젝트 현재 플레이 지점 !
-  responseData.episodePurchase = await getUserEpisodePurchaseInfo(req.body); // 구매기록
   responseData.project_id = project_id; // 콜백처리용도
 
   res.status(200).json(responseData);
 
+  /*
   logDB(
     `INSERT INTO log_freepass (userkey, project_id, freepass_no, price) VALUES(${userkey}, ${project_id}, ${timedeal_id}, ${salePrice});`
   );
+  */
 
   logAction(userkey, "freepass", req.body);
 }; // ? 프리미엄 패스 구매 종료
