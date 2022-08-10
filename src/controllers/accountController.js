@@ -2664,7 +2664,7 @@ export const getUserSelectedStory = async (req, res) => {
   storyInfo.episodePurchase = projectResources.episodePurchase; // 에피소드 구매 정보
   storyInfo.sides = projectResources.sides; // 유저의 사이드 에피소드 리스트
 
-  //storyInfo.premiumPrice = await getCurrentProjectPassPrice(userInfo); // 현재 작품의 프리미엄 패스 가격정보
+  // storyInfo.premiumPrice = await getCurrentProjectPassPrice(userInfo); // 현재 작품의 프리미엄 패스 가격정보
 
   storyInfo.selectionProgress = await getUserProjectSelectionProgress(userInfo); // 프로젝트 선택지 Progress
 
