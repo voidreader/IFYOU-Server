@@ -1083,7 +1083,7 @@ export const translateScriptWithGlossary = async (req, res) => {
 // * 용어집과 함께 번역
 export const translateWithGlossary = async (req, res) => {
   const {
-    body: { text, targetLang, glossary_id },
+    body: { text, targetLang, sourceLang, glossary_id },
   } = req;
 
   const glossaryConfig = {
@@ -1094,7 +1094,7 @@ export const translateWithGlossary = async (req, res) => {
     parent: `projects/${googleProjectID}/locations/us-central1`,
     contents: [text],
     mimeType: "text/plain", // mime types: text/plain, text/html
-    sourceLanguageCode: "en",
+    sourceLanguageCode: sourceLang,
     targetLanguageCode: targetLang,
     glossaryConfig,
   };
