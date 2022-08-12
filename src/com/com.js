@@ -1141,7 +1141,7 @@ export const createJapanGlossary = async (req, res) => {
   // Construct glossary
   const glossary = {
     languageCodesSet: {
-      languageCodes: ["ko", "ja", "en"],
+      languageCodes: ["ko", "ja"],
     },
     inputConfig: {
       gcsSource: {
