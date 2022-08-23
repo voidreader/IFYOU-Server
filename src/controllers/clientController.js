@@ -430,7 +430,7 @@ const startEpisodePlay = async (req, res) => {
   const ScriptLangCheck = await slaveDB(`
   SELECT episode_id FROM list_script 
   WHERE episode_id = ${userInfo.episode_id} 
-  AND lang = ${userInfo.lang}; 
+  AND lang = '${userInfo.lang}'; 
   `);
 
   // 유저의 언어로 작성된 스크립트가 없다.

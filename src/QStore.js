@@ -346,7 +346,7 @@ AND ls.episode_id = ?
 AND ls.lang = ?
 AND lb.project_id = ls.project_id 
 AND ls.template IN ('background', 'move_in')
-AND substring_index(ls.script_data, ':', 1) = lb.image_name
+AND substring_index(ls.script_data, ':', 1) = lb.image_name;
 `;
 
 export const Q_SCRIPT_RESOURCE_IMAGE = `
