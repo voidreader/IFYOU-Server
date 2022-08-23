@@ -1133,6 +1133,7 @@ export const translateText = async (req, res) => {
   res.status(200).send(translations[0]);
 }; // 번역 API 종료
 
+// * 한글=>일어 대응 용어집 생성
 export const createJapanGlossary = async (req, res) => {
   const {
     body: { filename, glossary_id },
@@ -1160,13 +1161,20 @@ export const createJapanGlossary = async (req, res) => {
   // Create glossary using a long-running operation
   const [operation] = await translationClient.createGlossary(request);
 
-  // Wait for the operation to complete
-  await operation.promise();
+  await operation
+    .promise()
+    .then(() => {
+      console.log("Created glossary:");
+      console.log(
+        `InputUri ${request.glossary.inputConfig.gcsSource.inputUri}`
+      );
 
-  console.log("Created glossary:");
-  console.log(`InputUri ${request.glossary.inputConfig.gcsSource.inputUri}`);
-
-  res.status(200).send("OK");
+      res.status(200).send("용어집이 생성되었습니다.");
+    })
+    .catch((err) => {
+      console.log(err);
+      res.status(400).send("파일이 없거나 파일 형식이 잘못되었습니다.");
+    });
 };
 
 export const createArabicGlossary = async (req, res) => {
@@ -1196,13 +1204,20 @@ export const createArabicGlossary = async (req, res) => {
   // Create glossary using a long-running operation
   const [operation] = await translationClient.createGlossary(request);
 
-  // Wait for the operation to complete
-  await operation.promise();
+  await operation
+    .promise()
+    .then(() => {
+      console.log("Created glossary:");
+      console.log(
+        `InputUri ${request.glossary.inputConfig.gcsSource.inputUri}`
+      );
 
-  console.log("Created glossary:");
-  console.log(`InputUri ${request.glossary.inputConfig.gcsSource.inputUri}`);
-
-  res.status(200).send("OK");
+      res.status(200).send("용어집이 생성되었습니다.");
+    })
+    .catch((err) => {
+      console.log(err);
+      res.status(400).send("파일이 없거나 파일 형식이 잘못되었습니다.");
+    });
 };
 
 // 용어집 삭제

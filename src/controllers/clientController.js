@@ -416,6 +416,161 @@ ORDER BY rand() LIMIT 1;
   logAction(userInfo.userkey, "episode_start", userInfo);
 };
 
+// * 에피소드 플레이
+const startEpisodePlay = async (req, res) => {
+  const userInfo = req.body;
+  logger.info(`startEpisodePlay ${JSON.stringify(userInfo)}`);
+
+  const result = {}; // 결과
+
+  let { lang } = userInfo; // 유저가 선택한 언어
+  let purchaseType = ""; // 에피소드 구매 타입
+
+  // 유저가 선택한 언어로 스크립트가 있는지 체크한다.
+  const ScriptLangCheck = await slaveDB(`
+  SELECT episode_id FROM list_script 
+  WHERE episode_id = ${userInfo.episode_id} 
+  AND lang = ${userInfo.lang}; 
+  `);
+
+  // 유저의 언어로 작성된 스크립트가 없다.
+  if (ScriptLangCheck.row.length <= 0) {
+    // 영어 체크
+    const EnglishScriptCheck = await slaveDB(`
+    SELECT episode_id FROM list_script 
+    WHERE episode_id = ${userInfo.episode_id} 
+    AND lang = 'EN'; 
+    `);
+
+    // 언어 체크 종료. 최종적으로 없으면 KO
+    if (EnglishScriptCheck.row.length > 0) lang = "EN";
+    // 영어 스크립트 있으면 영어로.
+    else lang = "KO";
+  } // ? 언어 체크 종료
+
+  // * 에피소드 구매 기록 조회
+  const purchaseInfo = await DB(
+    `
+  SELECT a.purchase_type 
+  FROM user_episode_purchase a
+ WHERE a.userkey = ?
+   AND a.episode_id = ?
+  `,
+    [userInfo.userkey, userInfo.episode_id]
+  );
+
+  // 에피소드 구매 기록이 없으면 Permanent로 처리. (1화에 해당한다.)
+  if (!purchaseInfo.state || purchaseInfo.row.length === 0) {
+    // respondDB(res, 80094, "에피소드 구매 정보가 없습니다.");
+    // logger.error("No episode purchase data");
+    logger.info("No episode purchase data");
+    purchaseType = "Permanent";
+    //return;
+  } else {
+    purchaseType = purchaseInfo.row[0].purchase_type;
+  }
+
+  logger.info(`current episode purchase type is [${purchaseType}]`);
+
+  // * 스크립트 및 스크립트 리소스 조회
+  let query = ``;
+  query += mysql.format(Q_SCRIPT_SELECT_WITH_DIRECTION, [
+    userInfo.episode_id,
+    lang,
+  ]); // 0. 스크립트
+  query += mysql.format(Q_SCRIPT_RESOURCE_BG, [
+    userInfo.project_id,
+    userInfo.episode_id,
+    lang,
+  ]); // 1. 배경
+  query += mysql.format(Q_SCRIPT_RESOURCE_IMAGE, [
+    userInfo.project_id,
+    userInfo.episode_id,
+    lang,
+  ]); // 2. 이미지
+  query += mysql.format(Q_SCRIPT_RESOURCE_ILLUST, [
+    userInfo.project_id,
+    userInfo.episode_id,
+    lang,
+  ]); // 3. 일러스트
+  query += mysql.format(Q_SCRIPT_RESOURCE_EMOTICON, [
+    userInfo.project_id,
+    userInfo.episode_id,
+    lang,
+  ]); // 4. 이모티콘
+  query += mysql.format(Q_SCRIPT_RESOURCE_BGM, [
+    userInfo.project_id,
+    userInfo.episode_id,
+    lang,
+  ]); // 5. BGM
+  query += mysql.format(Q_SCRIPT_RESOURCE_VOICE, [
+    userInfo.project_id,
+    userInfo.episode_id,
+    lang,
+  ]); // 6. 음성
+  query += mysql.format(Q_SCRIPT_RESOURCE_SE, [
+    userInfo.project_id,
+    userInfo.episode_id,
+    lang,
+  ]); // 7. 효과음
+
+  const combinationResult = await slaveDB(query); // 모인 쿼리 실행
+
+  if (!combinationResult.state) {
+    logger.error(combinationResult.error);
+  }
+
+  // combinationResult.row
+  result.script = combinationResult.row[0];
+  result.background = combinationResult.row[1];
+  result.image = combinationResult.row[2];
+  result.illust = combinationResult.row[3];
+  result.emoticon = combinationResult.row[4];
+  result.bgm = combinationResult.row[5];
+  result.voice = combinationResult.row[6];
+  result.se = combinationResult.row[7];
+
+  // 현재 에피소드에서 활성화된 로딩 중 랜덤하게 하나 가져온다.
+  const loading = await slaveDB(`
+  SELECT a.loading_id
+     , a.loading_name
+     , a.image_id 
+     , fn_get_design_info(a.image_id, 'url') image_url
+     , fn_get_design_info(a.image_id, 'key') image_key
+    FROM list_loading a
+      , list_loading_appear b
+  WHERE a.project_id = ${userInfo.project_id}
+    AND b.loading_id = a.loading_id
+    AND b.episode_id = ${userInfo.episode_id}
+    AND b.is_use = 1
+  ORDER BY rand() LIMIT 1;
+  `);
+
+  result.loading = loading.row;
+  result.loadingDetail = [];
+
+  if (loading.row.length > 0) {
+    const loadingID = loading.row[0].loading_id;
+    const loadingDetail = await slaveDB(`
+      SELECT a.detail_no
+          , a.lang 
+          , a.loading_text 
+        FROM list_loading_detail a
+      WHERE a.loading_id = ${loadingID}
+      AND a.lang = '${lang}'
+      ORDER BY rand();
+    `);
+
+    result.loadingDetail = loadingDetail.row;
+  }
+  // ? 로딩 정보 불러오기 종료
+
+  // * 응답
+  res.status(200).json(result);
+
+  logAction(userInfo.userkey, "episode_start", userInfo);
+}; // ? END of startEpisodePlay
+
 // * 프로젝트의 장르 조회하기
 const getProjectGenre = async (project_id, lang) => {
   const result = await slaveDB(`
@@ -1306,6 +1461,7 @@ export const clientHome = (req, res) => {
 
   // 스크립트 전체 행 조회
   if (func === "getEpisodeScript") getEpisodeScriptWithResources(req, res);
+  else if (func === "startEpisodePlay") startEpisodePlay(req, res);
   else if (func === "loginClient") loginClient(req, res);
   else if (func === "getUserSelectedStory") getUserSelectedStory(req, res);
   else if (func === "clearUserEpisodeSceneHistory")
