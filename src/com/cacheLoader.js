@@ -5,9 +5,8 @@ import { cache, loadingCacheData } from "../init";
 import { logger } from "../logger";
 import { DB, slaveDB } from "../mysqldb";
 
-
 // 캐싱 쿼리 모음
-export const CACHE_BUBBLE_MASTER= `
+export const CACHE_BUBBLE_MASTER = `
 SELECT 
 DISTINCT lp.bubble_set_id AS bubbleID 
 , cbm.*
@@ -141,7 +140,7 @@ export const getCacheProduct = async (lang) => {
 
     // * 상품의 product_type에 따른 디테일 정보를 배열에 푸시해주기(프리미엄 패스 제외)
     // * 프리미엄 패스는 getUserSelectedStory()에서 호출
-    if(item.product_type !== 'premium_pass'){
+    if (item.product_type !== "premium_pass") {
       promise.push(
         getProductDetailList(item.product_master_id, item.product_type)
       );
@@ -152,10 +151,10 @@ export const getCacheProduct = async (lang) => {
     .then((values) => {
       // * promise에 넣어둔 모든 getProductDetailList 실행이 종료되면, 결과가 한번에 들어온다.
       values.forEach((arr) => {
-          //* productInfo의 key랑 arr[i].master_id 가 똑같으면,
-          arr.forEach((item) => {
-            productInfo[item.master_id.toString()].push(item);
-          });
+        //* productInfo의 key랑 arr[i].master_id 가 똑같으면,
+        arr.forEach((item) => {
+          productInfo[item.master_id.toString()].push(item);
+        });
       });
     })
     .catch((err) => {
@@ -171,6 +170,7 @@ export const getCacheServerMaster = async () => {
   let query = ``; // 쿼리용 스트링
 
   // 서버 마스터 정보
+  // 광고, 타임딜, 기본 재화 정보까지.
   query += `SELECT cs.* FROM com_server cs WHERE server_no > 0 LIMIT 1;`;
   query += `SELECT a.* FROM com_ad a LIMIT 1;`;
   query += `
@@ -183,6 +183,16 @@ export const getCacheServerMaster = async () => {
     WHERE timedeal_id > 0 
     ORDER BY timedeal_id; 
     `;
+  query += `
+  SELECT DISTINCT a.currency 
+    , fn_get_design_info(a.icon_image_id, 'url') icon_url
+    , fn_get_design_info(a.icon_image_id, 'key') icon_key
+  FROM com_currency a 
+  WHERE a.is_use > 0
+  AND a.local_code > -1
+  AND a.icon_image_id > 0
+  AND a.currency IN ('gem', 'coin');
+  `;
 
   const serverInfo = await slaveDB(query);
   return serverInfo;
@@ -317,11 +327,10 @@ export const getCachePlatformEvent = async () => {
 };
 
 const getBubbleDetail = async (key, kind) => {
-
   let result;
-  if(kind === 'set'){
+  if (kind === "set") {
     result = await slaveDB(CACHE_BUBBLE_SET, [key]);
-  }else{
+  } else {
     result = await slaveDB(CACHE_BUBBLE_SPRITE, [key]);
   }
 
@@ -330,13 +339,12 @@ const getBubbleDetail = async (key, kind) => {
 
 // * 말풍선 정보
 const getCacheBubble = async () => {
-
-  let result = '';
+  let result = "";
   let promise = [];
   const responseData = {};
   let bubbleObj = {};
 
-  // 말풍선 버전 
+  // 말풍선 버전
   result = await slaveDB(CACHE_BUBBLE_MASTER);
   responseData.bubbleMaster = result.row;
 
@@ -345,9 +353,9 @@ const getCacheBubble = async () => {
     if (!Object.hasOwnProperty.call(bubbleObj, key)) {
       bubbleObj[key] = [];
     }
-    promise.push( getBubbleDetail(key, 'set') );
+    promise.push(getBubbleDetail(key, "set"));
   });
-  
+
   // 말풍선 세트
   await Promise.all(promise)
     .then((values) => {
@@ -359,7 +367,7 @@ const getCacheBubble = async () => {
     })
     .catch((err) => {
       console.log(err);
-  });
+    });
   responseData.bubbleSet = bubbleObj;
 
   // 말풍선 sprite
@@ -370,8 +378,8 @@ const getCacheBubble = async () => {
     if (!Object.hasOwnProperty.call(bubbleObj, key)) {
       bubbleObj[key] = [];
     }
-    promise.push( getBubbleDetail(key, 'sprite') );
-  }); 
+    promise.push(getBubbleDetail(key, "sprite"));
+  });
   await Promise.all(promise)
     .then((values) => {
       values.forEach((arr) => {
@@ -382,7 +390,7 @@ const getCacheBubble = async () => {
     })
     .catch((err) => {
       console.log(err);
-  });
+    });
   responseData.bubbleSprite = bubbleObj;
   return responseData;
 };
@@ -424,6 +432,21 @@ export const refreshCacheServerMaster = async (req, res) => {
     cache.set("serverMaster", serverInfo.row[0][0]); // 마스터 정보
     cache.set("ad", serverInfo.row[1][0]); // 광고 세팅 정보
     cache.set("timedeal", serverInfo.row[2]); // 타임딜 정보
+
+    // 기본 재화 세팅
+    const baseCurrency = {};
+    const currencyIcons = serverInfo.row[3];
+
+    currencyIcons.forEach((item) => {
+      if (!Object.prototype.hasOwnProperty.call(baseCurrency, item.currency)) {
+        baseCurrency[item.currency] = {
+          image_url: item.icon_url,
+          image_key: item.icon_key,
+        };
+      }
+    });
+
+    cache.set("baseCurrency", baseCurrency); // 기본 재화 정보
   }
 
   if (res) res.status(200).send("Done");
@@ -449,15 +472,14 @@ export const refreshCacheProduct = async (req, res) => {
 };
 
 // * 수정이 많지 않은 정보 캐시 리프레쉬
-export const refreshCacheFixedData = async(req, res) => {
+export const refreshCacheFixedData = async (req, res) => {
+  let result = "";
 
-  let result = '';
-  
-  //말풍선 
+  //말풍선
   const bubble = await getCacheBubble();
-  if(!cache.has("bubble")) cache.set("bubble", bubble);
-  else{
-    // 배포 했다면, 다시 캐싱 정보 업데이트(더 좋은 방법이 있으면 그걸로 변경 예정) 
+  if (!cache.has("bubble")) cache.set("bubble", bubble);
+  else {
+    // 배포 했다면, 다시 캐싱 정보 업데이트(더 좋은 방법이 있으면 그걸로 변경 예정)
     result = await slaveDB(`
     SELECT * 
     FROM admin_deploy_history 
@@ -465,12 +487,11 @@ export const refreshCacheFixedData = async(req, res) => {
     AND server = 'ifyou' 
     AND kind = 'bubble' 
     AND deploy_date >= date_add(now(), INTERVAL -2 MINUTE);`);
-    if(result.state && result.row.length > 0) cache.set("bubble", bubble);
+    if (result.state && result.row.length > 0) cache.set("bubble", bubble);
   }
-  
+
   if (res) res.status(200).send("Done");
 };
-
 
 // 캐시 리프레시
 const schduleCacheRefresh = schedule.scheduleJob("*/2 * * * *", async () => {
