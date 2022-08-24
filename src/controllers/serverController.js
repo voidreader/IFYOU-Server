@@ -97,6 +97,7 @@ export const getServerMasterInfo = (req, res) => {
   responseData.master = cache.get("serverMaster");
   responseData.ad = cache.get("ad");
   responseData.timedeal = cache.get("timedeal");
+  responseData.baseCurrency = cache.get("baseCurrency");
 
   res.status(200).json(responseData);
 };
