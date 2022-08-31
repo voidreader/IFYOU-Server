@@ -156,6 +156,9 @@ export const purchaseSelection = async (req, res) => {
   responseData.bank = await getUserBankInfo(req.body); // 뱅크
 
   res.status(200).json(responseData);
+
+  // 로그 추가
+  logAction(userkey, "paid_selection", req.body);
 };
 
 //! 작품별 과금 선택지 정보
