@@ -197,6 +197,7 @@ import {
   receiveSurveyReward,
   requestLocalizingSurvey,
 } from "./surveyController";
+import { getPackageProject, loginPackage } from "./packageController";
 
 dotenv.config();
 
@@ -1463,6 +1464,8 @@ export const clientHome = (req, res) => {
   if (func === "getEpisodeScript") getEpisodeScriptWithResources(req, res);
   else if (func === "startEpisodePlay") startEpisodePlay(req, res);
   else if (func === "loginClient") loginClient(req, res);
+  else if (func === "loginPackage") loginPackage(req, res);
+  else if (func === "getPackageProject") getPackageProject(req, res);
   else if (func === "getUserSelectedStory") getUserSelectedStory(req, res);
   else if (func === "clearUserEpisodeSceneHistory")
     clearUserEpisodeSceneProgress(req, res);
