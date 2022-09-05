@@ -69,8 +69,8 @@ const registerPackageAccount = async (req, res) => {
   const result = await DB(
     `
   INSERT INTO pier.table_account
-    (deviceid, googleid, appleid, nickname, createtime, lastlogintime, admin, gamebaseid, pincode, package)
-    VALUES(?, NULL, NULL, NULL, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, 0, NULL, ?, ?);
+    (deviceid, nickname, createtime, lastlogintime, admin, gamebaseid, pincode, package)
+    VALUES(?, NULL, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, 0, NULL, ?, ?);
   `,
     [deviceid, pincode, packageid]
   );
