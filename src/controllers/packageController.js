@@ -120,6 +120,7 @@ export const loginPackage = async (req, res) => {
 , datediff(now(), ta.last_rate_date) diff_rate
 , ta.rate_result
 , ifyou_pass_day
+, ta.energy
 FROM table_account ta 
 LEFT OUTER JOIN user_tutorial t ON t.userkey = ta.userkey
 WHERE ta.deviceid  = ?
@@ -160,4 +161,24 @@ WHERE ta.deviceid  = ?
     lang,
     accountInfo.account.userkey,
   ]);
+};
+
+// 광고로 에너지 충전하기
+export const chargeEnergyByAdvertisement = async (req, res) => {
+  const {
+    body: { userkey },
+  } = req;
+
+  // 최대치를 넘어가지 않도록 변경한다.
+  const result = await DB(`
+  UPDATE table_account
+     SET energy = CASE WHEN energy + 30 > 200 THEN 200 ELSE energy + 30 END 
+  WHERE userkey = ${userkey};
+  `);
+
+  if (!result.state) {
+    logger.error(`${result.error}`);
+  }
+
+  res.status(200).json(result.state);
 };
