@@ -250,14 +250,14 @@ WHERE ta.userkey = ?;
 // 클라이언트에서 계정 생성
 export const Q_REGISTER_CLIENT_ACCOUNT = `
 INSERT INTO pier.table_account
-(deviceid, googleid, appleid, nickname, createtime, lastlogintime, admin, gamebaseid, pincode)
-VALUES(?, NULL, NULL, 'GUEST', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, 0, NULL, ?);
+(deviceid, nickname, createtime, lastlogintime, admin, gamebaseid, pincode)
+VALUES(?, 'GUEST', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, 0, NULL, ?);
 `;
 
 export const Q_REGISTER_CLIENT_ACCOUNT_WITH_GAMEBASE = `
 INSERT INTO pier.table_account
-(deviceid, googleid, appleid, nickname, createtime, lastlogintime, admin, gamebaseid, pincode)
-VALUES(?, NULL, NULL, NULL, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, 0, ?, ?);
+(deviceid, nickname, createtime, lastlogintime, admin, gamebaseid, pincode)
+VALUES(?, NULL, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, 0, ?, ?);
 `;
 
 export const Q_UPDATE_CLIENT_ACCOUNT_WITH_GAMEBASE = `
