@@ -6,7 +6,7 @@ dotenv.config();
 const gamebaseAppID = process.env.GAMEBASE_APPID;
 const gamebaseSecret = process.env.GAMEBASE_SECRET;
 
-const gamebaseURL = "https://api-gamebase.cloud.toast.com/";
+const gamebaseURL = "https://api-gamebase.nhncloudservice.com/";
 const gamebaseURL2 = `v1.3/apps/${gamebaseAppID}/`;
 
 // gamebaseAPI 관련 axios
