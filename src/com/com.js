@@ -60,6 +60,7 @@ export const translateSingleEpisode = async (req, res) => {
   }
 
   // 에피소드 정보 가져온다.
+  /*
   const episode = episodeInfo.row[0];
 
   // 타이틀, 요약 따로따로 번역
@@ -110,9 +111,13 @@ export const translateSingleEpisode = async (req, res) => {
 
     return;
   }
+  */
+
   // 에피소드 정보 업데이트 완료
   // 아래부터 스크립트 시작
-  res.status(200).send("episode translate start");
+  res
+    .status(200)
+    .send(`[${episode_id}]/[${targetLang}] episode translate start`);
 
   // 영어 스크립트를 타겟 스크립트로 복사한다.
   // 대상 언어의 스크립트를 제거하고 입력한다.
