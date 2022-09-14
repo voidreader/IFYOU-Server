@@ -939,6 +939,47 @@ export const makeCopyInsert = async (req, res) => {
   res.status(200).send(insertQuery);
 };
 
+export const makeLangInsert = async (req, res) => {
+  const {
+    body: { target, source_lang = "EN", target_lang },
+  } = req;
+
+  // target : 대상 테이블
+  // source_lang : 디폴트 언어
+  // target_lang : 타겟 언어
+
+  const columns = await DB(
+    `SELECT COLUMN_NAME, COLUMN_KEY FROM information_schema.COLUMNS c WHERE TABLE_NAME =? ORDER BY ORDINAL_POSITION;`,
+    [target]
+  );
+
+  let insertQuery = `INSERT INTO ${target} (`;
+  let colIndex = 0;
+
+  columns.row.forEach((item) => {
+    if (colIndex === 0) insertQuery += `${item.COLUMN_NAME}`;
+    else insertQuery += `, ${item.COLUMN_NAME}`;
+
+    colIndex += 1;
+  });
+
+  insertQuery += `) SELECT `;
+  colIndex = 0;
+  columns.row.forEach((item) => {
+    if (item.COLUMN_NAME === "lang") {
+      if (colIndex === 0) insertQuery += `'${target_lang}'`;
+      else insertQuery += `, '${target_lang}'`;
+    } else if (colIndex === 0) insertQuery += `${item.COLUMN_NAME}`;
+    else insertQuery += `, ${item.COLUMN_NAME}`;
+
+    colIndex += 1;
+  });
+
+  insertQuery += ` FROM ${target} WHERE lang = '${source_lang}';`;
+
+  res.status(200).send(insertQuery);
+};
+
 // * 유틸리티
 const concatColumns = async (req, res) => {
   const result = await DB(`
@@ -1530,6 +1571,7 @@ export const clientHome = (req, res) => {
   else if (func === "checkUserIdValidation") checkUserIdValidation(req, res);
   else if (func === "makeInsertQuery") makeInsertQuery(req, res);
   else if (func === "makeCopyInsert") makeCopyInsert(req, res);
+  else if (func === "makeLangInsert") makeLangInsert(req, res);
   else if (func === "concatColumns") concatColumns(req, res);
   else if (func === "UnlockUserAllGalleryImage")
     UnlockUserAllGalleryImage(req, res);
