@@ -193,6 +193,77 @@ const getAdRewardList = async (userkey, lang, ad_no) => {
   return result.row;
 };
 
+// * 일일 미션 보상 받기 수정버전 2022.09.15
+export const requestDailyMissionRewardOptimized = async (req, res) => {
+  const {
+    body: { userkey, lang = "EN", mission_no = -1, by_ad = 0 },
+  } = req;
+
+  const responseData = {};
+  responseData.result = 1;
+
+  const validCheck = await slaveDB(`
+  SELECT cdm.mission_no, cdm.currency, cdm.quantity, udm.received 
+  FROM user_daily_mission_record udm, com_daily_mission cdm
+  WHERE udm.mission_no = cdm.mission_no 
+  AND userkey = ${userkey}
+  AND cdm.mission_no = ${mission_no}
+  AND current_result >= limit_count
+  AND is_active > 0;
+  `);
+
+  // 유효성 체크 통과 못함!
+  if (!validCheck.state || validCheck.row.length === 0) {
+    logger.error(`Invalid request of daily mission ${req.body}`);
+    responseData.result = 0; // 결과값을 0으로 전달
+    responseData.message = "no data";
+    res.status(200).json(responseData);
+    return;
+  }
+
+  const { currency, quantity, received } = validCheck.row[0];
+
+  // 이미 받은 경우
+  if (received > 0) {
+    responseData.result = 0;
+    responseData.message = "received"; //
+    return;
+  }
+
+  // 처리 쿼리 생성
+  let query = ``;
+
+  // 보상 즉시 지급
+  query += `CALL pier.sp_insert_user_property(${userkey}, '${currency}', ${quantity}, 'ifyou_mission');`;
+
+  // 수신 처리
+  query += `UPDATE user_daily_mission_record SET received = 1 WHERE userkey = ${userkey} AND mission_no = ${mission_no};`;
+
+  // 보상받는 미션이 1번 미션이 아닌 경우에 1번 미션의 진행도를 올려준다.
+  if (mission_no !== 1) {
+    query += `INSERT INTO user_daily_mission_record (userkey, mission_no, current_result) VALUES (${userkey}, 1, 1) ON DUPLICATE KEY UPDATE  current_result = current_result + 1;`;
+  }
+
+  const result = await transactionDB(query);
+
+  if (!result.state) {
+    logger.error(`requestDailyMissionRewardOptimized Error ${result.error}`);
+    respondDB(res, 80026, result.error);
+  }
+
+  // 뱅크, 일일 미션 갱신 받는다.
+  responseData.bank = await getUserBankInfo(req.body);
+  responseData.dailyMission = await getDailyMissionListOptimized(userkey, lang);
+
+  // 받은 재화 정보도 받는다
+  responseData.currency = currency;
+  responseData.quantity = quantity;
+
+  res.status(200).json(responseData); // 응답
+
+  logAction(userkey, "ifyou_mission_reward", req.body);
+};
+
 //! 일일 미션 보상 받기
 export const requestDailyMissionReward = async (req, res) => {
   const {
