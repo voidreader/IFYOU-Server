@@ -11,6 +11,65 @@ import { getUserUnreadMailCount } from "./clientController";
 //* 연속 출석 관리는 이미 attendanceController에 이미 작업을 해서 그대로 두고
 //* 그 이후의 이프유 플레이는 여기 파일에서 관리
 
+// * 일일 미션 리스트 신규 버전(2022.09.15)
+const getDailyMissionListOptimized = async (userkey, lang) => {
+  const result = await DB(`
+  SELECT cdm.mission_no
+        , cdm.currency 
+        , quantity
+        , fn_get_localize_text(content_id, '${lang}') content
+        , ifnull(current_result, 0) current_result
+        , cdm.limit_count
+        , CASE WHEN ifnull(current_result, 0) >= cdm.limit_count THEN 1 ELSE 0 END state
+        , ifnull(udm.received, 0) received
+        , concat(DATE_FORMAT(now(), '%Y-%m-%d'), ' 23:59:59') end_date
+  FROM com_daily_mission cdm
+  INNER JOIN com_currency cc ON cdm.currency = cc.currency 
+  LEFT OUTER JOIN user_daily_mission_record udm ON userkey = ${userkey}
+  AND cdm.mission_no = udm.mission_no
+  WHERE is_active > 0
+  ORDER BY mission_no ;
+  `);
+
+  // tick 작업한다.
+  if (result.state && result.row.length > 0) {
+    const { end_date } = result.row[0];
+    const endDate = new Date(end_date);
+    const end_date_tick = endDate.getTime();
+
+    result.row.forEach((item) => {
+      item.end_date_tick = end_date_tick;
+    });
+  } // tick 작업 종료
+
+  return result.row;
+};
+
+// * 일일 미션 누적 신규 버전(2022.09.15)
+export const increaseDailyMissionCountOptimized = async (req, res) => {
+  const {
+    body: { userkey, lang = "KO", mission_no = -1 },
+  } = req;
+
+  // 무조건 1씩 증가 처리
+  const insertResult = await DB(`
+  INSERT INTO user_daily_mission_record (userkey, mission_no, current_result) VALUES (${userkey}, ${mission_no}, 1) ON DUPLICATE KEY UPDATE  current_result = current_result + 1;
+  `);
+
+  if (!insertResult.state) {
+    logger.error(
+      `increaseDailyMissionCountOptimized Error [${insertResult.error}]`
+    );
+  }
+
+  const responseData = {};
+
+  responseData.dailyMission = await getDailyMissionListOptimized(userkey, lang);
+  res.status(200).json(responseData);
+
+  logAction(userkey, "ifyou_mission", req.body);
+};
+
 //! 일일 미션 리스트
 const getDailyMissionList = async (userkey, lang) => {
   const responseData = {};
@@ -433,7 +492,7 @@ export const requestAdReward = async (req, res) => {
   logAction(userkey, "ifyou_ad_reward", req.body);
 };
 
-//! 이프유 플레이 전체 리스트
+//! 이프유 플레이 전체 리스트(42버전 이후 삭제 대상)
 export const requestIfyouPlayList = async (req, res) => {
   const {
     body: { userkey, lang = "KO" },
@@ -446,6 +505,29 @@ export const requestIfyouPlayList = async (req, res) => {
 
   //일일 미션
   responseData.dailyMission = await getDailyMissionList(userkey, lang);
+
+  //미션 광고 보상
+  responseData.missionAdReward = await getAdRewardList(userkey, lang, 1);
+
+  //타이머 광고 보상
+  responseData.timerAdReward = await getAdRewardList(userkey, lang, 2);
+
+  res.status(200).json(responseData);
+};
+
+//! 이프유 플레이 전체 리스트
+export const requestIfyouPlayListOptimized = async (req, res) => {
+  const {
+    body: { userkey, lang = "EN" },
+  } = req;
+
+  const responseData = {};
+
+  //연속 출석
+  responseData.attendanceMission = await getContinuousAttendanceList(userkey);
+
+  //일일 미션
+  responseData.dailyMission = await getDailyMissionListOptimized(userkey, lang);
 
   //미션 광고 보상
   responseData.missionAdReward = await getAdRewardList(userkey, lang, 1);

@@ -172,6 +172,8 @@ import {
   increaseDailyMissionCount,
   increaseMissionAdReward,
   requestAdReward,
+  increaseDailyMissionCountOptimized,
+  requestIfyouPlayListOptimized,
 } from "./ifyouController";
 import {
   refreshCacheLocalizedText,
@@ -1731,12 +1733,16 @@ export const clientHome = (req, res) => {
   else if (func === "resetAttendanceMission") resetAttendanceMission(req, res);
   //연속 출석 미션 보충
   else if (func === "requestIfyouPlayList") requestIfyouPlayList(req, res);
+  else if (func === "requestIfyouPlayListOptimized")
+    requestIfyouPlayListOptimized(req, res);
   //이프유 플레이 리스트
   else if (func === "requestDailyMissionReward")
     requestDailyMissionReward(req, res);
   //일일 미션 보상 받기
   else if (func === "requestDailyMissionCount")
     increaseDailyMissionCount(req, res);
+  else if (func === "increaseDailyMissionCount")
+    increaseDailyMissionCountOptimized(req, res);
   //일일미션 누적처리
   else if (func === "requestCoinExchangeListByCoinShop")
     requestCoinExchangeListByCoinShop(req, res);
