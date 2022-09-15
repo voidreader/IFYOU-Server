@@ -160,7 +160,7 @@ import {
 } from "./achievementController";
 import { getIFyouWebMainPageInfo, receiveInquiry } from "./webController";
 import {
-  requestCompleteEpisode,
+  requestCompleteEpisodeOptimized,
   requestCompleteEpisodeType2,
   requestEpisodeFirstClear,
   requestUnlockMission,
@@ -1699,10 +1699,12 @@ export const clientHome = (req, res) => {
     collectProjectRetention(req, res);
   else if (func === "collectAllProjectRetention")
     collectAllProjectRetention(req, res);
-  else if (func === "requestCompleteEpisode") requestCompleteEpisode(req, res);
-  // 삭제 대상
   else if (func === "requestCompleteEpisodeType2")
     requestCompleteEpisodeType2(req, res);
+  // 삭제예정
+  else if (func === "requestCompleteEpisodeOptimized")
+    requestCompleteEpisodeOptimized(req, res);
+  // 신규
   //신규 2022.07.27
   else if (func === "requestEpisodeFirstClear")
     requestEpisodeFirstClear(req, res);
