@@ -175,6 +175,8 @@ import {
   increaseDailyMissionCountOptimized,
   requestIfyouPlayListOptimized,
   requestDailyMissionRewardOptimized,
+  requestAdRewardOptimized,
+  increaseMissionAdRewardOptimized,
 } from "./ifyouController";
 import {
   refreshCacheLocalizedText,
@@ -1784,8 +1786,12 @@ export const clientHome = (req, res) => {
     translateProjectSpecificDataWithGlossary(req, res);
   else if (func === "increaseMissionAdReward")
     increaseMissionAdReward(req, res);
+  else if (func === "increaseMissionAdRewardOptimized")
+    increaseMissionAdRewardOptimized(req, res);
   // 미션 광고 보상 카운트 누적
   else if (func === "requestAdReward") requestAdReward(req, res);
+  else if (func === "requestAdRewardOptimized")
+    requestAdRewardOptimized(req, res);
   // 광고 보상 처리
   else if (func === "translateSingleEpisode") translateSingleEpisode(req, res);
   else if (func === "refundPreviousInappStar")
