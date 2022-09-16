@@ -198,3 +198,28 @@ export const logAllPass = (userkey, project_id, episode_id) => {
     [userkey, project_id, episode_id]
   );
 };
+
+// * 광고 기록.
+export const logAD = (
+  userkey,
+  project_id = -1,
+  episode_id = -1,
+  ad_type = "unknown"
+) => {
+  logDB(
+    `
+  INSERT INTO log_ad(
+    userkey
+    , project_id
+    , episode_id
+    , ad_type
+  ) VALUES(
+    ?
+    ,?
+    ,?
+    ,?
+  );
+  `,
+    [userkey, project_id, episode_id, ad_type]
+  );
+};

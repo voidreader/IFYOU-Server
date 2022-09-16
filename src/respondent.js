@@ -16,6 +16,14 @@ import { DB } from "./mysqldb";
 }
 */
 
+// 응답을 성공형태로 보내주지만, 클라이언트에서는 실패로 처리해야하는 응답처리
+export const respondFail = (res, responseData, dev_message) => {
+  responseData.result = 0;
+  responseData.message = dev_message;
+
+  res.status(200).json(responseData);
+};
+
 // ! 에러 전송
 // error : 서버에서 발생한 실제 에러 메세지
 // localizedTextID : 안내 문구로 나가는 로컬라이징 텍스트 ID
@@ -47,7 +55,7 @@ export const respondError = (res, error, localizedTextID, koMessage) => {
 };
 
 //! 에러 쿼리문
-export const respondDB = async (res, errorCode, serverError, lang="KO") => {
+export const respondDB = async (res, errorCode, serverError, lang = "KO") => {
   const result = await DB(
     `SELECT ${lang} as message FROM com_localize WHERE id = ? ;`,
     [errorCode]
