@@ -146,6 +146,7 @@ import {
   requestAttendanceMission,
   receiveAttendanceMissionReward,
   resetAttendanceMission,
+  sendAttendanceRewardOptimized,
 } from "./attendanceController";
 import { updateSnippetPlayCount } from "./snippetController";
 import { firstResetAbility, addUserAbility } from "./abilityController";
@@ -1650,6 +1651,8 @@ export const clientHome = (req, res) => {
   else if (func === "getAttendanceList") attendanceList(req, res);
   //출석 보상 리스트
   else if (func === "sendAttendanceReward") sendAttendanceReward(req, res);
+  else if (func === "sendAttendanceRewardOptimized")
+    sendAttendanceRewardOptimized(req, res);
   else if (func === "updateSnippetPlayCount") updateSnippetPlayCount(req, res);
   else if (func === "updateTutorialHowToPlay")
     updateTutorialHowToPlay(req, res);
