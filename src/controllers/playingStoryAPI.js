@@ -199,7 +199,7 @@ export const requestCompleteEpisodeOptimized = async (req, res) => {
       userkey,
       project_id,
       episode_id,
-      nextEpisodeID,
+      nextEpisodeID = -1,
       is_next_ending = 0,
       scene_id,
       useRecord = true,
