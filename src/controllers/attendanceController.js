@@ -287,6 +287,7 @@ export const sendAttendanceRewardOptimized = async (req, res) => {
   responseData.day_seq = day_seq; // 출석일수 일차
   responseData.currency = currency; // 받은 재화
   responseData.quantity = quantity; // 받은 재화 수량
+  responseData.bank = await getUserBankInfo(req.body);
 
   result = await getContinuousAttendanceList(userkey);
 
