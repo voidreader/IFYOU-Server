@@ -1646,8 +1646,6 @@ export const clientHome = (req, res) => {
   else if (func === "insertUserAdHistory") insertUserAdHistory(req, res);
   //유저별 광고 히스토리
   else if (func === "getCommingList") getCommingList(req, res);
-  else if (func === "requestEpisodeFirstClearReward")
-    requestEpisodeFirstClearReward(req, res);
   else if (func === "getAttendanceList") attendanceList(req, res);
   //출석 보상 리스트
   else if (func === "sendAttendanceReward") sendAttendanceReward(req, res);

@@ -1266,38 +1266,6 @@ const getEpisodeFisrtClearReward = async (userkey, episodeID) => {
   return rewardResult.row;
 };
 
-// * 유저 에피소드 첫 클리어 보상 요청 (실제 수신 처리)
-export const requestEpisodeFirstClearReward = async (req, res) => {
-  const {
-    body: { userkey, episode_id, is_double },
-  } = req;
-
-  const episodeFirstResult = await slaveDB(`
-  SELECT a.first_reward_currency currency
-     , a.first_reward_quantity quantity
-  FROM list_episode a
- WHERE a.episode_id = ${episode_id};
-  `);
-
-  // 없는 경우에 대한 처리
-  if (!episodeFirstResult.state || episodeFirstResult.row.length === 0) {
-    respondDB(res, 80026, episodeFirstResult.error);
-    return;
-  }
-
-  let { currency, quantity } = episodeFirstResult.row[0];
-  if (is_double) quantity *= 5; // 5배로 변경
-
-  // 재화 입력 대기
-  await addUserProperty(userkey, currency, quantity, "first_clear");
-
-  const responseData = {};
-  responseData.bank = await getUserBankInfo(req.body); // 뱅크 갱신
-  responseData.reward = { currency, quantity }; // 받은 물건
-
-  res.status(200).json(responseData); // 응답처리
-}; // ? END requestEpisodeFirstClearReward
-
 /////////////////////////////////////////////////////////////////////
 
 // 말풍선 세트 재배열

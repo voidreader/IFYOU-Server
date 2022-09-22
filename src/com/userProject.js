@@ -1,5 +1,5 @@
 import mysql from "mysql2/promise";
-import { DB, logAction, slaveDB, transactionDB } from "../mysqldb";
+import { DB, logAction, logAD, slaveDB, transactionDB } from "../mysqldb";
 import { logger } from "../logger";
 import { respond, respondDB } from "../respondent";
 import {
@@ -809,11 +809,12 @@ export const requestWaitingEpisodeWithAD = async (req, res) => {
   // project_current 갱신
   const responseData = {};
   responseData.projectCurrent = await getUserProjectCurrent(req.body); // 프로젝트 현재 플레이 지점 !
-  responseData.bank = await getUserBankInfo(req.body); // 뱅크
+  responseData.bank = await getUserBankInfo(req.body); // ! 뱅크 (삭제대상)
 
   res.status(200).json(responseData);
 
   logAction(userkey, "waitingOpenAD", req.body);
+  logAD(userkey, project_id, -1, "waitingOpenAD");
 }; // ? requestWaitingEpisodeWithAD END
 
 // * 코인을 지불하고 현재 에피소드를 AD => Permanent로 변경
