@@ -1,6 +1,13 @@
 import mysql from "mysql2/promise";
 import { response } from "express";
-import { DB, logAction, logDB, transactionDB, logAllPass } from "../mysqldb";
+import {
+  DB,
+  logAction,
+  logDB,
+  transactionDB,
+  logAllPass,
+  logAD,
+} from "../mysqldb";
 import { respondDB, respondError } from "../respondent";
 import { logger } from "../logger";
 import {
@@ -73,7 +80,14 @@ const addUserProperty = async (userkey, currency, quantity, pathCode) => {
 // * 유저 에피소드 첫 클리어 보상 요청 (실제 수신 처리)
 export const requestEpisodeFirstClear = async (req, res) => {
   const {
-    body: { userkey, episode_id, is_double, currency, quantity },
+    body: {
+      userkey,
+      episode_id,
+      is_double,
+      currency,
+      quantity,
+      project_id = -1,
+    },
   } = req;
 
   // accountController의 동일함수는 삭제 대상
@@ -94,7 +108,10 @@ export const requestEpisodeFirstClear = async (req, res) => {
   responseData.reward = { currency, quantity: realQuantity }; // 받은 물건
 
   res.status(200).json(responseData); // 응답처리
-}; // ? END requestEpisodeFirstClearReward
+
+  // 광고 로그 쌓기
+  if (is_double) logAD(userkey, project_id, episode_id, "first_clear");
+}; // ? END requestEpisodeFirstClear
 
 // * 에피소드 플레이 완료 처리(2022.07.27)
 export const requestCompleteEpisodeType2 = async (req, res) => {

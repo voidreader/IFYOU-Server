@@ -1,6 +1,6 @@
 import mysql from "mysql2/promise";
 import { response } from "express";
-import { DB, logAction, slaveDB, transactionDB } from "../mysqldb";
+import { DB, logAction, logAD, slaveDB, transactionDB } from "../mysqldb";
 import { logger } from "../logger";
 import { respondDB, respondFail } from "../respondent";
 import { getContinuousAttendanceList } from "./attendanceController";
@@ -500,7 +500,9 @@ export const increaseMissionAdRewardOptimized = async (req, res) => {
   responseData.missionAdReward = await getAdRewardList(userkey, lang, 1);
 
   res.status(200).json(responseData);
+
   logAction(userkey, "ifyou_ad_count", req.body);
+  logAD(userkey, -1, -1, "ifyou_ad_count");
 };
 
 //! 미션, 타이머 광고 보상 처리 2022.09.16 수정 버전
@@ -617,6 +619,7 @@ export const requestAdRewardOptimized = async (req, res) => {
   res.status(200).json(responseData);
 
   logAction(userkey, `ifyou_ad_reward_${ad_no}`, req.body);
+  logAD(userkey, -1, -1, "ifyou_timer_ad");
 };
 
 //! 미션, 타이머 광고 보상 처리
