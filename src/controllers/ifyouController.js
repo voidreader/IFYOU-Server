@@ -499,6 +499,9 @@ export const increaseMissionAdRewardOptimized = async (req, res) => {
   //미션 광고 보상
   responseData.missionAdReward = await getAdRewardList(userkey, lang, 1);
 
+  // 광고 때문에 데일리 미션도 증가시켜준다.
+  responseData.dailyMission = await getDailyMissionListOptimized(userkey, lang);
+
   res.status(200).json(responseData);
 
   logAction(userkey, "ifyou_ad_count", req.body);
@@ -615,6 +618,8 @@ export const requestAdRewardOptimized = async (req, res) => {
   else responseData.timerAdReward = await getAdRewardList(userkey, lang, 2);
 
   responseData.bank = await getUserBankInfo(req.body);
+
+  responseData.dailyMission = await getDailyMissionListOptimized(userkey, lang);
 
   res.status(200).json(responseData);
 
