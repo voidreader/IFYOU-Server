@@ -257,7 +257,7 @@ export const requestCompleteEpisodeOptimized = async (req, res) => {
 
   // 다음화가 엔딩인 경우에 대한 처리
   if (is_next_ending > 0) {
-    currentQuery += `INSERT IGNORE INTO user_ending (userkey, episode_id, project_id) VALUES (${userkey}, ${episode_id}, ${project_id});`;
+    currentQuery += `INSERT IGNORE INTO user_ending (userkey, episode_id, project_id) VALUES (${userkey}, ${nextEpisodeID}, ${project_id});`;
   }
 
   // 에피소드 플레이 기록 저장하기, 엔딩 오픈 처리
