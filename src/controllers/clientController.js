@@ -191,6 +191,7 @@ import {
   createJapanGlossary,
   deleteGlossary,
   translateProjectDataWithGlossary,
+  translateProjectDataWithoutGlossary,
   translateProjectSpecificDataWithGlossary,
   translateScriptWithGlossary,
   translateSingleEpisode,
@@ -1866,6 +1867,8 @@ export const clientHome = (req, res) => {
   else if (func === "refreshCacheProduct") refreshCacheProduct(req, res);
   else if (func === "translateText") translateText(req, res);
   else if (func === "translateWithGlossary") translateWithGlossary(req, res);
+  else if (func === "translateProjectDataWithoutGlossary")
+    translateProjectDataWithoutGlossary(req, res);
   else if (func === "createArabicGlossary") createArabicGlossary(req, res);
   else if (func === "createJapanGlossary") createJapanGlossary(req, res);
   // 인앱상품 정보 캐시 재조회
