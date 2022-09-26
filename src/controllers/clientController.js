@@ -1501,6 +1501,98 @@ const refundPreviousInappStar = async (req, res) => {
   res.status(200).json(result.state);
 };
 
+// * 작품의 히든 요소 강제로 열기
+const unlockProjectHiddenElements = async (req, res) => {
+  const {
+    body: { userkey, project_id },
+  } = req;
+
+  // 엔딩 오픈
+  await DB(`INSERT IGNORE user_ending (userkey, episode_id, project_id) 
+  SELECT ${userkey}
+       , le.episode_id
+       , le.project_id 
+    FROM list_episode le
+   WHERE le.episode_type = 'ending'
+     AND le.project_id = ${project_id};`);
+
+  // 사이드
+  await DB(`
+  INSERT IGNORE user_side (userkey, episode_id, project_id) 
+  SELECT ${userkey}
+       , le.episode_id
+       , le.project_id 
+    FROM list_episode le
+   WHERE le.episode_type = 'side'
+     AND le.project_id = ${project_id};`);
+
+  // 갤러리 이미지
+  let unlockQuery = ``;
+  unlockQuery += `
+     DELETE FROM user_illust WHERE userkey = ${userkey} AND project_id = ${project_id};
+     DELETE FROM user_minicut WHERE userkey = ${userkey} AND project_id = ${project_id};
+   
+     INSERT INTO user_illust (userkey, project_id, illust_id, illust_type) 
+     SELECT ${userkey}, a.project_id, a.illust_id, 'illust'
+       FROM list_illust a
+      WHERE a.project_id = ${project_id}
+        AND a.is_public = 1
+        AND a.appear_episode > 0
+        ;
+     
+     INSERT INTO user_illust (userkey, project_id, illust_id, illust_type) 
+     SELECT ${userkey}, a.project_id, a.live_illust_id, 'live2d'
+       FROM list_live_illust a
+      WHERE a.project_id = ${project_id}
+        AND a.is_public = 1
+        AND a.appear_episode > 0;  
+   
+     INSERT INTO user_minicut (userkey, minicut_id, minicut_type, project_id)
+     SELECT ${userkey}, a.minicut_id , 'minicut', a.project_id 
+       FROM list_minicut a
+     WHERE a.project_id = ${project_id}
+       AND a.appear_episode > 0
+       AND a.is_public = 1;
+       
+    
+     
+     INSERT INTO user_minicut (userkey, minicut_id, minicut_type, project_id)
+     SELECT ${userkey}, a.live_object_id, 'live2d', a.project_id 
+       FROM list_live_object a
+     WHERE a.project_id = ${project_id}
+       AND a.appear_episode > 0
+       AND a.is_public = 1;     
+     
+     `;
+
+  await DB(unlockQuery); // 실행
+
+  res.status(200).send("done");
+};
+
+// * 관리자 계정 전환
+const changeAdminAccountStatus = async (req, res) => {
+  const {
+    body: { userkey },
+  } = req;
+
+  await DB(`
+    UPDATE table_account 
+    SET admin = CASE WHEN admin = 0 THEN 1 ELSE 0 END
+   WHERE userkey = ${userkey};
+  `);
+
+  const result = await DB(`
+  SELECT a.admin FROM table_account a WHERE a.userkey = ${userkey};
+  `);
+
+  if (result.row.length <= 0) {
+    res.status(400).send("fail");
+  } else {
+    res.status(200).json(result.row[0]);
+  }
+};
+
 // clientHome에서 func에 따라 분배
 // controller에서 또다시 controller로 보내는것이 옳을까..? ㅠㅠ
 export const clientHome = (req, res) => {
@@ -1579,6 +1671,10 @@ export const clientHome = (req, res) => {
   else if (func === "makeCopyInsert") makeCopyInsert(req, res);
   else if (func === "makeLangInsert") makeLangInsert(req, res);
   else if (func === "concatColumns") concatColumns(req, res);
+  else if (func === "unlockProjectHiddenElements")
+    unlockProjectHiddenElements(req, res);
+  else if (func === "changeAdminAccountStatus")
+    changeAdminAccountStatus(req, res);
   else if (func === "UnlockUserAllGalleryImage")
     UnlockUserAllGalleryImage(req, res);
   else if (func === "getUserBankInfoWithResponse")
