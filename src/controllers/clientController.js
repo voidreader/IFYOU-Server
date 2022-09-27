@@ -194,9 +194,11 @@ import {
   translateProjectDataWithoutGlossary,
   translateProjectSpecificDataWithGlossary,
   translateScriptWithGlossary,
+  translateScriptWithoutGlossary,
   translateSingleEpisode,
   translateText,
   translateWithGlossary,
+  updateSelectionConfirm,
 } from "../com/com";
 import {
   getSurveyMain,
@@ -1876,6 +1878,9 @@ export const clientHome = (req, res) => {
   else if (func === "deleteGlossary") deleteGlossary(req, res);
   else if (func === "translateScriptWithGlossary")
     translateScriptWithGlossary(req, res);
+  else if (func === "translateScriptWithoutGlossary")
+    translateScriptWithoutGlossary(req, res);
+  else if (func === "updateSelectionConfirm") updateSelectionConfirm(req, res);
   else if (func === "requestRecommendProject")
     requestRecommendProject(req, res);
   // 추천 작품 리스트
