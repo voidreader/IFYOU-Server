@@ -207,6 +207,9 @@ export const getCacheLocalizedText = async () => {
       , ifnull(cl.EN, 'NO TEXT') EN
       , ifnull(cl.JA, 'NO TEXT') JA
       , ifnull(cl.AR, 'NO TEXT') AR
+      , ifnull(cl.MS, 'NO TEXT') MS
+      , ifnull(cl.ES, 'NO TEXT') ES
+      , ifnull(cl.RU, 'NO TEXT') RU
     FROM com_localize cl 
     WHERE id > 0;
   `);
@@ -231,6 +234,7 @@ export const getCachePlatformEvent = async () => {
       , a.promotion_type
       , a.location
       , a.os
+      , a.exception_culture
   FROM com_promotion a
   WHERE is_public > 0 
   AND NOW() BETWEEN start_date AND end_date 
@@ -459,11 +463,18 @@ export const refreshCacheProduct = async (req, res) => {
   const productJA = await getCacheProduct("JA");
   const productAR = await getCacheProduct("AR");
 
+  const productMS = await getCacheProduct("MS");
+  const productES = await getCacheProduct("ES");
+  const productRU = await getCacheProduct("RU");
+
   const product = {
     KO: productKO,
     EN: productEN,
     JA: productJA,
     AR: productAR,
+    MS: productMS,
+    ES: productES,
+    RU: productRU,
   };
 
   cache.set("product", product);

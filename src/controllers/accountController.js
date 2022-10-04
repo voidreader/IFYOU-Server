@@ -1556,10 +1556,18 @@ export const registerClientAccount = async (req, res) => {
 // ! #클라이언트 로그인 처리
 export const loginClient = async (req, res) => {
   const {
-    body: { deviceid, gamebaseid = null, os, lang = "EN" },
+    body: {
+      deviceid,
+      gamebaseid = null,
+      os,
+      country = "ZZ",
+      lang = "EN",
+      culture = "",
+    },
   } = req;
 
   let result = null;
+  let current_culture = culture; // 문화권 값
 
   let userOS = "";
   // 안드로이드 ,아이폰 분류 처리
@@ -1578,14 +1586,15 @@ export const loginClient = async (req, res) => {
 
   const accountInfo = {};
 
-  console.log(result);
+  // console.log(result);
 
   // 계정없으면 생성처리
   if (result.row.length === 0) {
-    registerClientAccount(req, res); // 가입시킨다.
+    registerClientAccount(req, res); // 가입시킨다. 가입시키고 다시 호출됨
   } else {
     // * 로그인 완료 후 데이터 처리
     accountInfo.account = result.row[0];
+    accountInfo.account.current_lang = lang; // 언어 값 갱신처리
 
     // allpass_expiration 처리 추가 2022.05.23
     const expireDate = new Date(accountInfo.account.allpass_expiration);
@@ -1609,7 +1618,7 @@ export const loginClient = async (req, res) => {
         [accountInfo.account.userkey]
       );
 
-      result = await slaveDB(
+      result = await DB(
         `SELECT uid , nickname FROM table_account WHERE userkey = ?;`,
         [accountInfo.account.userkey]
       );
@@ -1617,12 +1626,20 @@ export const loginClient = async (req, res) => {
       accountInfo.account.nickname = result.row[0].nickname;
     }
 
-    // getProfileCurrencyCurrent
-    // * 유저 Profile 정보 추가
-    req.body.userkey = accountInfo.account.userkey;
-    accountInfo.profile = []; // * 2022.05.23 삭제대상 노드.
+    // 국가, 언어 기준으로 문화권 설정 처리
+    const cultureResult = await slaveDB(`
+    SELECT cc.culture_id culture FROM com_culture cc WHERE cc.lang = '${lang}' OR cc.country_code = '${country}' LIMIT 1;
+    `);
 
-    // * 응답 처리
+    if (cultureResult.state && cultureResult.row.length > 0) {
+      current_culture = cultureResult.row[0].culture;
+    }
+
+    accountInfo.account.current_culture = current_culture;
+    accountInfo.current_culture = current_culture;
+    // 문화권 설정 처리 끝.
+
+    // * 응답!!
     res.status(200).json(accountInfo);
 
     // gamebase에서 계정정보 추가로 받아오기.
@@ -1634,7 +1651,6 @@ export const loginClient = async (req, res) => {
       return;
     }
 
-    const country = gamebaseResult.data.memberInfo.usimCountryCode;
     const { valid } = gamebaseResult.data.member;
 
     logger.info(
@@ -1647,6 +1663,7 @@ export const loginClient = async (req, res) => {
       valid,
       userOS,
       lang,
+      current_culture,
       userInfo.userkey,
     ]);
 

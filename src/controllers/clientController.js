@@ -629,6 +629,155 @@ const getMainCategoryList = async (lang, country, is_beta, build) => {
 //? 메인 카테고리 끝
 
 // * 이프유 프로젝트 리스트 조회
+const requestPlatformProjectList = async (req, res) => {
+  const {
+    body: {
+      userkey = 0,
+      build = "pier.make.story",
+      country = "US",
+      lang = "KO",
+      culture = "ZZ",
+    },
+  } = req;
+
+  const isBETA = process.env.BETA;
+  console.log(`isBETA : [${isBETA}]`);
+
+  const postfixQuery = `AND a.is_deploy = 1`;
+
+  let onlyDeploy = false;
+  // 숫자를 입력해도 스트링으로 받는다.
+  if (isBETA === "1") {
+    onlyDeploy = true;
+  }
+
+  console.log("onlyDeploy : ", onlyDeploy);
+
+  // 2022.06.16 조회수(hit_count), 선호작(like_count) 카운트 추가
+  const query = `
+  SELECT a.project_id 
+  , ifnull(b.title, a.title) title
+  , ifnull(b.summary, a.summary) summary 
+  , ifnull(b.writer , a.writer) writer 
+  , a.sortkey 
+  , a.bubble_set_id
+  , a.favor_use 
+  , a.challenge_use 
+  , a.is_credit 
+  , fn_get_design_info(b.ifyou_banner_id, 'url') ifyou_image_url
+  , fn_get_design_info(b.ifyou_banner_id, 'key') ifyou_image_key
+  , fn_get_design_info(a.ifyou_thumbnail_id, 'url') ifyou_thumbnail_url
+  , fn_get_design_info(a.ifyou_thumbnail_id, 'key') ifyou_thumbnail_key
+  , fn_get_design_info(b.circle_image_id, 'url') circle_image_url
+  , fn_get_design_info(b.circle_image_id, 'key') circle_image_key
+  , fn_get_design_info(a.episode_finish_id, 'url') episode_finish_url
+  , fn_get_design_info(a.episode_finish_id, 'key') episode_finish_key
+  , fn_get_design_info(a.premium_pass_id, 'url') premium_pass_url
+  , fn_get_design_info(a.premium_pass_id, 'key') premium_pass_key
+  , fn_get_design_info(a.premium_badge_id, 'url') premium_badge_url
+  , fn_get_design_info(a.premium_badge_id, 'key') premium_badge_key
+  , fn_get_design_info(b.category_thumbnail_id, 'url') category_thumbnail_url
+  , fn_get_design_info(b.category_thumbnail_id, 'key') category_thumbnail_key
+  , fn_get_design_info(a.coin_banner_id, 'url') coin_banner_url
+  , fn_get_design_info(a.coin_banner_id, 'key') coin_banner_key
+  , fn_get_design_info(b.introduce_image_id, 'url') introduce_image_url
+  , fn_get_design_info(b.introduce_image_id, 'key') introduce_image_key
+  , a.banner_model_id -- 메인배너 Live2D 모델ID
+  , a.is_lock
+  , a.color_rgb
+  , fn_get_episode_progress_value(${userkey}, a.project_id) project_progress
+  , fn_check_exists_project_play_record(${userkey}, a.project_id) is_playing
+  , b.original
+  , ifnull(a.serial_day, -1) serial_day
+  , ifnull(fn_get_origin_pass_price (a.project_id), 100) pass_price
+  , fn_get_discount_pass_price(${userkey}, a.project_id) discount_pass_price
+  , ROUND(0.1, 2) pass_discount
+  , fn_get_user_project_notification(${userkey}, a.project_id) is_notify
+  , ifnull(sps.hit_count, 0) hit_count
+  , ifnull(sps.like_count, 0) like_count
+  , fn_get_project_hashtags(a.project_id, '${lang}') hashtags
+  , ifnull(DATE_FORMAT(DATE_ADD(uop.purchase_date, INTERVAL 24 HOUR), '%Y-%m-%d %T'), '') oneday_pass_expire
+  , ifnull(upp.purchase_no, 0) premium_pass_exist
+  , ifnull(cpm.product_id, '') premium_product_id 
+  , ifnull(cpm.sale_id, '') premium_sale_id
+  , ifnull(b.translator, '') translator
+  FROM list_project_master a
+  LEFT OUTER JOIN list_project_detail b ON b.project_id = a.project_id AND b.lang ='${lang}'
+  LEFT OUTER JOIN gamelog.stat_project_sum sps ON sps.project_id = a.project_id
+  LEFT OUTER JOIN user_oneday_pass uop ON a.project_id = uop.project_id AND uop.userkey = ${userkey}
+  LEFT OUTER JOIN user_premium_pass upp ON a.project_id = upp.project_id AND upp.userkey = ${userkey}
+  LEFT OUTER JOIN com_premium_master cpm ON a.project_id = cpm.project_id
+  WHERE a.project_id > 0 
+  AND a.is_public > 0
+  AND a.project_type = 0
+  AND (locate('${culture}', a.exception_culture) IS NULL OR locate('${culture}', a.exception_culture) < 1)
+    ${onlyDeploy ? postfixQuery : ""}
+  `;
+  // * 위에 베타서버용 추가 쿼리 관련 로직 추가되었음 2022.03.22
+
+  const result = await slaveDB(`${query} ORDER BY a.sortkey;`, [
+    build,
+    country,
+  ]);
+  if (!result.state) {
+    logger.error(`getIfYouProjectList Error ${result.error}`);
+    respondDB(res, 80026, result.error);
+    return;
+  }
+  // 원데이 완료시간 tick 추가
+  result.row.forEach((item) => {
+    const { oneday_pass_expire } = item;
+    if (!oneday_pass_expire) item.oneday_pass_expire_tick = 0;
+    else {
+      const expireDate = new Date(oneday_pass_expire);
+      item.oneday_pass_expire_tick = expireDate.getTime();
+    }
+  });
+
+  console.log(`result of projects count : `, result.row.length);
+
+  // * 장르 추가
+  for await (const item of result.row) {
+    item.genre = await getProjectGenre(item.project_id, lang);
+  }
+
+  // * 가장 마지막에 플레이한 프로젝트 가져오기
+  const latestProject = await slaveDB(`
+  SELECT 
+  a.project_id
+  , a.episode_id
+  , le.chapter_number 
+  , le.episode_type 
+  FROM user_project_current a
+     , list_project_master lpm
+     , list_episode le 
+ WHERE a.userkey = ${userkey}
+   AND a.is_special = 0
+   AND lpm.project_id = a.project_id 
+   AND a.project_id = le.project_id 
+   AND a.episode_id = le.episode_id 
+   AND lpm.project_type = 0
+   AND (locate('${culture}', lpm.exception_culture) IS NULL OR locate('${culture}', lpm.exception_culture) < 1)
+ ORDER BY a.update_date DESC
+ LIMIT 1;  
+  `);
+
+  const responseData = {};
+  responseData.all = result.row;
+  responseData.mainCategory = await getMainCategoryList(
+    lang,
+    country,
+    isBETA,
+    build
+  );
+  responseData.recommend = []; // 사용하지 않도록 변경
+  responseData.like = await getUserProjectLikeList(userkey); //좋아요 리스트
+  responseData.latest = latestProject.row;
+
+  res.status(200).json(responseData);
+}; // ? end of requestPlatformProjectList
+
+// * 이프유 프로젝트 리스트 조회(삭제 대상)
 const getIfYouProjectList = async (req, res) => {
   const {
     body: {
@@ -636,6 +785,7 @@ const getIfYouProjectList = async (req, res) => {
       build = "pier.make.story",
       country = "US",
       lang = "KO",
+      culture = "ZZ",
     },
   } = req;
 
@@ -1700,6 +1850,9 @@ export const clientHome = (req, res) => {
   else if (func === "updateUserMinicutHistoryVer2")
     updateUserMinicutHistoryVer2(req, res);
   else if (func === "getIfYouProjectList") getIfYouProjectList(req, res);
+  // 삭제 대상
+  else if (func === "requestPlatformProjectList")
+    requestPlatformProjectList(req, res);
   // 서버 마스터 정보 및 광고 기준정보
   else if (func === "getProfileCurrencyOwnList")
     getProfileCurrencyOwnList(req, res);
