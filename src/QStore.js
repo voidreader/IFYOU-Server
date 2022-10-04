@@ -216,6 +216,7 @@ SELECT ta.userkey
 , datediff(now(), ta.last_rate_date) diff_rate
 , ta.rate_result
 , ifyou_pass_day
+, ta.current_culture
 FROM table_account ta 
 LEFT OUTER JOIN user_tutorial t ON t.userkey = ta.userkey
 WHERE ta.gamebaseid  = ?;
@@ -242,6 +243,7 @@ SELECT ta.userkey
 , datediff(now(), ta.last_rate_date) diff_rate
 , ta.rate_result
 , ifyou_pass_day
+, ta.current_culture
 FROM table_account ta 
 LEFT OUTER JOIN user_tutorial t ON t.userkey = ta.userkey
 WHERE ta.userkey = ?;
@@ -267,6 +269,7 @@ UPDATE pier.table_account
      , lastlogintime = now() 
      , os = ?
      , current_lang = ?
+     , current_culture = ?
  WHERE userkey = ?;
 `;
 
