@@ -60,6 +60,7 @@ import {
   getAppCommonResources,
   getServerMasterInfo,
   getPlatformEvents,
+  getPlatformNoticePromotion,
 } from "./serverController";
 import {
   updateUserVoiceCheck,
@@ -1932,6 +1933,9 @@ export const clientHome = (req, res) => {
   else if (func === "requestUserTutorialProgress")
     requestUserTutorialProgress(req, res);
   else if (func === "getPlatformEvents") getPlatformEvents(req, res);
+  // 삭제대상
+  else if (func === "getPlatformNoticePromotion")
+    getPlatformNoticePromotion(req, res);
   else if (func === "requestGalleryShareBonus")
     requestGalleryShareBonus(req, res);
   else if (func === "getUserStoryProfileAndAbility")
