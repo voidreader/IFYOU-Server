@@ -234,7 +234,7 @@ export const getCachePlatformEvent = async () => {
       , a.promotion_type
       , a.location
       , a.os
-      , a.exception_culture
+      , ifnull(a.exception_culture, '') exception_culture
   FROM com_promotion a
   WHERE is_public > 0 
   AND NOW() BETWEEN start_date AND end_date 
@@ -271,7 +271,15 @@ export const getCachePlatformEvent = async () => {
 
   // * 공지사항 정보
   const noticeMaster = await slaveDB(`
-    SELECT cn.*
+    SELECT cn.notice_no
+         , cn.notice_type
+         , cn.notice_name
+         , cn.sortkey
+         , cn.is_public
+         , cn.start_date
+         , cn.end_date
+         , cn.os
+         , ifnull(cn.exception_culture, '') exception_culture
     FROM com_notice cn  
   WHERE now() BETWEEN cn.start_date AND cn.end_date
     AND cn.is_public = 1
