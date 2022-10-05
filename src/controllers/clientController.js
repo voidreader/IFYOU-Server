@@ -627,9 +627,33 @@ const getMainCategoryList = async (lang, country, is_beta, build) => {
 
   return result.row;
 };
+
+const getCultureMainCategoryList = async (lang, culture, is_beta) => {
+  //메인 카테고리
+  const result = await slaveDB(`
+  SELECT 
+  category_id
+  , fn_get_localize_text(name, '${lang}') name_text
+  , project_kind 
+  , array_kind
+  , project_cnt 
+  , is_favorite 
+  , is_view
+  , CASE WHEN project_kind = 'genre' THEN fn_get_localize_text((SELECT z.text_id  FROM list_standard z WHERE z.standard_class ='genre' AND z.code = cmc.genre LIMIT 1), '${lang}')
+  		ELSE '' END genre
+  , fn_get_main_category_culture(category_id, '${lang}', '${culture}', ${is_beta}) project_list
+  FROM com_main_category cmc
+  WHERE category_id > 0 
+  AND is_public > 0
+  ORDER BY sortkey;
+  `);
+
+  return result.row;
+};
+
 //? 메인 카테고리 끝
 
-// * 이프유 프로젝트 리스트 조회
+// * 이프유 프로젝트 리스트 조회 (2022.10.05)
 const requestPlatformProjectList = async (req, res) => {
   const {
     body: {
@@ -765,11 +789,10 @@ const requestPlatformProjectList = async (req, res) => {
 
   const responseData = {};
   responseData.all = result.row;
-  responseData.mainCategory = await getMainCategoryList(
+  responseData.mainCategory = await getCultureMainCategoryList(
     lang,
-    country,
-    isBETA,
-    build
+    culture,
+    isBETA
   );
   responseData.recommend = []; // 사용하지 않도록 변경
   responseData.like = await getUserProjectLikeList(userkey); //좋아요 리스트
