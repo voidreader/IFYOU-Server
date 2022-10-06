@@ -189,8 +189,10 @@ import {
 } from "../com/cacheLoader";
 import {
   createArabicGlossary,
+  createComGlossary,
   createJapanGlossary,
   deleteGlossary,
+  translateComLocalize,
   translateProjectDataWithGlossary,
   translateProjectDataWithoutGlossary,
   translateProjectSpecificDataWithGlossary,
@@ -2053,6 +2055,8 @@ export const clientHome = (req, res) => {
     translateProjectDataWithoutGlossary(req, res);
   else if (func === "createArabicGlossary") createArabicGlossary(req, res);
   else if (func === "createJapanGlossary") createJapanGlossary(req, res);
+  else if (func === "createComGlossary") createComGlossary(req, res);
+  else if (func === "translateComLocalize") translateComLocalize(req, res);
   // 인앱상품 정보 캐시 재조회
   else if (func === "getIntroCharacterList") getIntroCharacterList(req, res);
   else if (func === "deleteGlossary") deleteGlossary(req, res);
