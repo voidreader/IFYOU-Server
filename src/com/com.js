@@ -4,7 +4,7 @@ import unzipper from "unzipper";
 import il from "iconv-lite";
 import mysql from "mysql2/promise";
 
-import { DB } from "../mysqldb";
+import { DB, slaveDB } from "../mysqldb";
 import { respond, respondRedirect, respondDB } from "../respondent";
 import { logger } from "../logger";
 import * as credentials from "./google_credential.json";
@@ -1182,6 +1182,7 @@ export const createJapanGlossary = async (req, res) => {
     });
 };
 
+// 영어 - 아랍어 용어집 생성
 export const createArabicGlossary = async (req, res) => {
   const {
     body: { filename, glossary_id },
@@ -1223,6 +1224,106 @@ export const createArabicGlossary = async (req, res) => {
       console.log(err);
       res.status(400).send("파일이 없거나 파일 형식이 잘못되었습니다.");
     });
+};
+
+// * 공통 com_localize 용어집 생성
+export const createComGlossary = async (req, res) => {
+  // Construct glossary
+  const glossary = {
+    languageCodesSet: {
+      languageCodes: ["en", "ko", "ar", "ms", "es", "ru"],
+    },
+    inputConfig: {
+      gcsSource: {
+        inputUri: `gs://ifyou/translate/com.csv`,
+      },
+    },
+    name: `projects/${googleProjectID}/locations/us-central1/glossaries/ifyou_com`,
+  };
+
+  const request = {
+    parent: `projects/${googleProjectID}/locations/us-central1`,
+    glossary,
+  };
+
+  // Create glossary using a long-running operation
+  const [operation] = await translationClient.createGlossary(request);
+
+  await operation
+    .promise()
+    .then(() => {
+      console.log("Created glossary:");
+      console.log(
+        `InputUri ${request.glossary.inputConfig.gcsSource.inputUri}`
+      );
+
+      res.status(200).send("공통 용어집이 생성되었습니다.");
+    })
+    .catch((err) => {
+      console.log(err);
+      res.status(400).send("파일이 없거나 파일 형식이 잘못되었습니다.");
+    });
+};
+
+// * 공통 텍스트 번역 with 용어집
+export const translateComLocalize = async (req, res) => {
+  const {
+    body: { targetLang, sourceLang },
+  } = req;
+
+  const glossaryConfig = {
+    glossary: `projects/${googleProjectID}/locations/us-central1/glossaries/ifyou_com`,
+  };
+
+  const targetText = await slaveDB(`
+  SELECT cl.*
+  FROM com_localize cl
+ WHERE cl.EN NOT LIKE '%<color%'
+   AND cl.EN IS NOT NULL
+   AND cl.EN <> ''
+   AND (cl.id BETWEEN 200 AND 230
+   		OR cl.id BETWEEN 3000 AND 3999
+   		OR cl.id BETWEEN 5000 AND 5999
+   		OR cl.id BETWEEN 6000 AND 6495
+   		OR cl.id BETWEEN 8000 AND 12007
+   );
+  `);
+
+  res.status(200).send(`com_localize 번역 시작 ${JSON.stringify(req.body)}`);
+
+  for await (const textRow of targetText.row) {
+    const sourceText = textRow[sourceLang.toUpperCase()];
+
+    // Construct request
+    const request = {
+      parent: `projects/${googleProjectID}/locations/us-central1`,
+      contents: [sourceText],
+      mimeType: "text/plain", // mime types: text/plain, text/html
+      sourceLanguageCode: sourceLang,
+      targetLanguageCode: targetLang,
+      glossaryConfig,
+    };
+
+    // 번역 요청하기 (한줄씩 요청)
+    const [response] = await translationClient.translateText(request);
+    textRow[targetLang.toUpperCase()] =
+      response.glossaryTranslations[0].translatedText; // 번역된 언어로 교체하기.
+
+    const updateResult = await DB(
+      `
+      update com_localize
+         SET ${targetLang.toUpperCase()} = ?
+      WHERE id = ?;
+      `,
+      [textRow[targetLang.toUpperCase()], textRow.id]
+    );
+
+    if (!updateResult.state) {
+      logger.error(updateResult.error);
+    }
+  }
+
+  console.log("done");
 };
 
 // 용어집 삭제
