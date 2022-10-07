@@ -1633,6 +1633,8 @@ export const loginClient = async (req, res) => {
 
     if (cultureResult.state && cultureResult.row.length > 0) {
       current_culture = cultureResult.row[0].culture;
+    } else {
+      current_culture = "ZZ";
     }
 
     accountInfo.account.current_culture = current_culture;
