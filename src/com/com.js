@@ -2301,6 +2301,7 @@ export const translateProjectDataWithoutGlossary = async (req, res) => {
     }
   } // ? end of minicut for
   console.log(`${project_id} #### live object translatation end`);
+  console.log(`${project_id} #### 프로젝트 텍스트 (용어집없음) 종료!`);
   //////////////// 라이브 오브젝트 종료
 }; // ? 종료 프로젝트 데이터
 
