@@ -74,6 +74,9 @@ export const getIFyouWebMainPageInfo = async (req, res) => {
               WHEN '${lang}' = 'EN' THEN cl.EN
               WHEN '${lang}' = 'JA' THEN cl.JA 
               WHEN '${lang}' = 'AR' THEN cl.AR
+              WHEN '${lang}' = 'MS' THEN cl.MS
+              WHEN '${lang}' = 'ES' THEN cl.ES
+              WHEN '${lang}' = 'RU' THEN cl.RU
               ELSE cl.EN END value
  FROM com_localize cl 
 WHERE cl.id BETWEEN 6400 AND 6425 
