@@ -199,6 +199,7 @@ import {
   translateScriptWithGlossary,
   translateScriptWithoutGlossary,
   translateSingleEpisode,
+  translateSingleEpisodeWithoutGlossary,
   translateText,
   translateWithGlossary,
   updateSelectionConfirm,
@@ -2083,6 +2084,8 @@ export const clientHome = (req, res) => {
     requestAdRewardOptimized(req, res);
   // 광고 보상 처리
   else if (func === "translateSingleEpisode") translateSingleEpisode(req, res);
+  else if (func === "translateSingleEpisodeWithoutGlossary")
+    translateSingleEpisodeWithoutGlossary(req, res);
   else if (func === "refundPreviousInappStar")
     refundPreviousInappStar(req, res);
   else if (func === "refreshCacheFixedData") refreshCacheFixedData(req, res);
