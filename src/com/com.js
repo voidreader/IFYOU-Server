@@ -59,61 +59,6 @@ export const translateSingleEpisode = async (req, res) => {
     return;
   }
 
-  // 에피소드 정보 가져온다.
-  /*
-  const episode = episodeInfo.row[0];
-
-  // 타이틀, 요약 따로따로 번역
-  const requestTitle = {
-    parent: `projects/${googleProjectID}/locations/us-central1`,
-    contents: [episode.title],
-    mimeType: "text/plain", // mime types: text/plain, text/html
-    sourceLanguageCode: sourceLang,
-    targetLanguageCode: targetLang,
-    glossaryConfig,
-  };
-
-  const [responseTitle] = await translationClient.translateText(requestTitle);
-  episode.title = responseTitle.glossaryTranslations[0].translatedText;
-
-  const requestSummary = {
-    parent: `projects/${googleProjectID}/locations/us-central1`,
-    contents: [episode.summary],
-    mimeType: "text/plain", // mime types: text/plain, text/html
-    sourceLanguageCode: sourceLang,
-    targetLanguageCode: targetLang,
-    glossaryConfig,
-  };
-
-  const [responseSummary] = await translationClient.translateText(
-    requestSummary
-  );
-  episode.summary = responseSummary.glossaryTranslations[0].translatedText;
-
-  console.log(`[${episode.title}]/[${episode.summary}]`);
-
-  // 에피소드 번역 받았으면 입력한다
-  const episodeUpdate = await DB(
-    `
-  INSERT INTO list_episode_detail (episode_id, lang, title, summary)
-  VALUES (${episode.episode_id}, UPPER('${targetLang}'), ?, ?) 
-  ON DUPLICATE KEY UPDATE title = ?, summary = ?;
-  `,
-    [episode.title, episode.summary, episode.title, episode.summary]
-  );
-
-  if (!episodeUpdate.state) {
-    logger.error(
-      `${JSON.stringify(episodeUpdate.error)} / [${episodeUpdate.query}]`
-    );
-
-    res.status(200).send("episode update error");
-
-    return;
-  }
-  */
-
-  // 에피소드 정보 업데이트 완료
   // 아래부터 스크립트 시작
   res
     .status(200)
@@ -2478,3 +2423,143 @@ export const translateScriptWithoutGlossary = async (req, res) => {
   console.log(`Done!`);
   updateSelectionConfirm(req, res);
 };
+
+// * 단일 에피소드 자동번역
+export const translateSingleEpisodeWithoutGlossary = async (req, res) => {
+  const {
+    body: { project_id, episode_id, targetLang, sourceLang = "en" },
+  } = req;
+
+  logger.info(
+    `translateSingleEpisodeWithoutGlossary ${JSON.stringify(req.body)}`
+  );
+
+  let updateQuery = ``;
+
+  const episodeInfo = await DB(`
+  SELECT led.episode_id, led.title, led.summary 
+  FROM list_episode a
+     , list_episode_detail led 
+ WHERE a.project_id = ${project_id}
+   AND led.episode_id = ${episode_id}
+   AND led.lang  = UPPER('${sourceLang}')
+  `);
+
+  if (!episodeInfo.state || episodeInfo.row.length === 0) {
+    res.status(200).send("No episode info");
+    return;
+  }
+
+  // 아래부터 스크립트 시작
+  res
+    .status(200)
+    .send(`[${episode_id}]/[${targetLang}] episode translate start`);
+
+  // 영어 스크립트를 타겟 스크립트로 복사한다.
+  // 대상 언어의 스크립트를 제거하고 입력한다.
+  await DB(`DELETE FROM list_script WHERE episode_id = ${episode_id} AND lang = UPPER('${targetLang}');
+  INSERT INTO list_script (episode_id
+    , scene_id
+    , template
+    , speaker
+    , script_data
+    , target_scene_id
+    , requisite
+    , character_expression
+    , emoticon_expression
+    , in_effect
+    , out_effect
+    , bubble_size
+    , bubble_pos
+    , bubble_hold
+    , bubble_reverse
+    , emoticon_size
+    , voice
+    , autoplay_row
+    , dev_comment
+    , project_id
+    , sortkey
+    , sound_effect
+    , lang
+    , control
+    , selection_group
+    , selection_no) 
+    SELECT episode_id
+    , scene_id
+    , template
+    , speaker
+    , script_data
+    , target_scene_id
+    , requisite
+    , character_expression
+    , emoticon_expression
+    , in_effect
+    , out_effect
+    , bubble_size
+    , bubble_pos
+    , bubble_hold
+    , bubble_reverse
+    , emoticon_size
+    , voice
+    , autoplay_row
+    , dev_comment
+    , project_id
+    , sortkey
+    , sound_effect
+    , UPPER('${targetLang}')
+    , control
+    , selection_group
+    , selection_no
+      FROM list_script a
+      WHERE a.episode_id = ${episode_id}
+        AND a.lang = UPPER('${sourceLang}')
+      ORDER BY a.script_no;
+  `);
+
+  // 복사된 타겟 언어 스크립트 정보를 가져온다. (아직 영어다)
+  const targetScript = await DB(`
+  SELECT ls.script_no, ls.script_data 
+  FROM list_script ls
+  WHERE ls.project_id = ${project_id}
+    AND ls.episode_id = ${episode_id}
+    AND ls.template IN ('narration', 'feeling', 'talk', 'whisper', 'yell', 'speech', 'monologue', 'message_receive', 'message_self', 'message_partner', 'message_call', 'selection', 'phone_self', 'phone_partner', 'game_message', 'selection_info', 'flow_time')
+    AND ls.script_data is not null
+    AND ls.script_data <> ''
+    AND ls.lang = UPPER('${targetLang}');
+  `);
+
+  console.log(`${episode_id} : translate start!!!`);
+  updateQuery = ``;
+
+  for await (const scriptRow of targetScript.row) {
+    // 타겟 언어 스크립트는 최초에 영어라서 이제 번역을 시작한다.
+    // console.log(`[${scriptRow.script_data}]`);
+
+    // Construct request
+    const request = {
+      parent: `projects/${googleProjectID}/locations/us-central1`,
+      contents: [scriptRow.script_data],
+      mimeType: "text/plain", // mime types: text/plain, text/html
+      sourceLanguageCode: sourceLang,
+      targetLanguageCode: targetLang,
+    };
+
+    // 번역 요청하기 (한줄씩 요청)
+    const [response] = await translationClient.translateText(request);
+    scriptRow.script_data = response.translations[0].translatedText; // 번역된 언어로 교체하기.
+    // console.log(scriptRow.script_data);
+
+    // 중간중간 에러때문에 단일 쿼리 실행으로 변경
+    updateQuery = mysql.format(
+      `UPDATE list_script SET script_data = ? WHERE script_no = ${scriptRow.script_no};`,
+      [scriptRow.script_data]
+    );
+    const updateResult = await DB(updateQuery);
+    if (!updateResult.state) {
+      // 드물게 번역이 제대로 안되고 에러나는 케이스 있다.
+      logger.error(`${updateResult.error}`);
+    }
+  } // ? end of targetScript for.
+
+  console.log(`[${episode_id}] single translate done`);
+}; // ? translateSingleEpisode

@@ -1628,7 +1628,7 @@ export const loginClient = async (req, res) => {
 
     // 국가, 언어 기준으로 문화권 설정 처리
     const cultureResult = await slaveDB(`
-    SELECT cc.culture_id culture FROM com_culture cc WHERE cc.lang = '${lang}' OR cc.country_code = '${country}' LIMIT 1;
+    SELECT cc.culture_id culture FROM com_culture cc WHERE cc.lang = '${lang}' OR cc.country_code = UPPER('${country}') LIMIT 1;
     `);
 
     if (cultureResult.state && cultureResult.row.length > 0) {
