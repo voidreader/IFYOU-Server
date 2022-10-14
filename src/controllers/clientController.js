@@ -102,6 +102,7 @@ import {
   userPurchase,
   purchaseInappProductByMail,
   getUserPurchaseListVer2,
+  requestInappProduct,
 } from "./shopController";
 import { getUserPropertyHistory, reportRequestError } from "./logController";
 import { useCoupon } from "./couponController";
@@ -1773,6 +1774,50 @@ const changeAdminAccountStatus = async (req, res) => {
   }
 };
 
+// * 등급 정산
+const rewardGradeUsers = async (req, res) => {
+  const silver = []; // 실버
+  const gold = []; // 골드
+  const platinum = []; // 플래티넘
+
+  const result = await DB(`
+  select userkey, grade from table_account WHERE userkey >= 500;
+  `);
+
+  result.row.forEach((user) => {
+    if (user.grade === 2) silver.push(user);
+    else if (user.grade === 3) gold.push(user);
+    else if (user.grade === 4) platinum.push(user);
+  });
+
+  console.log(`silver user : [${silver.length}]`);
+  console.log(`gold user : [${gold.length}]`);
+  console.log(`platinum user : [${platinum.length}]`);
+
+  // 실버 200
+  silver.forEach((user) => {
+    DB(`
+    CALL sp_send_user_mail(${user.userkey}, 'grade_bonus', 'gem', 200, -1, 90);
+    `);
+  });
+
+  // 골드 400
+  gold.forEach((user) => {
+    DB(`
+    CALL sp_send_user_mail(${user.userkey}, 'grade_bonus', 'gem', 400, -1, 90);
+    `);
+  });
+
+  // 플레 70000
+  platinum.forEach((user) => {
+    DB(`
+    CALL sp_send_user_mail(${user.userkey}, 'grade_bonus', 'gem', 700, -1, 90);
+    `);
+  });
+
+  res.status(200).send("ok");
+};
+
 // clientHome에서 func에 따라 분배
 // controller에서 또다시 controller로 보내는것이 옳을까..? ㅠㅠ
 export const clientHome = (req, res) => {
@@ -1823,6 +1868,7 @@ export const clientHome = (req, res) => {
   else if (func === "updateUserScriptMission")
     updateUserScriptMission(req, res);
   else if (func === "getUserMissionList") userMissionList(req, res);
+  else if (func === "rewardGradeUsers") rewardGradeUsers(req, res);
   else if (func === "getUserMisionReward") userMisionReceive(req, res);
   else if (func === "getClientLocallizingList")
     getClientLocalizingList(req, res);
@@ -2070,6 +2116,9 @@ export const clientHome = (req, res) => {
     requestRecommendProject(req, res);
   // 추천 작품 리스트
   else if (func === "purchaseInappProduct") purchaseInappProduct(req, res);
+  // 삭제 대상
+  else if (func === "requestInappProduct") requestInappProduct(req, res);
+  // 신규버전
   else if (func === "translateProjectDataWithGlossary")
     translateProjectDataWithGlossary(req, res);
   else if (func === "translateProjectSpecificDataWithGlossary")

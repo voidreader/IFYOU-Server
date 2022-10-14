@@ -3,7 +3,7 @@ import { response } from "express";
 import { timeout } from "async";
 import { DB, logAction, slaveDB, transactionDB } from "../mysqldb";
 import { logger } from "../logger";
-import { respondDB } from "../respondent";
+import { respondDB, respondFail, respondSuccess } from "../respondent";
 import { gamebaseAPI, inappAPI } from "../com/gamebaseAPI";
 import { getUserBankInfo } from "./bankController";
 import { cache } from "../init";
@@ -471,7 +471,7 @@ export const getUserAllpassExpireTick = async (userkey) => {
   return allpassExpireDate.getTime();
 };
 
-// * 인앱 상품 구매 및 확정 처리 2022.06.20
+// * 인앱 상품 구매 및 확정 처리 2022.06.20 - 삭제대상
 export const purchaseInappProduct = async (req, res) => {
   // 기존에 메일함 수령방식을 구매 후 즉시 지급으로 변경한다. (이프유 패스 제외)
   let {
@@ -957,3 +957,271 @@ export const purchaseInappProductByMail = async (req, res) => {
   const gamebaseResult = await gamebaseAPI.consume(paymentSeq, purchaseToken);
   console.log(gamebaseResult);
 };
+
+// * 인앱상품 구매 및 소모처리 (2022.10.13)
+export const requestInappProduct = async (req, res) => {
+  let {
+    body: {
+      userkey = 0,
+      product_id = "",
+      product_master_id = 0,
+      receipt = "",
+      price = 0, // 가격
+      currency = "KRW", // 화폐
+      paymentSeq = "", // 게임베이스 거래 식별자 1
+      purchaseToken = "", // 게임베이스 거래 식별자 2
+      os = 0,
+      project_id = -1,
+      is_test = false,
+    },
+  } = req;
+
+  // 테스트 구매에 대한 처리
+  if (is_test) {
+    price = 0;
+    currency = "TEST";
+  }
+
+  let result = ``;
+  let hasPurchaseHistory = false; // 동일 상품 구매 기록
+  let insertQuery = ``; // 쿼리용 변수
+
+  // 소모성 재화용 변수
+  let totalGem = 0;
+  let totalCoin = 0;
+
+  // 사전예약 때문에 추가 처리
+  if (os === 0 && product_id === null && receipt === null && paymentSeq) {
+    product_id = "pre_reward_pack";
+    receipt = "pre_reward_pack";
+    logAction(userkey, "pre_reward_pack", req.body);
+  }
+
+  logger.info(`purchaseInappProduct ${userkey}/${product_id}/${receipt}`);
+
+  //! [0]. 유효성 검사
+  if (!product_id || userkey === 0 || product_id === "ifyou_pass") {
+    // 이프유 패스는 이 함수를 사용하지 않음
+    logger.error(`userPurchase Error [${product_id}]/[${userkey}]`);
+    respondFail(res, {}, "Wrong parameters", 80019);
+    return;
+  }
+
+  // 원데이 패스, 스토리팩(프리미엄 패스)는 작품 귀속이며 작품당 한번만 구매 가능
+  if (product_id.includes("oneday_pass") || product_id.includes("story_pack")) {
+    // 작품 있는지 확인
+    result = await slaveDB(
+      `SELECT * FROM list_project_master WHERE project_id = ${project_id};`
+    );
+
+    // ! 작품이 없어..?
+    if (!result.state || result.row.length === 0) {
+      logger.error(
+        `purchaseInappProduct Error #1 [${product_id}]/[${userkey}/[${project_id}]`
+      );
+
+      // consume 처리 진행한다.
+      gamebaseAPI.consume(paymentSeq, purchaseToken);
+
+      // 응답 처리
+      respondFail(res, {}, "No project data", 80019);
+      return;
+    }
+
+    // 상품 종류에 따라 체크 테이블이 다르다.
+    let TABLE = "user_oneday_pass";
+    if (product_id.includes("story_pack")) TABLE = "user_premium_pass";
+
+    // 원데이/프리미엄 패스 구매 여부 확인
+    result = await slaveDB(
+      `SELECT userkey FROM ${TABLE} WHERE userkey = ? AND project_id = ?;`,
+      [userkey, project_id]
+    );
+
+    // 이미 구매한 내역이 있는 경우 실패 처리
+    if (!result.state || result.row.length > 0) {
+      logger.error(
+        `purchaseInappProduct Error #2 [${product_id}]/[${userkey}/[${project_id}]`
+      );
+
+      // 실패했어도 소모처리는 해놓는다.
+      gamebaseAPI.consume(paymentSeq, purchaseToken);
+
+      respondFail(res, {}, "already", 80137);
+      return;
+    }
+  } // ? 원대이 패스 및 프리미엄 패스 유효성 검사 종료
+
+  // * 데이터 입력 시작
+  // 구매 시작전에 로그 만들기
+  logAction(userkey, "purchase_call", { product_id, receipt, paymentSeq });
+
+  // 입력전에 구매기록을 조회한다.
+  const purchaseHist = await slaveDB(`
+    SELECT up.userkey
+    FROM user_purchase up 
+    WHERE up.product_master_id = ${product_master_id}
+      AND up.userkey = ${userkey};
+  `);
+
+  // 데이터 있으면 true로 변경
+  if (purchaseHist.state && purchaseHist.row.length > 0)
+    hasPurchaseHistory = true;
+
+  // user_purchase 입력을 먼저 한다. purchase_no를 따야함.
+  const insertPurchase = await DB(
+    `
+  INSERT INTO user_purchase(userkey, product_id, receipt, price, product_currency, payment_seq, purchase_token, state, product_master_id) 
+  VALUES (${userkey}, ?, ?, ?, ?, ?, ?, 2, ?);
+  `,
+    [
+      product_id,
+      receipt,
+      price,
+      currency,
+      paymentSeq,
+      purchaseToken,
+      product_master_id,
+    ]
+  );
+
+  if (!insertPurchase.state) {
+    logger.error(
+      `requestInappProduct : [${JSON.stringify(insertPurchase.error)}]`
+    );
+    gamebaseAPI.consume(paymentSeq, purchaseToken);
+    respondFail(res, {}, "insertPurchase.error", 80026);
+    return;
+  }
+
+  const purchase_no = insertPurchase.row.insertId; // purchase_no 가져오기.
+  logger.info(
+    `### purchase first done ::: ${userkey}/${product_id}/${purchase_no}`
+  );
+
+  // 구매한 상품 유저에게 지급처리
+  if (product_id.includes("oneday_pass") || product_id.includes("story_pack")) {
+    //원데이 패스, 프리미엄 패스
+    let TABLE = "user_oneday_pass";
+    if (product_id.includes("story_pack")) TABLE = "user_premium_pass";
+
+    // 지정된 테이블로 입력 처리 쿼리 생성
+    insertQuery = `INSERT INTO ${TABLE}(userkey, project_id, purchase_no, purchase_date) VALUES(${userkey}, ${project_id}, ${purchase_no}, now());`;
+  } else if (product_id.includes("allpass")) {
+    // 원데이 패스는 하는게 없음
+    console.log("allpass purchased");
+  } else {
+    // * 일반 상품처리.
+
+    // 등록된 재화 확인(사용중인 상품 내에서 확인)
+    const productInfo = await slaveDB(
+      `
+      SELECT b.currency 
+           , b.quantity 
+           , b.first_purchase
+           , b.is_main 
+       FROM list_product_master a
+           , list_product_detail b
+       WHERE a.product_master_id = ${product_master_id}
+         AND b.master_id = a.product_master_id
+         AND now() BETWEEN a.from_date AND a.to_date;
+    `
+    );
+
+    // 실패 체크
+    if (!productInfo.state || productInfo.row.length === 0) {
+      logger.error(`NON-INAPP-PRODUCT : [${productInfo.row.length}]`);
+      respondFail(res, {}, "no inapp data", 80049);
+      gamebaseAPI.consume(paymentSeq, purchaseToken);
+      return;
+    }
+
+    // loop 돌면서 입력 쿼리 만들기
+    productInfo.row.forEach((item) => {
+      // 첫구매에만 주는 상품 체크
+      if (item.first_purchase > 0) {
+        if (!hasPurchaseHistory) {
+          // 구매 내역 없는 경우만!
+          insertQuery += `CALL pier.sp_insert_user_property_paid(${userkey}, '${item.currency}', ${item.quantity}, 'first_purchase', ${item.is_main});`;
+          if (item.currency === "gem") totalGem += item.quantity;
+          if (item.currency === "coin") totalCoin += item.totalCoin;
+        }
+      } else {
+        // 첫구매와 관련 없는 상시 지급 상품
+        insertQuery += `CALL pier.sp_insert_user_property_paid(${userkey}, '${item.currency}', ${item.quantity}, 'inapp', ${item.is_main});`;
+        if (item.currency === "gem") totalGem += item.quantity;
+        if (item.currency === "coin") totalCoin += item.totalCoin;
+      }
+    }); // ? 입력쿼리 생성 종료
+  } //? END OF 구매한 상품 유저에게 지급처리
+
+  // 데이터 처리한다.
+  const giveProductResult = await transactionDB(insertQuery);
+
+  // 에러 처리
+  if (!giveProductResult.state) {
+    logger.error(
+      `giveInappProduct : [${JSON.stringify(giveProductResult.error)}]`
+    );
+    gamebaseAPI.consume(paymentSeq, purchaseToken);
+    respondFail(
+      res,
+      giveProductResult.error,
+      "error in giveProductResult",
+      80026
+    );
+    return;
+  }
+
+  //! [4]. 응답값 만들기
+  const responseData = {};
+  responseData.bank = await getUserBankInfo(req.body); // 뱅크
+  responseData.userPurchaseHistory = await getUserPurchaseListVer2(
+    req,
+    res,
+    false
+  ); // 구매 히스토리
+  // responseData.allpass_expire_tick = await getUserAllpassExpireTick(userkey); // 올패스 만료시간
+  responseData.product_id = product_id; // 구매한 제품 ID
+  responseData.project_id = project_id; // 연결된 작품 ID
+
+  responseData.totalCoin = totalCoin;
+  responseData.totalGem = totalGem;
+
+  // * 2022.07.29 원데이 패스에 대한 리프레시 데이터 넣어주기
+  if (product_id === "oneday_pass") {
+    const onedayRefresh = await DB(`
+    SELECT ifnull(DATE_FORMAT(DATE_ADD(uop.purchase_date, INTERVAL 24 HOUR), '%Y-%m-%d %T'), '') oneday_pass_expire
+      FROM user_oneday_pass uop 
+    WHERE userkey = ${userkey}
+      AND project_id = ${project_id};
+    `);
+
+    if (onedayRefresh.state && onedayRefresh.row.length > 0) {
+      let oneday_pass_expire_tick = 0;
+      const { oneday_pass_expire } = onedayRefresh.row[0];
+      if (!oneday_pass_expire) oneday_pass_expire_tick = 0;
+      else {
+        const expireDate = new Date(oneday_pass_expire);
+        oneday_pass_expire_tick = expireDate.getTime();
+      }
+
+      responseData.oneday_pass_expire_tick = oneday_pass_expire_tick;
+      responseData.oneday_pass_expire = oneday_pass_expire;
+    }
+  }
+
+  // 클라이언트에게 응답처리
+  respondSuccess(res, responseData);
+
+  ///////////////////////////////////////////////////////////
+  ///////////////////////////////////////////////////////////
+  ///////////////////////////////////////////////////////////
+
+  // 다 처리하고 마지막에 호출!!!
+  // 게임베이스 API 통신
+  // 구매 상품 소비 처리 (마켓에 전달 )
+  logAction(userkey, "purchase_complete", { product_id, receipt, paymentSeq });
+  const gamebaseResult = await gamebaseAPI.consume(paymentSeq, purchaseToken);
+  console.log(gamebaseResult);
+}; // ? purchaseInappProduct END
