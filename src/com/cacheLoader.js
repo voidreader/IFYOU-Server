@@ -1,7 +1,7 @@
 import { response } from "express";
 import schedule from "node-schedule";
 import { getProductDetailList } from "../controllers/shopController";
-import { cache, loadingCacheData } from "../init";
+import { cache, loadingCacheData, loadingRegularCacheData } from "../init";
 import { logger } from "../logger";
 import { DB, slaveDB } from "../mysqldb";
 
@@ -513,8 +513,9 @@ export const refreshCacheFixedData = async (req, res) => {
 };
 
 // 캐시 리프레시
-const schduleCacheRefresh = schedule.scheduleJob("*/2 * * * *", async () => {
+const schduleCacheRefresh = schedule.scheduleJob("*/5 * * * *", async () => {
   logger.info(">> schduleCacheRefresh START");
-  await loadingCacheData();
+  // await loadingCacheData();
+  await loadingRegularCacheData();
   logger.info(">> schduleCacheRefresh END");
 });

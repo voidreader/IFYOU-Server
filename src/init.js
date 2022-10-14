@@ -46,7 +46,6 @@ export const loadingCacheData = async () => {
   await refreshCacheServerMaster(); // 서버 마스터
   await refreshCacheLocalizedText(); // 로컬라이즈 텍스트
   await refreshCachePlatformEvent(); // 공지사항 및 프로모션
-
   await refreshCacheProduct(); // 인앱상품 리스트
 
   await refreshCacheFixedData(); // 변경되지 않는 정보
@@ -55,6 +54,14 @@ export const loadingCacheData = async () => {
   // console.log(cache.size);
   // console.log(cache.calculatedSize);
 }; // ? 캐시데이터 세팅 종료
+
+export const loadingRegularCacheData = async () => {
+  console.log(`Refresh Cache.... `);
+  await refreshCachePlatformEvent(); // 공지사항 및 프로모션
+  await refreshCacheProduct(); // 인앱상품 리스트
+
+  console.log(`Refresh Cache Done! `);
+};
 
 const handleListening = () => {
   logger.info(`Listening on ${PORT}`);
