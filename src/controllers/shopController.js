@@ -1212,6 +1212,7 @@ export const requestInappProduct = async (req, res) => {
   }
 
   // 클라이언트에게 응답처리
+  logger.info(`purchase_complete :: ${JSON.stringify.responseData}`);
   respondSuccess(res, responseData);
 
   ///////////////////////////////////////////////////////////
