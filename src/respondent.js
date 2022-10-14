@@ -1,25 +1,20 @@
 import { logger } from "./logger";
 import { DB } from "./mysqldb";
 
-// mySQL DB 에러메세지 형태 (메모)
-/*
-{
-  "message": {
-      "message": "Truncated incorrect DOUBLE value: 'xxxx'",
-      "code": "ER_TRUNCATED_WRONG_VALUE",
-      "errno": 1292,
-      "sqlState": "22007",
-      "sqlMessage": "Truncated incorrect DOUBLE value: 'xxxx'"
-  }, // 여기까지 
-  "code": 80026,
-  "koMessage": "DB 에러입니다."
-}
-*/
+// * 쉬운 에러처리를 위해서 respondSuccess & respondFail 사용을 권장
+
+// 처리 성공
+export const respondSuccess = (res, responseData) => {
+  responseData.result = 1;
+
+  res.status(200).json(responseData);
+};
 
 // 응답을 성공형태로 보내주지만, 클라이언트에서는 실패로 처리해야하는 응답처리
-export const respondFail = (res, responseData, dev_message) => {
+export const respondFail = (res, responseData, dev_message, textID) => {
   responseData.result = 0;
   responseData.message = dev_message;
+  responseData.messageID = textID;
 
   res.status(200).json(responseData);
 };
