@@ -1144,13 +1144,13 @@ export const requestInappProduct = async (req, res) => {
           // 구매 내역 없는 경우만!
           insertQuery += `CALL pier.sp_insert_user_property_paid(${userkey}, '${item.currency}', ${item.quantity}, 'first_purchase', ${item.is_main});`;
           if (item.currency === "gem") totalGem += item.quantity;
-          if (item.currency === "coin") totalCoin += item.totalCoin;
+          if (item.currency === "coin") totalCoin += item.quantity;
         }
       } else {
         // 첫구매와 관련 없는 상시 지급 상품
         insertQuery += `CALL pier.sp_insert_user_property_paid(${userkey}, '${item.currency}', ${item.quantity}, 'inapp', ${item.is_main});`;
         if (item.currency === "gem") totalGem += item.quantity;
-        if (item.currency === "coin") totalCoin += item.totalCoin;
+        if (item.currency === "coin") totalCoin += item.quantity;
       }
     }); // ? 입력쿼리 생성 종료
   } //? END OF 구매한 상품 유저에게 지급처리
@@ -1212,7 +1212,7 @@ export const requestInappProduct = async (req, res) => {
   }
 
   // 클라이언트에게 응답처리
-  logger.info(`purchase_complete :: ${JSON.stringify.responseData}`);
+  logger.info(`purchase_complete :: ${JSON.stringify(responseData)}`);
   respondSuccess(res, responseData);
 
   ///////////////////////////////////////////////////////////
