@@ -103,6 +103,7 @@ import {
   purchaseInappProductByMail,
   getUserPurchaseListVer2,
   requestInappProduct,
+  requestIfYouPass,
 } from "./shopController";
 import { getUserPropertyHistory, reportRequestError } from "./logController";
 import { useCoupon } from "./couponController";
@@ -2141,6 +2142,8 @@ export const clientHome = (req, res) => {
   else if (func === "getSurveyMain") getSurveyMain(req, res);
   else if (func === "getSurveyDetail") getSurveyDetail(req, res);
   else if (func === "receiveSurveyReward") receiveSurveyReward(req, res);
+  else if (func === "requestIfYouPass") requestIfYouPass(req, res);
+  // 이프유패스 구매
   else if (func === "requestLocalizingSurvey")
     //설문조사
     requestLocalizingSurvey(req, res);
