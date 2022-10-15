@@ -516,6 +516,6 @@ export const refreshCacheFixedData = async (req, res) => {
 const schduleCacheRefresh = schedule.scheduleJob("*/5 * * * *", async () => {
   logger.info(">> schduleCacheRefresh START");
   // await loadingCacheData();
-  await loadingRegularCacheData();
+  // await loadingRegularCacheData();
   logger.info(">> schduleCacheRefresh END");
 });
