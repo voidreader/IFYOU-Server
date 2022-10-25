@@ -3,13 +3,14 @@ import dotenv from "dotenv";
 import { response } from "express";
 import { DB, logAction, logDB, slaveDB, transactionDB } from "../mysqldb";
 import { logger } from "../logger";
-import { respondDB } from "../respondent";
+import { respondDB, respondFail, respondSuccess } from "../respondent";
 import { Q_UPDATE_CLIENT_ACCOUNT_WITH_GAMEBASE } from "../QStore";
 
 const getRandomPIN = () => {
   return Math.random().toString(36).substr(2, 4).toUpperCase();
 };
 
+// 단일앱 비주얼 노벨타입에서의 프로젝트 정보 조회
 export const getPackageProject = async (req, res) => {
   const {
     body: { userkey = 0, country = "ZZ", lang = "EN", project_id },
@@ -150,6 +151,9 @@ WHERE ta.deviceid  = ?
     accountInfo.account.nickname = uid;
   }
 
+  // 에너지 정보 추가
+  accountInfo.energy = accountInfo.account.energy;
+
   // 응답처리
   res.status(200).json(accountInfo);
 
@@ -181,4 +185,38 @@ export const chargeEnergyByAdvertisement = async (req, res) => {
   }
 
   res.status(200).json(result.state);
+};
+
+// * 선택지로 인해서 20개 소모하기
+export const spendEnergyByChoice = async (req, res) => {
+  const {
+    body: { userkey },
+  } = req;
+
+  const currentEnergyRaw = await DB(`
+  SELECT a.energy FROM table_account a WHERE a.userkey = ${userkey};
+  `);
+
+  if (!currentEnergyRaw.state || currentEnergyRaw.row.length === 0) {
+    respondFail(res, {}, "no data", 80019);
+    return;
+  }
+
+  // 현재 에너지
+  const userEnergy = currentEnergyRaw.row[0].energy;
+
+  // 20보다 적으면 실패 전송
+  if (userEnergy < 20) {
+    respondFail(res, {}, "not enough", 80019);
+    return;
+  }
+
+  // 20 차감된 에너지를 전달해준다
+  const responseData = {};
+  responseData.energy = userEnergy - 20;
+
+  // 선택지 기록에 저장할것.
+  // updateUserSelectionCurrent
+
+  respondSuccess(res, responseData);
 };
