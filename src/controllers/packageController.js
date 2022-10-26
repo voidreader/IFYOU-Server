@@ -5,6 +5,7 @@ import { DB, logAction, logDB, slaveDB, transactionDB } from "../mysqldb";
 import { logger } from "../logger";
 import { respondDB, respondFail, respondSuccess } from "../respondent";
 import { Q_UPDATE_CLIENT_ACCOUNT_WITH_GAMEBASE } from "../QStore";
+import { getUserProjectSelectionProgress } from "../com/userProject";
 
 const getRandomPIN = () => {
   return Math.random().toString(36).substr(2, 4).toUpperCase();
@@ -176,7 +177,7 @@ export const chargeEnergyByAdvertisement = async (req, res) => {
   // 최대치를 넘어가지 않도록 변경한다.
   const result = await DB(`
   UPDATE table_account
-     SET energy = CASE WHEN energy + 30 > 200 THEN 200 ELSE energy + 30 END 
+     SET energy = CASE WHEN energy + 10 > 150 THEN 150 ELSE energy + 10 END 
   WHERE userkey = ${userkey};
   `);
 
@@ -190,8 +191,18 @@ export const chargeEnergyByAdvertisement = async (req, res) => {
 // * 선택지로 인해서 20개 소모하기
 export const spendEnergyByChoice = async (req, res) => {
   const {
-    body: { userkey },
+    body: {
+      userkey,
+      project_id,
+      episode_id,
+      script_text,
+      target_scene_id = -1,
+      selection_group = 0,
+      selection_no = 0,
+    },
   } = req;
+
+  req.body.episodeID = episode_id;
 
   const currentEnergyRaw = await DB(`
   SELECT a.energy FROM table_account a WHERE a.userkey = ${userkey};
@@ -213,10 +224,43 @@ export const spendEnergyByChoice = async (req, res) => {
 
   // 20 차감된 에너지를 전달해준다
   const responseData = {};
-  responseData.energy = userEnergy - 20;
+  responseData.energy = userEnergy - 20; // 현재 에너지
+
+  // table_account 업데이트
+  DB(`
+  UPDATE table_account
+     SET energy = ${responseData.energy}
+   WHERE userkey = ${userkey};
+  `);
 
   // 선택지 기록에 저장할것.
-  // updateUserSelectionCurrent
+  let updateQuery = ``;
+  updateQuery += mysql.format(
+    `call sp_update_user_selection_progress(?,?,?,?,?);`,
+    [userkey, project_id, episode_id, target_scene_id, script_text]
+  );
+  updateQuery += mysql.format(
+    `call sp_update_user_selection_current(?,?,?,?,?,?);`,
+    [
+      userkey,
+      project_id,
+      episode_id,
+      target_scene_id,
+      selection_group,
+      selection_no,
+    ]
+  );
+
+  const updateResult = await DB(updateQuery);
+  if (!updateResult.state) {
+    logger.error(updateResult.error);
+    respondFail(res, {}, "error", 80019);
+    return;
+  }
+
+  responseData.selectionProgress = await getUserProjectSelectionProgress(
+    req.body
+  );
 
   respondSuccess(res, responseData);
 };

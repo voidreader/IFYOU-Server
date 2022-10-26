@@ -719,7 +719,7 @@ SELECT a.live_object_id
      , a.offset_x 
      , a.offset_y 
      , a.game_scale 
-     , a.object_ver 
+     , a.object_ver
      , b.*
   FROM list_live_object a
      , list_live_object_detail b
