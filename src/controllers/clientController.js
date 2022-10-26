@@ -212,7 +212,11 @@ import {
   receiveSurveyReward,
   requestLocalizingSurvey,
 } from "./surveyController";
-import { getPackageProject, loginPackage } from "./packageController";
+import {
+  getPackageProject,
+  loginPackage,
+  spendEnergyByChoice,
+} from "./packageController";
 
 dotenv.config();
 
@@ -2162,6 +2166,9 @@ export const clientHome = (req, res) => {
   else if (func === "requestUnlockMission")
     // 미션 해금
     requestUnlockMission(req, res);
+  else if (func === "spendEnergyByChoice")
+    // 선택지 선택 후 에너지 소모 (단일 비주얼 노벨)
+    spendEnergyByChoice(req, res);
   else {
     //  res.status(400).send(`Wrong Func : ${func}`);
     logger.error(`clientHome Error ${func}`);
