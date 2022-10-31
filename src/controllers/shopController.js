@@ -72,7 +72,7 @@ export const getAllProductList = async (req, res) => {
   logger.info(`getAllProductList`);
 
   const {
-    body: { lang = "KO" },
+    body: { lang = "KO", pack = "ifyou" },
   } = req;
 
   // * 캐시데이터 조회로 변경
