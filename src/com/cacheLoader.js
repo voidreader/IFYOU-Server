@@ -93,7 +93,7 @@ SELECT DISTINCT cbg.set_id
  AND cbs.bubble_sprite_id > 0; 
 `;
 
-// * 인앱상품 캐시 데이터 조회
+// * 인앱상품 캐시 데이터 조회(이프유)
 export const getCacheProduct = async (lang) => {
   const result = await slaveDB(
     `    
@@ -112,12 +112,14 @@ export const getCacheProduct = async (lang) => {
     , a.max_count
     , case when a.to_date = '9999-12-31' THEN 0 ELSE 1 END is_event
     , a.is_public
+    , a.package
     FROM list_product_master a
         , list_product_lang lang
     WHERE a.is_public > 0
     AND lang.master_id = a.product_master_id 
     AND lang.lang  = '${lang}'
     AND now() BETWEEN a.from_date AND a.to_date
+    AND a.package = 'ifyou'
     ORDER BY product_type, a.from_date DESC, a.product_id;
     `
   );
