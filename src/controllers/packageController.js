@@ -92,6 +92,8 @@ export const loginPackage = async (req, res) => {
     body: { deviceid, packageid, os, lang = "EN" },
   } = req;
 
+  logger.info(`loginPackage : ${JSON.stringify(req.body)}`);
+
   // 안드로이드 ,아이폰 분류 처리
   let userOS = "";
   if (os === 0) userOS = "Android";
@@ -164,6 +166,7 @@ WHERE ta.deviceid  = ?
     1,
     userOS,
     lang,
+    "ZZ",
     accountInfo.account.userkey,
   ]);
 };
