@@ -213,8 +213,10 @@ import {
   requestLocalizingSurvey,
 } from "./surveyController";
 import {
+  getPackageProduct,
   getPackageProject,
   loginPackage,
+  purchaseSingleNovelProduct,
   spendEnergyByChoice,
 } from "./packageController";
 
@@ -1886,8 +1888,12 @@ export const clientHome = (req, res) => {
   else if (func === "updateSelectionProgress")
     updateSelectionProgress(req, res);
   else if (func === "getAllProductList") getAllProductList(req, res);
+  else if (func === "getPackageProduct") getPackageProduct(req, res);
+  // 패키지 인앱 상품 조회
   else if (func === "getUserPurchaseList") getUserPurchaseList(req, res);
   else if (func === "getUserRawPurchaseList") getUserRawPurchaseList(req, res);
+  else if (func === "purchaseSingleNovelProduct")
+    purchaseSingleNovelProduct(req, res);
   else if (func === "updateTutorialStep") updateTutorialStep(req, res);
   else if (func === "updateTutorialSelection")
     updateTutorialSelection(req, res);
