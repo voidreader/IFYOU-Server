@@ -215,6 +215,7 @@ import {
 import {
   getPackageProduct,
   getPackageProject,
+  getPackUserPurchaseList,
   loginPackage,
   purchaseSingleNovelProduct,
   spendEnergyByChoice,
@@ -2163,6 +2164,9 @@ export const clientHome = (req, res) => {
   else if (func === "getUserPurchaseListVer2")
     //구매 내역(뉴버전)
     getUserPurchaseListVer2(req, res);
+  else if (func === "getPackUserPurchaseList")
+    // 패키지 유저 구매내역
+    getPackUserPurchaseList(req, res);
   else if (func === "getPremiumReward")
     //프리미엄 챌린지 보상
     getPremiumReward(req, res);

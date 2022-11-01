@@ -272,6 +272,45 @@ export const spendEnergyByChoice = async (req, res) => {
   respondSuccess(res, responseData);
 };
 
+//! 상품 구매 리스트 - 패키지 유저
+export const getPackUserPurchaseList = async (req, res, isResponse = true) => {
+  const responseData = {};
+
+  const {
+    body: { userkey, pack },
+  } = req;
+
+  // 일반 상품(이프유 패스도 포함)
+  const result = await DB(
+    `
+  SELECT up.purchase_no
+  , up.product_id 
+  , up.receipt
+  , up.state
+  , DATE_FORMAT(up.purchase_date, '%Y-%m-%d %T') purchase_date
+  , lpm.product_master_id
+  FROM user_purchase up
+     , list_product_master lpm 
+  WHERE userkey = ${userkey}
+    AND lpm.product_id = up.product_id 
+    AND up.purchase_date BETWEEN lpm.from_date AND lpm.to_date
+    AND lpm.package  = '${pack}'
+  ORDER BY purchase_no DESC;
+  `
+  );
+  responseData.normal = result.row;
+
+  responseData.oneday_pass = [];
+
+  responseData.premium_pass = [];
+
+  if (isResponse) {
+    res.status(200).json(responseData);
+  } else {
+    return responseData;
+  }
+};
+
 // * 패키지 프로덕트 조회
 export const getPackageProduct = async (req, res) => {
   const {
@@ -367,6 +406,7 @@ export const purchaseSingleNovelProduct = async (req, res) => {
   } = req;
 
   const responseData = {};
+  logger.info(`purchaseSingleNovelProduct ${JSON.stringify(req.body)}`);
 
   logAction(userkey, `${paymentSeq} purchase call`, {
     product_id,
@@ -442,7 +482,7 @@ export const purchaseSingleNovelProduct = async (req, res) => {
   } // 재화 지급 끝.
 
   // 응답값 만들기
-  responseData.userPurchaseHistory = await getUserPurchaseListVer2(
+  responseData.userPurchaseHistory = await getPackUserPurchaseList(
     req,
     res,
     false
