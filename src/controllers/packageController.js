@@ -67,7 +67,7 @@ export const getPackageProject = async (req, res) => {
 // 패키지 계정 등록
 const registerPackageAccount = async (req, res) => {
   const {
-    body: { deviceid, packageid, os, lang = "EN" },
+    body: { deviceid, packageid, os, lang = "EN", ugsid = null },
   } = req;
 
   const pincode = getRandomPIN();
@@ -76,9 +76,9 @@ const registerPackageAccount = async (req, res) => {
     `
   INSERT INTO pier.table_account
     (deviceid, nickname, createtime, lastlogintime, admin, gamebaseid, pincode, package)
-    VALUES(?, NULL, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, 0, NULL, ?, ?);
+    VALUES(?, NULL, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, 0, ?, ?, ?);
   `,
-    [deviceid, pincode, packageid]
+    [deviceid, ugsid, pincode, packageid]
   );
 
   if (!result.state) {
@@ -92,8 +92,9 @@ const registerPackageAccount = async (req, res) => {
 };
 
 export const loginPackage = async (req, res) => {
+  // 2022.11.11 유니티 게임서비스 ID 추가
   const {
-    body: { deviceid, packageid, os, lang = "EN" },
+    body: { deviceid, packageid, os, lang = "EN", ugsid = null },
   } = req;
 
   logger.info(`loginPackage : ${JSON.stringify(req.body)}`);
@@ -103,38 +104,47 @@ export const loginPackage = async (req, res) => {
   if (os === 0) userOS = "Android";
   else userOS = "iOS";
 
+  // 유니티 게임서비스 ID 여부에 따라 분기
+  let conditionQuery = ``;
+  if (ugsid) {
+    conditionQuery = ` AND ta.gamebaseid = '${ugsid}' `;
+  } else {
+    conditionQuery = ` AND ta.deviceid  = '${deviceid}' `;
+  }
+
   let result = null;
   const accountInfo = {};
 
   result = await DB(
     `
   SELECT ta.userkey  
-, ta.deviceid 
-, ta.nickname 
-, ta.admin 
-, ta.gamebaseid 
-, concat('#', ta.pincode, '-', ta.userkey) pincode 
-, fn_get_user_unread_mail_count(ta.userkey) unreadMailCount
-, ta.tutorial_step
-, ta.uid
-, ta.ad_charge
-, ta.current_level
-, ta.current_experience
-, ta.account_link
-, ifnull(t.tutorial_selection, 0) tutorial_selection
-, t.how_to_play
-, ta.intro_done
-, ifnull(ta.allpass_expiration, '2022-01-01') allpass_expiration
-, datediff(now(), ta.last_rate_date) diff_rate
-, ta.rate_result
-, ifyou_pass_day
-, ta.energy
-FROM table_account ta 
-LEFT OUTER JOIN user_tutorial t ON t.userkey = ta.userkey
-WHERE ta.deviceid  = ?
-  AND ta.package = ?;
+      , ta.deviceid 
+      , ta.nickname 
+      , ta.admin 
+      , ta.gamebaseid 
+      , concat('#', ta.pincode, '-', ta.userkey) pincode 
+      , fn_get_user_unread_mail_count(ta.userkey) unreadMailCount
+      , ta.tutorial_step
+      , ta.uid
+      , ta.ad_charge
+      , ta.current_level
+      , ta.current_experience
+      , ta.account_link
+      , ifnull(t.tutorial_selection, 0) tutorial_selection
+      , t.how_to_play
+      , ta.intro_done
+      , ifnull(ta.allpass_expiration, '2022-01-01') allpass_expiration
+      , datediff(now(), ta.last_rate_date) diff_rate
+      , ta.rate_result
+      , ifyou_pass_day
+      , ta.energy
+      FROM table_account ta 
+   LEFT OUTER JOIN user_tutorial t ON t.userkey = ta.userkey
+     WHERE ta.package = ?
+     ${conditionQuery}
+    ;
   `,
-    [deviceid, packageid]
+    [packageid]
   );
 
   if (result.row.length === 0) {
