@@ -213,6 +213,7 @@ import {
   requestLocalizingSurvey,
 } from "./surveyController";
 import {
+  chargeEnergyByAdvertisement,
   getPackageProduct,
   getPackageProject,
   getPackUserPurchaseList,
@@ -2179,6 +2180,9 @@ export const clientHome = (req, res) => {
   else if (func === "spendEnergyByChoice")
     // 선택지 선택 후 에너지 소모 (단일 비주얼 노벨)
     spendEnergyByChoice(req, res);
+  else if (func === "chargeEnergyByAdvertisement")
+    //광고보고 선택지 충전하기
+    chargeEnergyByAdvertisement(req, res);
   else {
     //  res.status(400).send(`Wrong Func : ${func}`);
     logger.error(`clientHome Error ${func}`);
