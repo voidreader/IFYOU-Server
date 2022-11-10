@@ -191,18 +191,33 @@ export const chargeEnergyByAdvertisement = async (req, res) => {
     body: { userkey },
   } = req;
 
-  // 최대치를 넘어가지 않도록 변경한다.
-  const result = await DB(`
-  UPDATE table_account
-     SET energy = CASE WHEN energy + 10 > 150 THEN 150 ELSE energy + 10 END 
-  WHERE userkey = ${userkey};
-  `);
+  const responseData = {};
+  const energyQuery = await slaveDB(
+    `SELECT a.energy FROM table_account a WHERE a.userkey = ${userkey};`
+  );
+  let currentEnergy = energyQuery.row[0].energy;
+  let addEnergy = 0;
 
-  if (!result.state) {
-    logger.error(`${result.error}`);
+  // 최대치를 넘어가지 않도록 한다.
+  if (currentEnergy < 150 && currentEnergy + 20 > 150) {
+    addEnergy = 150 - currentEnergy;
+    currentEnergy = 150;
+  } else if (currentEnergy + 20 <= 150) {
+    currentEnergy += 20;
+    addEnergy = 20;
+  } else {
+    addEnergy = 0;
   }
 
-  res.status(200).json(result.state);
+  responseData.energy = currentEnergy;
+  responseData.addEnergy = addEnergy;
+  respondSuccess(res, responseData); // 응답처리
+
+  // 응답 후 DB 처리
+  DB(`UPDATE table_account
+       SET energy = ${currentEnergy}
+    WHERE userkey = ${userkey};
+  `);
 };
 
 // * 선택지로 인해서 20개 소모하기
