@@ -214,6 +214,7 @@ import {
 } from "./surveyController";
 import {
   chargeEnergyByAdvertisement,
+  checkPackageVersion,
   getPackageProduct,
   getPackageProject,
   getPackUserPurchaseList,
@@ -2183,6 +2184,9 @@ export const clientHome = (req, res) => {
   else if (func === "chargeEnergyByAdvertisement")
     //광고보고 선택지 충전하기
     chargeEnergyByAdvertisement(req, res);
+  else if (func === "checkPackageVersion")
+    // 패키지 버전 체크
+    checkPackageVersion(req, res);
   else {
     //  res.status(400).send(`Wrong Func : ${func}`);
     logger.error(`clientHome Error ${func}`);

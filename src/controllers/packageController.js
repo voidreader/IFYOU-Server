@@ -519,3 +519,26 @@ export const purchaseSingleNovelProduct = async (req, res) => {
 
   respondSuccess(res, responseData);
 };
+
+export const checkPackageVersion = async (req, res) => {
+  const {
+    body: { pack, version },
+  } = req;
+
+  const result = await slaveDB(
+    `SELECT cp.version, cp.test_url, cp.live_url  FROM com_package cp WHERE cp.package  = '${pack}';`
+  );
+
+  const liveVersion = result.row[0].version;
+  const responseData = {};
+
+  // 클라이언트의 버전이 큰 경우, 실패처리
+  if (liveVersion < version) {
+    responseData.url = result.row[0].test_url;
+  } else {
+    // 작거나 같으면 성공
+    responseData.url = result.row[0].live_url;
+  }
+
+  respondSuccess(res, responseData);
+};
