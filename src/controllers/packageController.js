@@ -11,6 +11,32 @@ import {
   getUserPurchaseListVer2,
 } from "./shopController";
 
+// 유저 미수신 메일 리스트(만료일 지나지 않은 것들)
+const QUERY_NOVEL_USER_UNREAD_MAIL_LIST = `
+SELECT a.mail_no
+, a.userkey
+, a.mail_type
+, fn_get_standard_text_id('mail_type', a.mail_type) mail_type_textid
+, a.currency
+, a.quantity
+, a.is_receive
+, a.connected_project
+, fn_get_project_name_new(a.connected_project, ?) connected_project_title
+, TIMESTAMPDIFF(HOUR, now(), a.expire_date) remain_hours
+, TIMESTAMPDIFF(MINUTE, now(), a.expire_date) remain_mins
+, cc.local_code
+, a.purchase_no 
+, fn_get_design_info(cc.icon_image_id, 'url') icon_image_url
+, fn_get_design_info(cc.icon_image_id, 'key') icon_image_key
+, ifnull(a.contents, '') contents
+FROM user_mail a
+LEFT OUTER JOIN com_currency cc ON cc.currency = a.currency 
+WHERE a.userkey = ?
+AND a.is_receive = 0 
+AND a.expire_date > now()
+ORDER BY a.mail_no desc;
+`;
+
 const getRandomPIN = () => {
   return Math.random().toString(36).substr(2, 4).toUpperCase();
 };
@@ -183,6 +209,15 @@ export const loginPackage = async (req, res) => {
     "ZZ",
     accountInfo.account.userkey,
   ]);
+};
+
+// * 유저의 현재 에너지 구하기
+const getUserEnergy = async (req, res) => {
+  const energyQuery = await slaveDB(
+    `SELECT a.energy FROM table_account a WHERE a.userkey = ${userkey};`
+  );
+  const currentEnergy = energyQuery.row[0].energy;
+  return currentEnergy;
 };
 
 // 광고로 에너지 충전하기
@@ -541,4 +576,150 @@ export const checkPackageVersion = async (req, res) => {
   }
 
   respondSuccess(res, responseData);
+};
+
+// * 노벨 패키지 유저 메일 리스트 조회
+export const getNovelPackageUserUnreadMailList = async (req, res) => {
+  const {
+    body: { userkey, lang = "KO" },
+  } = req;
+
+  const responseData = {};
+
+  // 조회 쿼리 QUERY_USER_UNREAD_MAIL_LIST
+  const result = await DB(QUERY_NOVEL_USER_UNREAD_MAIL_LIST, [lang, userkey]);
+
+  // console.log(result.row);
+
+  responseData.mailList = result.row;
+  const unreadMailResult = await DB(
+    `
+    SELECT fn_get_user_unread_mail_count(?) cnt
+    FROM dual
+    `,
+    [userkey]
+  );
+
+  responseData.unreadMailCount = 0;
+  if (unreadMailResult.state && unreadMailResult.row.length > 0)
+    responseData.unreadMailCount = unreadMailResult.row[0].cnt;
+
+  // 에너지 업데이트
+  responseData.energy = await getUserEnergy(req.body);
+
+  res.status(200).json(responseData);
+};
+
+// * 노벨 패키지 메일 실제 읽기 처리하기!
+export const readNovelPackageUserSingleMail = async (req, res, next) => {
+  const {
+    body: { mail_no, userkey },
+  } = req;
+
+  logger.info(`readPackageUserSingleMail [${JSON.stringify(req.body)}]`);
+
+  const mailInfo = await slaveDB(
+    `
+    SELECT a.mail_no
+    , a.mail_type 
+    , a.currency 
+    , a.quantity 
+    , a.purchase_no
+    , a.paid
+    , ta.energy 
+ FROM user_mail a 
+    , table_account ta 
+WHERE a.mail_no = ?
+  AND a.is_receive = 0
+  AND ta.userkey = a.userkey 
+  AND a.expire_date > now();
+  `,
+    [mail_no]
+  );
+
+  if (!mailInfo.state || mailInfo.row.length === 0) {
+    logger.error(`readPackageUserSingleMail Error 1 ${mailInfo.error}`);
+    respondFail(res, {}, "Invalid Mail");
+    return;
+  }
+
+  const currentMail = mailInfo.row[0];
+  // 일반 메일 처리
+  // 메일에 재화가 energy만 온다.
+  if (currentMail.currency != "energy") {
+    respondFail(res, {}, "it is not energy");
+    return;
+  }
+
+  let currentEnergy = currentMail.energy;
+  let addEnergy = currentMail.quantity;
+
+  // 최대치를 넘어가지 않도록 한다.
+  if (currentEnergy < 150 && currentEnergy + 20 > 150) {
+    addEnergy = 150 - currentEnergy;
+    currentEnergy = 150;
+  } else if (currentEnergy + 20 <= 150) {
+    currentEnergy += 20;
+    addEnergy = 20;
+  } else {
+    addEnergy = 0;
+  }
+
+  if (addEnergy > 0) {
+    await DB(`UPDATE table_account
+                  SET energy = ${currentEnergy}
+                  WHERE userkey = ${userkey};`);
+  }
+
+  // 3. 메일 수신 처리
+  const updateMail = await DB(
+    `
+        UPDATE user_mail 
+        SET is_receive = 1
+          , receive_date = now()
+        WHERE mail_no = ?;
+    `,
+    [mail_no]
+  );
+
+  if (!updateMail.state) {
+    logger.error(`readPackageUserSingleMail Error 3 ${updateMail.error}`);
+    respondFail(res, {}, "fail receive");
+    return;
+  }
+
+  // 다했으면 ! next 불러주세요.
+  if (next) {
+    next(req, res);
+  }
+}; // ? 유저 단일  메일 수신 처리 끝!
+
+// * 노벨 패키지 유저 단일 메일 수신 처리
+export const requestNovelPackageReceiveSingleMail = (req, res) => {
+  readNovelPackageUserSingleMail(req, res, getNovelPackageUserUnreadMailList);
+};
+
+// * 노벨 패키지 유저 모든 메일 수신 처리
+export const requestNovelPackageReceiveAllMail = async (req, res) => {
+  const {
+    body: { userkey, lang = "KO" },
+  } = req;
+
+  // 에러가 발견되면 지울 예정
+  logger.info(
+    `requestNovelPackageReceiveAllMail [${JSON.stringify(req.body)}]`
+  );
+
+  // 유저의 모든 미수신 메일 정보를 읽어온다.
+  const result = await slaveDB(QUERY_NOVEL_USER_UNREAD_MAIL_LIST, [
+    lang,
+    userkey,
+  ]);
+
+  for await (const item of result.row) {
+    req.body.mail_no = item.mail_no;
+    await readNovelPackageUserSingleMail(req, res, null);
+  }
+
+  getNovelPackageUserUnreadMailList(req, res);
 };
