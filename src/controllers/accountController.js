@@ -95,6 +95,7 @@ if (!CURRENT_UPDATE) CURRENT_UPDATE = 0;
 
 //! 현재 선택지 로그
 export const getUserStorySelectionHistory = async (userInfo) => {
+  logger.info(`getUserStorySelectionHistory ${JSON.stringify(userInfo)}`);
   const { userkey, project_id, lang } = userInfo;
 
   const responseData = {};

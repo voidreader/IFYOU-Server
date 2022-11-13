@@ -215,11 +215,14 @@ import {
 import {
   chargeEnergyByAdvertisement,
   checkPackageVersion,
+  getNovelPackageUserUnreadMailList,
   getPackageProduct,
   getPackageProject,
   getPackUserPurchaseList,
   loginPackage,
   purchaseSingleNovelProduct,
+  requestNovelPackageReceiveAllMail,
+  requestNovelPackageReceiveSingleMail,
   spendEnergyByChoice,
 } from "./packageController";
 
@@ -2187,6 +2190,15 @@ export const clientHome = (req, res) => {
   else if (func === "checkPackageVersion")
     // 패키지 버전 체크
     checkPackageVersion(req, res);
+  else if (func === "getNovelPackageUserUnreadMailList")
+    // 노벨 패키지 메일함 리스트
+    getNovelPackageUserUnreadMailList(req, res);
+  else if (func === "requestNovelPackageReceiveSingleMail")
+    // 노벨 패키지 단일 메일 수신
+    requestNovelPackageReceiveSingleMail(req, res);
+  else if (func === "requestNovelPackageReceiveAllMail")
+    // 노벨 패키지 모든 메일 수신
+    requestNovelPackageReceiveAllMail(req, res);
   else {
     //  res.status(400).send(`Wrong Func : ${func}`);
     logger.error(`clientHome Error ${func}`);
