@@ -465,7 +465,7 @@ export const purchaseSingleNovelProduct = async (req, res) => {
     },
   } = req;
 
-  const responseData = {};
+  const responseData = { product_id };
   logger.info(`purchaseSingleNovelProduct ${JSON.stringify(req.body)}`);
 
   logAction(userkey, `${paymentSeq} purchase call`, {
