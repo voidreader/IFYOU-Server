@@ -212,7 +212,7 @@ export const loginPackage = async (req, res) => {
 };
 
 // * 유저의 현재 에너지 구하기
-const getUserEnergy = async (req, res) => {
+const getUserEnergy = async (userkey) => {
   const energyQuery = await slaveDB(
     `SELECT a.energy FROM table_account a WHERE a.userkey = ${userkey};`
   );
@@ -605,7 +605,7 @@ export const getNovelPackageUserUnreadMailList = async (req, res) => {
     responseData.unreadMailCount = unreadMailResult.row[0].cnt;
 
   // 에너지 업데이트
-  responseData.energy = await getUserEnergy(req.body);
+  responseData.energy = await getUserEnergy(userkey);
 
   res.status(200).json(responseData);
 };
