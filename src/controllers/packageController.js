@@ -231,15 +231,14 @@ export const chargeEnergyByAdvertisement = async (req, res) => {
     `SELECT a.energy FROM table_account a WHERE a.userkey = ${userkey};`
   );
   let currentEnergy = energyQuery.row[0].energy;
-  let addEnergy = 0;
+  let addEnergy = 8;
 
   // 최대치를 넘어가지 않도록 한다.
-  if (currentEnergy < 150 && currentEnergy + 20 > 150) {
+  if (currentEnergy < 150 && currentEnergy + addEnergy > 150) {
     addEnergy = 150 - currentEnergy;
     currentEnergy = 150;
-  } else if (currentEnergy + 20 <= 150) {
-    currentEnergy += 20;
-    addEnergy = 20;
+  } else if (currentEnergy + addEnergy <= 150) {
+    currentEnergy += addEnergy;
   } else {
     addEnergy = 0;
   }
@@ -482,7 +481,7 @@ export const purchaseSingleNovelProduct = async (req, res) => {
   `,
     [
       product_id,
-      receipt,
+      receipt.length > 2000 ? "" : receipt,
       price,
       currency,
       paymentSeq,
@@ -607,6 +606,8 @@ export const getNovelPackageUserUnreadMailList = async (req, res) => {
   // 에너지 업데이트
   responseData.energy = await getUserEnergy(userkey);
 
+  console.log(responseData);
+
   res.status(200).json(responseData);
 };
 
@@ -655,37 +656,37 @@ WHERE a.mail_no = ?
   let addEnergy = currentMail.quantity;
 
   // 최대치를 넘어가지 않도록 한다.
-  if (currentEnergy < 150 && currentEnergy + 20 > 150) {
+  if (currentEnergy < 150 && currentEnergy + addEnergy > 150) {
     addEnergy = 150 - currentEnergy;
     currentEnergy = 150;
-  } else if (currentEnergy + 20 <= 150) {
-    currentEnergy += 20;
-    addEnergy = 20;
+  } else if (currentEnergy + addEnergy <= 150) {
+    currentEnergy += addEnergy;
   } else {
     addEnergy = 0;
   }
 
+  // 받는 에너지가 0이 넘을때만
   if (addEnergy > 0) {
     await DB(`UPDATE table_account
                   SET energy = ${currentEnergy}
                   WHERE userkey = ${userkey};`);
-  }
 
-  // 3. 메일 수신 처리
-  const updateMail = await DB(
-    `
-        UPDATE user_mail 
-        SET is_receive = 1
-          , receive_date = now()
-        WHERE mail_no = ?;
-    `,
-    [mail_no]
-  );
+    // 3. 메일 수신 처리
+    const updateMail = await DB(
+      `
+          UPDATE user_mail 
+          SET is_receive = 1
+            , receive_date = now()
+          WHERE mail_no = ?;
+      `,
+      [mail_no]
+    );
 
-  if (!updateMail.state) {
-    logger.error(`readPackageUserSingleMail Error 3 ${updateMail.error}`);
-    respondFail(res, {}, "fail receive");
-    return;
+    if (!updateMail.state) {
+      logger.error(`readPackageUserSingleMail Error 3 ${updateMail.error}`);
+      respondFail(res, {}, "fail receive");
+      return;
+    }
   }
 
   // 다했으면 ! next 불러주세요.
