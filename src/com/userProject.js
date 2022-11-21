@@ -139,22 +139,32 @@ export const getUserProjectCurrent = async (userInfo) => {
       userInfo.project_id,
     ]);
 
-    console.log(`project current is null `, initResult.row[0]);
+    if (!initResult.state || initResult.row[0].length === 0) {
+      logger.error(
+        `Error in getUserProjectCurrent ${JSON.stringify(userInfo)}`
+      );
+      return [];
+    }
 
-    if (initResult.row[0] === undefined || initResult.row[0] === null)
-      currentInfo = [];
-    else currentInfo = initResult.row[0];
+    logger.info(
+      `Call sp_init_user_project_current ${JSON.stringify(
+        userInfo
+      )} / ${JSON.stringify(initResult.row[0])}`
+    );
+
+    currentInfo = initResult.row[0];
   } else {
     currentInfo = result.row;
   }
 
+  // next_open_time의 틱을 구해준다.
   currentInfo.forEach((item) => {
     const openDate = new Date(item.next_open_time);
     item.next_open_tick = openDate.getTime();
   });
 
   return currentInfo;
-};
+}; // ? END OF getUserProjectCurrent
 
 // * 유저의 프로젝트내 현재 위치 업데이트
 export const requestUpdateProjectCurrent = async ({
@@ -173,7 +183,7 @@ export const requestUpdateProjectCurrent = async ({
   );
 
   // 에피소드 ID가 없는 경우.
-  if (episodeID == null || episodeID === "") {
+  if (!episodeID) {
     logger.error(
       `No EpisodeID ${userkey}/${project_id}/${episodeID}/${scene_id}/${script_no}/${is_final}/${callby}`
     );
@@ -218,11 +228,57 @@ export const requestUpdateProjectCurrent = async ({
   return projectCurrent;
 };
 
+// ! 대체 (2022.11.21) requestUpdateProjectCurrent
+export const ProcessUpdateUserProjectCurrent = async (userInfo) => {
+  userInfo.episode_id = episodeID; // 파라매터 잘못써서.. ㅠ
+
+  logger.info(
+    `ProcessUpdateUserProjectCurrent : [${JSON.stringify(userInfo)}]`
+  );
+  // 에피소드 ID 안넘어온 경우
+  if (!userInfo.episodeID) {
+    logger.error(
+      `ProcessUpdateUserProjectCurrent No Episode ID Error : [${JSON.stringify(
+        userInfo
+      )}]`
+    );
+    const userCurrent = await getUserProjectCurrent(userInfo); // 다시 받아오기.
+
+    if (userCurrent && userCurrent.length > 0) {
+      userInfo.episodeID = userCurrent[0].episode_id;
+      userInfo.episode_id = userCurrent[0].episode_id;
+    }
+  } // 에피소드 ID 없는 경우에 대한 처리 종료
+
+  // Procedure Call
+  const saveResult = await DB(
+    `CALL sp_save_user_project_current(?, ?, ?, ?, ?, ?);`,
+    [
+      userInfo.userkey,
+      userInfo.project_id,
+      userInfo.episode_id,
+      userInfo.scene_id,
+      userInfo.script_no,
+      userInfo.is_final,
+    ]
+  );
+
+  if (!saveResult.state) {
+    logger.error(`ProcessUpdateUserProjectCurrent Error : ${saveResult.error}`);
+    return [];
+  }
+
+  // 갱신된 정보 조회
+  const projectCurrent = await getUserProjectCurrent(userInfo);
+  return projectCurrent;
+};
+
 // * 유저의 프로젝트내 현재 위치 업데이트
 export const updateUserProjectCurrent = async (req, res) => {
   logger.info(`updateUserProjectCurrent : ${JSON.stringify(req.body)}`);
 
-  const result = await requestUpdateProjectCurrent(req.body);
+  //const result = await requestUpdateProjectCurrent(req.body);
+  const result = await ProcessUpdateUserProjectCurrent(req.body);
   res.status(200).json(result);
 
   logAction(req.body.userkey, "project_current", req.body);
@@ -765,6 +821,7 @@ export const requestWaitingEpisodeWithAD = async (req, res) => {
   // * 에피소드가 열리는 시간은 user_project_current에서의  next_open_time  컬럼이다.
 
   // project current 체크
+  /*
   const rowCheck = await DB(`
   SELECT a.*
     FROM user_project_current a
@@ -783,6 +840,7 @@ export const requestWaitingEpisodeWithAD = async (req, res) => {
     respondDB(res, 80026, "No project current"); // error
     return;
   }
+  */
 
   // * 서버에서 광고보면 줄어드는 시간을 가져온다.
   // 캐시에서 불러오도록 수정함.
@@ -799,9 +857,10 @@ export const requestWaitingEpisodeWithAD = async (req, res) => {
   `;
 
   // 결과
-  const result = await transactionDB(query);
+  const result = await DB(query);
   if (!result.state) {
     respondDB(res, 80026, result.error);
+    logger.error(`requestWaitingEpisodeWithAD : ${result.error}`);
     return;
   }
 
@@ -812,6 +871,17 @@ export const requestWaitingEpisodeWithAD = async (req, res) => {
   responseData.bank = await getUserBankInfo(req.body); // ! 뱅크 (삭제대상)
 
   res.status(200).json(responseData);
+
+  if (
+    !responseData.projectCurrent ||
+    responseData.projectCurrent.length === 0
+  ) {
+    logger.error(
+      `requestWaitingEpisodeWithAD projectCurrent Error ${JSON.stringify(
+        req.body
+      )}`
+    );
+  }
 
   logAction(userkey, "waitingOpenAD", req.body);
   logAD(userkey, project_id, -1, "waitingOpenAD");
@@ -1270,6 +1340,18 @@ export const requestWaitingEpisodeWithCoin = async (req, res) => {
 
   console.log(`requestWaitingEpisodeWithCoin #3`);
   res.status(200).json(responseData);
+
+  // 오류 체크
+  if (
+    !responseData.projectCurrent ||
+    responseData.projectCurrent.length === 0
+  ) {
+    logger.error(
+      `requestWaitingEpisodeWithCoin projectCurrentError : ${JSON.stringify(
+        req.body
+      )}`
+    );
+  }
 
   /*
   logger.info(

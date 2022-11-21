@@ -165,7 +165,6 @@ import {
 import { getIFyouWebMainPageInfo, receiveInquiry } from "./webController";
 import {
   requestCompleteEpisodeOptimized,
-  requestCompleteEpisodeType2,
   requestEpisodeFirstClear,
   requestUnlockMission,
   requestUnlockSpecialEpisode,
@@ -311,7 +310,7 @@ const getEpisodeScriptWithResources = async (req, res) => {
 
   if (!purchaseInfo.state || purchaseInfo.row.length === 0) {
     // respondDB(res, 80094, "에피소드 구매 정보가 없습니다.");
-    logger.error("No episode purchase data");
+    // logger.error("No episode purchase data");
     purchaseType = "Permanent";
     //return;
   } else {
@@ -491,7 +490,7 @@ const startEpisodePlay = async (req, res) => {
   if (!purchaseInfo.state || purchaseInfo.row.length === 0) {
     // respondDB(res, 80094, "에피소드 구매 정보가 없습니다.");
     // logger.error("No episode purchase data");
-    logger.info("No episode purchase data");
+    // logger.info("No episode purchase data");
     purchaseType = "Permanent";
     //return;
   } else {
@@ -2050,9 +2049,6 @@ export const clientHome = (req, res) => {
     collectProjectRetention(req, res);
   else if (func === "collectAllProjectRetention")
     collectAllProjectRetention(req, res);
-  else if (func === "requestCompleteEpisodeType2")
-    requestCompleteEpisodeType2(req, res);
-  // 삭제예정
   else if (func === "requestCompleteEpisodeOptimized")
     requestCompleteEpisodeOptimized(req, res);
   // 신규
