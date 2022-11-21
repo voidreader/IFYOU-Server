@@ -230,7 +230,7 @@ export const requestUpdateProjectCurrent = async ({
 
 // ! 대체 (2022.11.21) requestUpdateProjectCurrent
 export const ProcessUpdateUserProjectCurrent = async (userInfo) => {
-  userInfo.episode_id = episodeID; // 파라매터 잘못써서.. ㅠ
+  userInfo.episode_id = userInfo.episodeID; // 파라매터 잘못써서.. ㅠ
 
   logger.info(
     `ProcessUpdateUserProjectCurrent : [${JSON.stringify(userInfo)}]`
