@@ -231,6 +231,13 @@ export const requestUpdateProjectCurrent = async ({
 // ! 대체 (2022.11.21) requestUpdateProjectCurrent
 export const ProcessUpdateUserProjectCurrent = async (userInfo) => {
   userInfo.episode_id = userInfo.episodeID; // 파라매터 잘못써서.. ㅠ
+  if (!userInfo.scene_id) userInfo.scene_id = null;
+
+  if (!userInfo.script_no) userInfo.script_no = 0;
+
+  if (!userInfo.is_final) userInfo.is_final = 0;
+
+  if (!userInfo.callby) userInfo.callby = "";
 
   logger.info(
     `ProcessUpdateUserProjectCurrent : [${JSON.stringify(userInfo)}]`
