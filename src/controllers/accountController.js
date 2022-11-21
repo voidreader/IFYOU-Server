@@ -65,9 +65,6 @@ import { respondDB, respondError } from "../respondent";
 import {
   getUserProjectCurrent,
   getUserProjectSelectionProgress,
-  requestUpdateProjectCurrent,
-  getUserProjectProgressInfo,
-  getUserEpisodePurchaseInfo,
 } from "../com/userProject";
 import {
   getProjectBgmBannerInfo,
@@ -1946,6 +1943,15 @@ export const resetPlayingEpisode = async (req, res) => {
   responseData.ability = await getUserProjectAbilityCurrent(req.body);
   responseData.rawStoryAbility = await getUserStoryAbilityRawList(req.body);
   res.status(200).json(responseData);
+
+  if (
+    !responseData.projectCurrent ||
+    responseData.projectCurrent.length === 0
+  ) {
+    logger.error(
+      `resetPlayingEpisode projectCurrent Error ${JSON.stringify(req.body)}`
+    );
+  }
 
   logAction(userkey, "startover_episode", req.body);
 };
