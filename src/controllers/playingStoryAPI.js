@@ -132,6 +132,7 @@ export const requestCompleteEpisodeOptimized = async (req, res) => {
 
   const responseData = {}; // 리턴값
   logger.info(`requestCompleteEpisodeOptimized [${JSON.stringify(req.body)}]`);
+  logAction(userkey, "episode_clear", req.body);
 
   // 프로젝트의 현재 플레이 지점을 업데이트 하기 위한 파라매터
   // * nextEpisodeID가 0보다 작은 경우는 막다른 길이다.
@@ -206,5 +207,5 @@ export const requestCompleteEpisodeOptimized = async (req, res) => {
   }
 
   // 클리어 로그
-  logAction(userkey, "episode_clear", req.body);
+  logAction(userkey, "episode_clear_result", responseData);
 };
