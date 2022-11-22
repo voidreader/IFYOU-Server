@@ -423,6 +423,19 @@ export const clearUserEpisodeSceneProgress = async (req, res) => {
 
   logger.info(`clearUserEpisodeSceneProgress [${JSON.stringify(userInfo)}]`);
 
+  // 에피소드 ID 없는 경우 받아오기.
+  if (!userInfo.episode_id || userInfo.episode_id === "") {
+    logger.error(
+      `clearUserEpisodeSceneProgress empty episode_id ${JSON.stringify(
+        userInfo
+      )}`
+    );
+    const projectCurrent = await getUserProjectCurrent(userInfo);
+    if (projectCurrent && projectCurrent.length > 0) {
+      userInfo.episode_id = projectCurrent[0].episode_id;
+    }
+  }
+
   const result = await DB(Q_USER_EPISODE_SCENE_CLEAR, [
     userInfo.userkey,
     userInfo.episode_id,
