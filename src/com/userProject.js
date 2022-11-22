@@ -257,6 +257,8 @@ export const ProcessUpdateUserProjectCurrent = async (userInfo) => {
     }
   } // 에피소드 ID 없는 경우에 대한 처리 종료
 
+  logAction(userInfo.userkey, "project_current", userInfo);
+
   // Procedure Call
   const saveResult = await DB(
     `CALL sp_save_user_project_current(?, ?, ?, ?, ?, ?);`,
@@ -288,7 +290,7 @@ export const updateUserProjectCurrent = async (req, res) => {
   const result = await ProcessUpdateUserProjectCurrent(req.body);
   res.status(200).json(result);
 
-  logAction(req.body.userkey, "project_current", req.body);
+  logAction(req.body.userkey, "project_current_result", result);
 };
 
 ///////////////////// 새로운 선택지 로그 시작 ///////////////////////
