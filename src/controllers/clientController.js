@@ -92,6 +92,7 @@ import {
   purchaseEpisodeType2,
   setUserProjectNotification,
   updateRateHistory,
+  getUserProjectCurrent,
 } from "../com/userProject";
 import {
   getAllProductList,
@@ -278,6 +279,19 @@ const getEpisodeScriptWithResources = async (req, res) => {
   const userInfo = req.body;
 
   logger.info(`getEpisodeScriptWithResources ${JSON.stringify(userInfo)}`);
+
+  // 에피소드 ID 없는 경우 받아오기.
+  if (!userInfo.episode_id || userInfo.episode_id === "") {
+    logger.error(
+      `getEpisodeScriptWithResources empty episode_id ${JSON.stringify(
+        userInfo
+      )}`
+    );
+    const projectCurrent = await getUserProjectCurrent(userInfo);
+    if (projectCurrent && projectCurrent.length > 0) {
+      userInfo.episode_id = projectCurrent[0].episode_id;
+    }
+  }
 
   const result = {};
 
