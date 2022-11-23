@@ -93,6 +93,7 @@ import {
   setUserProjectNotification,
   updateRateHistory,
   getUserProjectCurrent,
+  requestUserProjectCurrent,
 } from "../com/userProject";
 import {
   getAllProductList,
@@ -2170,6 +2171,8 @@ export const clientHome = (req, res) => {
   else if (func === "receiveSurveyReward") receiveSurveyReward(req, res);
   else if (func === "requestIfYouPass") requestIfYouPass(req, res);
   // 이프유패스 구매
+  else if (func === "requestUserProjectCurrent")
+    requestUserProjectCurrent(req, res);
   else if (func === "requestLocalizingSurvey")
     //설문조사
     requestLocalizingSurvey(req, res);
