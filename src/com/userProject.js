@@ -1,7 +1,7 @@
 import mysql from "mysql2/promise";
 import { DB, logAction, logAD, slaveDB, transactionDB } from "../mysqldb";
 import { logger } from "../logger";
-import { respond, respondDB } from "../respondent";
+import { respond, respondDB, respondSuccess } from "../respondent";
 import {
   getCurrencyQuantity,
   getUserBankInfo,
@@ -165,6 +165,12 @@ export const getUserProjectCurrent = async (userInfo) => {
 
   return currentInfo;
 }; // ? END OF getUserProjectCurrent
+
+export const requestUserProjectCurrent = async (req, res) => {
+  logger.info(`requestUserProjectCurrent : ${JSON.stringify(req.body)}`);
+  const currentInfo = await getUserProjectCurrent(req.body);
+  respondSuccess(res, currentInfo);
+};
 
 // * 유저의 프로젝트내 현재 위치 업데이트
 export const requestUpdateProjectCurrent = async ({
