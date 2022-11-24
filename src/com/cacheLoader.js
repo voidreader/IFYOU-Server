@@ -515,9 +515,9 @@ export const refreshCacheFixedData = async (req, res) => {
 };
 
 // 캐시 리프레시
-const schduleCacheRefresh = schedule.scheduleJob("*/5 * * * *", async () => {
+const schduleCacheRefresh = schedule.scheduleJob("*/20 * * * *", async () => {
   logger.info(">> schduleCacheRefresh START");
   // await loadingCacheData();
-  // await loadingRegularCacheData();
+  await loadingRegularCacheData();
   logger.info(">> schduleCacheRefresh END");
 });
