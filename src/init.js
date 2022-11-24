@@ -57,6 +57,7 @@ export const loadingCacheData = async () => {
 
 export const loadingRegularCacheData = async () => {
   console.log(`Refresh Cache.... `);
+  await refreshCacheServerMaster(); // 서버 마스터
   await refreshCachePlatformEvent(); // 공지사항 및 프로모션
   await refreshCacheProduct(); // 인앱상품 리스트
 
