@@ -76,7 +76,7 @@ import {
   userMisionReceive,
   requestMissionAllReward,
 } from "./missionController";
-import { respondDB } from "../respondent";
+import { respondDB, respondFail, respondSuccess } from "../respondent";
 import {
   updateSelectionProgress,
   updateUserProjectCurrent,
@@ -1845,6 +1845,27 @@ const rewardGradeUsers = async (req, res) => {
   res.status(200).send("ok");
 };
 
+// * 오퍼월 크레딧 요청
+const requestOfferwallCredit = async (req, res) => {
+  const {
+    body: { userkey, credit = 0 },
+  } = req;
+
+  if (credit <= 0) {
+    respondFail(res, {}, "No credit");
+    return;
+  }
+
+  await DB(
+    `CALL sp_send_user_mail(${userkey}, 'offerwall', 'gem', ${credit}, -1, 30);`
+  );
+
+  const responseData = {};
+  responseData.unreadMailCount = await getUserUnreadMailCount(userkey);
+
+  respondSuccess(res, responseData);
+};
+
 // clientHome에서 func에 따라 분배
 // controller에서 또다시 controller로 보내는것이 옳을까..? ㅠㅠ
 export const clientHome = (req, res) => {
@@ -2169,6 +2190,7 @@ export const clientHome = (req, res) => {
   else if (func === "getSurveyMain") getSurveyMain(req, res);
   else if (func === "getSurveyDetail") getSurveyDetail(req, res);
   else if (func === "receiveSurveyReward") receiveSurveyReward(req, res);
+  else if (func === "requestOfferwallCredit") requestOfferwallCredit(req, res);
   else if (func === "requestIfYouPass") requestIfYouPass(req, res);
   // 이프유패스 구매
   else if (func === "requestUserProjectCurrent")
