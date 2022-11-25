@@ -1864,6 +1864,7 @@ const requestOfferwallCredit = async (req, res) => {
   responseData.unreadMailCount = await getUserUnreadMailCount(userkey);
 
   respondSuccess(res, responseData);
+  logAction(userkey, "offerwall", req.body);
 };
 
 // clientHome에서 func에 따라 분배
