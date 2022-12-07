@@ -213,7 +213,7 @@ export const loginPackage = async (req, res) => {
 
 // * 유저의 현재 에너지 구하기
 const getUserEnergy = async (userkey) => {
-  const energyQuery = await slaveDB(
+  const energyQuery = await DB(
     `SELECT a.energy FROM table_account a WHERE a.userkey = ${userkey};`
   );
   const currentEnergy = energyQuery.row[0].energy;
@@ -560,7 +560,7 @@ export const checkPackageVersion = async (req, res) => {
   } = req;
 
   const result = await slaveDB(
-    `SELECT cp.version, cp.test_url, cp.live_url  FROM com_package cp WHERE cp.package  = '${pack}';`
+    `SELECT cp.version, cp.test_url, cp.live_url, cp.limit_version  FROM com_package cp WHERE cp.package  = '${pack}';`
   );
 
   const liveVersion = result.row[0].version;
@@ -723,4 +723,50 @@ export const requestNovelPackageReceiveAllMail = async (req, res) => {
   }
 
   getNovelPackageUserUnreadMailList(req, res);
+};
+
+// * 일일 에너지 보상 받을 수 있는지 체크 및 받기
+export const checkDailyEnergy = async (req, res) => {
+  const {
+    body: { userkey },
+  } = req;
+
+  const responseData = { addEnergy: 0, energy: 0 };
+
+  const checkResult = await slaveDB(`
+  SELECT EXISTS (SELECT z.userkey 
+    FROM user_daily_energy z 
+   WHERE z.userkey = ${userkey}
+     AND date_format(now(), '%Y-%m-%d') <= z.receive_date) is_exists 
+  FROM DUAL;
+  `);
+
+  if (!checkResult.state || checkResult.row.length === 0) {
+    respondFail(res, responseData, `can't check`, 0);
+    return;
+  }
+
+  const { is_exists } = checkResult.row[0];
+
+  if (is_exists === 0) {
+    // 오늘 받은게 없음
+    // 에너지 입력해줄것.
+    responseData.addEnergy = 150;
+
+    // 제한없이 150 더한다.
+    await DB(`
+    UPDATE table_account
+       SET energy = energy + 150
+      WHERE userkey = ${userkey};
+    `);
+
+    // daily 테이블에 입력.
+    DB(
+      `INSERT INTO user_daily_energy (userkey) VALUES (${userkey}) ON DUPLICATE KEY UPDATE receive_date = now();`
+    );
+  }
+
+  responseData.energy = await getUserEnergy(userkey);
+
+  respondSuccess(res, responseData);
 };

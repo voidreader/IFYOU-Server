@@ -215,6 +215,7 @@ import {
 } from "./surveyController";
 import {
   chargeEnergyByAdvertisement,
+  checkDailyEnergy,
   checkPackageVersion,
   getNovelPackageUserUnreadMailList,
   getPackageProduct,
@@ -2235,6 +2236,9 @@ export const clientHome = (req, res) => {
   else if (func === "requestNovelPackageReceiveAllMail")
     // 노벨 패키지 모든 메일 수신
     requestNovelPackageReceiveAllMail(req, res);
+  else if (func === "checkDailyEnergy")
+    // 노벨 패키지의 일일 에너지 보상 체크 및 받기
+    checkDailyEnergy(req, res);
   else {
     //  res.status(400).send(`Wrong Func : ${func}`);
     logger.error(`clientHome Error ${func}`);
