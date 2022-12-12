@@ -139,7 +139,8 @@ export const loginPackage = async (req, res) => {
   // 안드로이드 ,아이폰 분류 처리
   let userOS = "";
   if (os === 0) userOS = "Android";
-  else userOS = "iOS";
+  else if (os === 1) userOS = "iOS";
+  else userOS = "Android";
 
   // 유니티 게임서비스 ID 여부에 따라 분기
   let conditionQuery = ``;
