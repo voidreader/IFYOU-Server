@@ -2571,10 +2571,18 @@ export const translateSingleEpisodeWithoutGlossary = async (req, res) => {
 
 // * 빌드 유효성 체크
 export const checkBuildValidation = async (userInfo) => {
-  if (userInfo.packageid != "pier.story.cruise") return true;
+  //logger.info(`checkBuildValidation start : ${JSON.stringify(userInfo)}`);
+
+  if (userInfo.packageid != "pier.story.cruise") {
+    logger.info(`Not checking build : ${JSON.stringify(userInfo)}`);
+    return true;
+  }
 
   // * 아이폰은 그냥 true로 진행.
-  if (userInfo.os > 0) return true;
+  if (userInfo.os > 0) {
+    logger.info(`Not Android build : ${JSON.stringify(userInfo)}`);
+    return true;
+  }
 
   if (userInfo.version < 5) {
     logger.info(
