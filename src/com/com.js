@@ -2574,7 +2574,7 @@ export const checkBuildValidation = async (userInfo) => {
   if (userInfo.packageid != "pier.story.cruise") return true;
 
   // * 아이폰은 그냥 true로 진행.
-  if (userInfo.os === 1) return true;
+  if (userInfo.os > 0) return true;
 
   if (userInfo.version < 5) {
     logger.info(
