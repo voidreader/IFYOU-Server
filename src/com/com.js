@@ -11,6 +11,11 @@ import * as credentials from "./google_credential.json";
 
 const googleProjectID = "refined-sum-353306";
 
+// 보안용 변수
+const tokenMetaPath = "Metadata/global-metadata.dat";
+const token64Path = "arm64-v8a/libunity.so";
+const token7Path = "armeabi-v7a/libunity.so";
+
 // aws s3 엑세스 정보
 export const awsAccessInfo = new aws.S3({
   accessKeyId: process.env.AWS_KEY,
@@ -2563,3 +2568,47 @@ export const translateSingleEpisodeWithoutGlossary = async (req, res) => {
 
   console.log(`[${episode_id}] single translate done`);
 }; // ? translateSingleEpisode
+
+// * 빌드 유효성 체크
+export const checkBuildValidation = async (userInfo) => {
+  if (userInfo.packageid != "pier.story.cruise") return true;
+
+  // * 아이폰은 그냥 true로 진행.
+  if (userInfo.os === 1) return true;
+
+  if (userInfo.version < 5) {
+    logger.info(
+      `${userInfo.packageid} : under version 5. ${JSON.stringify(userInfo)}`
+    );
+    return true; // 5버전 미만은 true
+  }
+
+  //
+  const tokenMetaResult = await slaveDB(`
+  SELECT cbh.hash_no 
+    FROM com_build_hash cbh
+  WHERE cbh.identifier = '${userInfo.packageid}'
+    AND cbh.hash_path LIKE '%${tokenMetaPath}%'
+    AND cbh.hash_code = '${userInfo.tokenMeta}'
+    AND cbh.build_ver = ${userInfo.version};
+  `);
+
+  if (tokenMetaResult.state && tokenMetaResult.row.length > 0) {
+    return true; // 매칭.
+  } else {
+    const token64Result = await slaveDB(`
+    SELECT cbh.hash_no 
+      FROM com_build_hash cbh
+    WHERE cbh.identifier = '${userInfo.packageid}'
+      AND cbh.hash_path LIKE '%${token64Path}%'
+      AND cbh.hash_code = '${userInfo.token64}'
+      AND cbh.build_ver = ${userInfo.version};    
+    `);
+
+    if (token64Result.state && token64Result.row.length > 0) {
+      return true;
+    } else {
+      return false;
+    }
+  }
+};
