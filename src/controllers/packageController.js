@@ -10,6 +10,7 @@ import {
   getProductDetailList,
   getUserPurchaseListVer2,
 } from "./shopController";
+import { checkBuildValidation } from "../com/com";
 
 // 유저 미수신 메일 리스트(만료일 지나지 않은 것들)
 const QUERY_NOVEL_USER_UNREAD_MAIL_LIST = `
@@ -120,7 +121,17 @@ const registerPackageAccount = async (req, res) => {
 export const loginPackage = async (req, res) => {
   // 2022.11.11 유니티 게임서비스 ID 추가
   const {
-    body: { deviceid, packageid, os, lang = "EN", ugsid = null },
+    body: {
+      deviceid,
+      packageid,
+      os,
+      lang = "EN",
+      ugsid = null,
+      tokenMeta = "",
+      token64 = "",
+      token7 = "",
+      version = 0,
+    },
   } = req;
 
   logger.info(`loginPackage : ${JSON.stringify(req.body)}`);
@@ -209,6 +220,18 @@ export const loginPackage = async (req, res) => {
     "ZZ",
     accountInfo.account.userkey,
   ]);
+
+  // 빌드 체크
+  const isBuildValidation = await checkBuildValidation(req);
+  if (!isBuildValidation) {
+    // false인 경우 여기서 튕겨내지 않고 account에 표시해준다.
+    logger.error(`Invalid Build User : ${JSON.stringify(req.body)}`);
+    DB(`
+    UPDATE table_account
+       SET invalid_build = 1 
+     WHERE userkey = ${accountInfo.account.userkey};
+    `);
+  }
 };
 
 // * 유저의 현재 에너지 구하기
