@@ -227,6 +227,7 @@ import {
   requestNovelPackageReceiveSingleMail,
   spendEnergyByChoice,
 } from "./packageController";
+import { initializeClient } from "../com/packageSystem";
 
 dotenv.config();
 
@@ -2239,7 +2240,9 @@ export const clientHome = (req, res) => {
   else if (func === "checkDailyEnergy")
     // 노벨 패키지의 일일 에너지 보상 체크 및 받기
     checkDailyEnergy(req, res);
-  else {
+  else if (func === "InitializeClient") {
+    initializeClient(req, res); // 패키지 마스터
+  } else {
     //  res.status(400).send(`Wrong Func : ${func}`);
     logger.error(`clientHome Error ${func}`);
     respondDB(res, 80033, func);
