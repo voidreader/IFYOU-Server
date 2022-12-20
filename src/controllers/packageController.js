@@ -223,16 +223,16 @@ export const loginPackage = async (req, res) => {
   ]);
 
   // 빌드 체크
-  const isBuildValidation = await checkBuildValidation(req.body);
-  if (!isBuildValidation) {
-    // false인 경우 여기서 튕겨내지 않고 account에 표시해준다.
-    logger.error(`Invalid Build User : ${JSON.stringify(req.body)}`);
-    DB(`
-    UPDATE table_account
-       SET invalid_build = 1 
-     WHERE userkey = ${accountInfo.account.userkey};
-    `);
-  }
+  // const isBuildValidation = await checkBuildValidation(req.body);
+  // if (!isBuildValidation) {
+  //   // false인 경우 여기서 튕겨내지 않고 account에 표시해준다.
+  //   logger.error(`Invalid Build User : ${JSON.stringify(req.body)}`);
+  //   DB(`
+  //   UPDATE table_account
+  //      SET invalid_build = 1
+  //    WHERE userkey = ${accountInfo.account.userkey};
+  //   `);
+  // }
 };
 
 // * 유저의 현재 에너지 구하기
