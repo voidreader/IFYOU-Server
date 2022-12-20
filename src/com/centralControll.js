@@ -107,7 +107,8 @@ export const initializeClient = async (req, res) => {
   console.log(packageClient);
 
   // * 빌드해시 체크
-  if (packageMaster.require_hash_check > 0) {
+  // * 에디터에서 호출된 경우는 체크하지 않음
+  if (packageMaster.require_hash_check > 0 && editor < 1) {
     console.log("Checking build hash");
 
     const hashCheckResult = await slaveDB(`
