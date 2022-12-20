@@ -8,16 +8,32 @@ import {
   respondSuccess,
 } from "../respondent";
 
+const responseErrorCode = {
+  invalidClient: 201,
+  invalidVersion: 202,
+};
+
+// * 클라이언트 초기화 처리
 export const initializeClient = async (req, res) => {
   const {
-    body: { package_id, os_type, app_store, client_version },
+    body: {
+      package_id,
+      os_type,
+      app_store,
+      client_version,
+      editor = 0,
+      clientTokenMeta = "",
+      clientToken64 = "",
+      clientToken7 = "",
+      ugsid = "",
+    },
   } = req;
 
   // console.log(req.body);
 
   // 패키지 마스터 체크
   const packageMasterQueryResult = await slaveDB(
-    `SELECT a.package_id FROM com_package_master a WHERE a.package_id = '${package_id}';`
+    `SELECT a.package_id, a.require_hash_check FROM com_package_master a WHERE a.package_id = '${package_id}';`
   );
 
   // 없는 경우에 대한 실패 메세지 처리
@@ -25,7 +41,12 @@ export const initializeClient = async (req, res) => {
     !packageMasterQueryResult.state ||
     packageMasterQueryResult.row.length <= 0
   ) {
-    respondFail(res, {}, "No package info", "");
+    respondFail(
+      res,
+      { error: responseErrorCode.invalidClient },
+      "No package info",
+      "10"
+    );
     return;
   }
 
@@ -57,7 +78,12 @@ export const initializeClient = async (req, res) => {
 
   // 쿼리 결과가 없는 경우에 대한 처리
   if (!clientQueryResult.state || clientQueryResult.row.length <= 0) {
-    respondFail(res, {}, "No Client info", "");
+    respondFail(
+      res,
+      { error: responseErrorCode.invalidVersion },
+      "No Version info",
+      "12"
+    );
     return;
   }
 
@@ -80,5 +106,26 @@ export const initializeClient = async (req, res) => {
 
   console.log(packageClient);
 
+  // * 빌드해시 체크
+  if (packageMaster.require_hash_check > 0) {
+    console.log("Checking build hash");
+
+    const hashCheckResult = await slaveDB(`
+    SELECT a.hash_no  
+      FROM com_build_hash a
+    WHERE a.client_version = '${client_version}'
+      AND a.package_id  = '${package_id}'
+      AND a.hash_code IN ('${clientTokenMeta}', '${clientToken64}', '${clientToken7}');
+    `);
+
+    if (!hashCheckResult.state || hashCheckResult.row.length <= 0) {
+      // * 유효하지 않은 유저로 등록할것.
+      // 빌드 해시 중 일치하는게 없음
+      // respondFail(res, {}, "Invalid build hash", "11");
+      // return;
+      logger.error(`invalid build user found!`);
+    }
+  } // ? 빌드 해시 체크 종료
+
   respondSuccess(res, packageClient);
-}; // ? initializeClient
+}; // ? initializeClient END

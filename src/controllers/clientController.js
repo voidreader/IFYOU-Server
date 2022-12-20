@@ -227,7 +227,7 @@ import {
   requestNovelPackageReceiveSingleMail,
   spendEnergyByChoice,
 } from "./packageController";
-import { initializeClient } from "../com/packageSystem";
+import { initializeClient } from "../com/centralControll";
 
 dotenv.config();
 
