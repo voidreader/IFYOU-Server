@@ -124,7 +124,7 @@ export const initializeClient = async (req, res) => {
       // 빌드 해시 중 일치하는게 없음
       // respondFail(res, {}, "Invalid build hash", "11");
       // return;
-      logger.error(`invalid build user found!`);
+      logger.error(`invalid build user found! [${ugsid}]`);
     }
   } // ? 빌드 해시 체크 종료
 
