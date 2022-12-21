@@ -1880,6 +1880,7 @@ export const clientHome = (req, res) => {
   else if (func === "startEpisodePlay") startEpisodePlay(req, res);
   else if (func === "loginClient") loginClient(req, res);
   else if (func === "loginPackage") loginPackage(req, res);
+  else if (func === "loginSinglePackage") loginPackage(req, res);
   else if (func === "getPackageProject") getPackageProject(req, res);
   else if (func === "getUserSelectedStory") getUserSelectedStory(req, res);
   else if (func === "clearUserEpisodeSceneHistory")
