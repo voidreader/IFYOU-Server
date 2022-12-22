@@ -277,6 +277,7 @@ export const spendEnergyByChoice = async (req, res) => {
       target_scene_id = -1,
       selection_group = 0,
       selection_no = 0,
+      price = 0,
     },
   } = req;
 
@@ -342,6 +343,95 @@ export const spendEnergyByChoice = async (req, res) => {
 
   respondSuccess(res, responseData);
 };
+
+// * 에너지로 선택지 선택
+export const chooseChoiceWithEnergy = async (req, res) => {
+  const {
+    body: {
+      userkey,
+      project_id,
+      episode_id,
+      script_text,
+      target_scene_id = -1,
+      selection_group = 0,
+      selection_no = 0,
+      price = 0,
+    },
+  } = req;
+
+  req.body.episodeID = episode_id;
+  let isPassUser = false;
+
+  // 에너지 소모량이 0으로 왔으면 프리미엄 패스 체크
+  if (price === 0) {
+    const checkPassQueryResult = await slaveDB(`
+    SELECT a.purchase_no, a.product_id 
+      FROM user_purchase a
+    WHERE a.userkey = ${userkey}
+      AND a.product_id LIKE '%premium_pass%';
+    `);
+
+    if (checkPassQueryResult.state && checkPassQueryResult.row.length > 0) {
+      isPassUser = true;
+    } else {
+      respondFail(res, {}, `suspicious user`, 80019);
+      logger.error(`chooseChoiceWithEnergy - suspicious user [${userkey}]`);
+      return;
+    }
+  }
+
+  const userEnergy = await getUserEnergy(userkey);
+
+  if (userEnergy < price) {
+    respondFail(res, {}, "not enough energy", 80019);
+    // logger.error()
+  }
+
+  // 결과전달값
+  const responseData = {};
+  responseData.energy = userEnergy - price; // 현재 에너지
+
+  if (price > 0) {
+    // table_account 업데이트
+    DB(`
+    UPDATE table_account
+      SET energy = ${responseData.energy}
+    WHERE userkey = ${userkey};
+    `);
+  }
+
+  // 선택지 기록에 저장할것.
+  let updateQuery = ``;
+  updateQuery += mysql.format(
+    `call sp_update_user_selection_progress(?,?,?,?,?);`,
+    [userkey, project_id, episode_id, target_scene_id, script_text]
+  );
+  updateQuery += mysql.format(
+    `call sp_update_user_selection_current(?,?,?,?,?,?);`,
+    [
+      userkey,
+      project_id,
+      episode_id,
+      target_scene_id,
+      selection_group,
+      selection_no,
+    ]
+  );
+
+  const updateResult = await DB(updateQuery);
+  if (!updateResult.state) {
+    logger.error(updateResult.error);
+    respondFail(res, {}, "error", 80019);
+    return;
+  }
+
+  responseData.selectionProgress = await getUserProjectSelectionProgress(
+    req.body
+  );
+
+  respondSuccess(res, responseData);
+  logAction(userkey, "energy_choice", req.body);
+}; // ? chooseChoiceWithEnergy END
 
 //! 상품 구매 리스트 - 패키지 유저
 export const getPackUserPurchaseList = async (req, res, isResponse = true) => {

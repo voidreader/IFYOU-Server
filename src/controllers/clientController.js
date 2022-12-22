@@ -217,6 +217,7 @@ import {
   chargeEnergyByAdvertisement,
   checkDailyEnergy,
   checkPackageVersion,
+  chooseChoiceWithEnergy,
   getNovelPackageUserUnreadMailList,
   getPackageProduct,
   getPackageProject,
@@ -2220,10 +2221,13 @@ export const clientHome = (req, res) => {
   else if (func === "requestUnlockMission")
     // 미션 해금
     requestUnlockMission(req, res);
-  else if (func === "spendEnergyByChoice")
-    // 선택지 선택 후 에너지 소모 (단일 비주얼 노벨)
+  else if (func === "spendEnergyByChoice") {
+    // ! 선택지 선택 후 에너지 소모 (단일 비주얼 노벨) 삭제대상 2022.12.22
     spendEnergyByChoice(req, res);
-  else if (func === "chargeEnergyByAdvertisement")
+  } else if (func === "chooseChoiceWithEnergy") {
+    // 신규 에너지로 선택지 선택
+    chooseChoiceWithEnergy(req, res);
+  } else if (func === "chargeEnergyByAdvertisement")
     //광고보고 선택지 충전하기
     chargeEnergyByAdvertisement(req, res);
   else if (func === "checkPackageVersion")
