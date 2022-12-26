@@ -1574,6 +1574,11 @@ export const loginClient = async (req, res) => {
       country = "ZZ",
       lang = "EN",
       culture = "",
+      clientTokenMeta = "",
+      clientToken64 = "",
+      clientToken7 = "",
+      client_version = "1.0.0",
+      editor = 0,
     },
   } = req;
 
@@ -1655,6 +1660,27 @@ export const loginClient = async (req, res) => {
     // * 응답!!
     res.status(200).json(accountInfo);
 
+    // * 2022.12.26 변조 데이터 유무 확인
+    // android이고, editor가 아닌 경우에만 체크
+    if (os === 0 && editor === 0 && client_version > "1.2.51") {
+      logger.info(`Hash check start [${accountInfo.account.userkey}]`);
+      const hashCheckResult = await slaveDB(`
+      SELECT a.hash_no  
+        FROM com_build_hash a
+      WHERE a.client_version = '${client_version}'
+        AND a.package_id  = 'pier.make.story'
+        AND a.hash_code IN ('${clientTokenMeta}', '${clientToken64}', '${clientToken7}');
+      `);
+
+      if (!hashCheckResult.state || hashCheckResult.row.length <= 0) {
+        // * 유효하지 않은 유저로 등록할것.
+        // 빌드 해시 중 일치하는게 없음
+        logger.error(
+          `invalid build ifyou user found! [${accountInfo.account.userkey}]`
+        );
+      }
+    } // ? 변조 체크 종료
+
     // gamebase에서 계정정보 추가로 받아오기.
     const gamebaseResult = await gamebaseAPI.member(gamebaseid);
     if (
@@ -1682,8 +1708,8 @@ export const loginClient = async (req, res) => {
 
     // 로그 쌓기
     logAction(userInfo.userkey, "login", accountInfo.account);
-  } // ? 로그인 끝
-};
+  } // ? else (로그인) 끝
+}; // ? loginClient
 
 // 계정 변경(게임베이스 기 연동 ID에 대한 처리)
 export const changeAccountByGamebase = async (req, res) => {
