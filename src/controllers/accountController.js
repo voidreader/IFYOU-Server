@@ -1668,7 +1668,7 @@ export const loginClient = async (req, res) => {
       SELECT a.hash_no  
         FROM com_build_hash a
       WHERE a.client_version = '${client_version}'
-        AND a.package_id  = 'pier.make.story'
+        AND a.identifier  = 'pier.make.story'
         AND a.hash_code IN ('${clientTokenMeta}', '${clientToken64}', '${clientToken7}');
       `);
 
