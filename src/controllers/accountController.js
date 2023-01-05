@@ -529,7 +529,7 @@ ORDER BY a.episode_type, a.sortkey;
 };
 
 // 앱에서 사용되는 메인 에피소드 리스트
-const requestMainEpisodeList = async (userInfo) => {
+export const requestMainEpisodeList = async (userInfo) => {
   // 유저의 메인 에피소드 리스트
   const regularEpisodes = await DB(`
   SELECT a.episode_id 
@@ -765,7 +765,7 @@ const getUserIllustHistory = async (userInfo) => {
 };
 
 // * 갤러리에 들어가는 공개된, 미니컷, 일러스트, 라이브 오브제, 라이브 일러스트 리스트 조회
-const getUserGalleryHistory = async (userInfo) => {
+export const getUserGalleryHistory = async (userInfo) => {
   // 공개된 이미지들.
   const publicImages = await DB(
     `
@@ -1280,7 +1280,7 @@ const getEpisodeFisrtClearReward = async (userkey, episodeID) => {
 /////////////////////////////////////////////////////////////////////
 
 // 말풍선 세트 재배열
-const arrangeBubbleSet = (allBubbleSet) => {
+export const arrangeBubbleSet = (allBubbleSet) => {
   const bubbleSet = initBubbleSetObject(); // 말풍선 초기화
 
   // 말풍선 세트는 복잡하니까 분할해서 처리
@@ -2186,6 +2186,97 @@ export const updateUserIllustHistory = async (req, res) => {
   res.status(200).send(responseData);
 };
 
+// * 이모티콘 raw 데이터 포장하기
+const collectEmoticonData = (rawEmoticons) => {
+  const emoticons = {};
+  rawEmoticons.forEach((item) => {
+    // 화자 - 이모티콘 이름으로 포장한다.
+    if (!Object.prototype.hasOwnProperty.call(emoticons, item.emoticon_owner)) {
+      emoticons[item.emoticon_owner] = {};
+    }
+
+    if (
+      !Object.prototype.hasOwnProperty.call(
+        emoticons[item.emoticon_owner],
+        item.image_name
+      )
+    ) {
+      emoticons[item.emoticon_owner][item.image_name] = {
+        image_url: item.image_url,
+        image_key: item.image_key,
+      };
+    }
+  });
+
+  return emoticons;
+}; // ? collectEmoticonData END
+
+// 모델 데이터 재포장
+const collectModelData = (rawModels) => {
+  const models = {};
+  rawModels.forEach((item) => {
+    if (!Object.prototype.hasOwnProperty.call(models, item.model_name)) {
+      models[item.model_name] = [];
+    }
+
+    models[item.model_name].push(item); // 배열에 추가
+  }); // 캐릭터 모델 포장 끝.
+
+  return models;
+}; // ? collectModelData
+
+const collectLiveObjectData = (rawArray) => {
+  const liveObjects = {};
+
+  rawArray.forEach((item) => {
+    if (
+      !Object.prototype.hasOwnProperty.call(liveObjects, item.live_object_name)
+    ) {
+      liveObjects[item.live_object_name] = [];
+    }
+
+    liveObjects[item.live_object_name].push(item); // 배열에 추가
+  }); // 라이브 오브제 포장 끝
+
+  return liveObjects;
+}; // ? collectLiveObjectData
+const collectLiveIllustData = (rawArray) => {
+  const liveIllusts = {};
+
+  rawArray.forEach((item) => {
+    // 키 없으면 추가해준다.
+    if (
+      !Object.prototype.hasOwnProperty.call(liveIllusts, item.live_illust_name)
+    ) {
+      liveIllusts[item.live_illust_name] = [];
+    }
+
+    liveIllusts[item.live_illust_name].push(item); // 배열에 추가한다.
+  }); // 라이브 일러스트 포장 끝
+
+  return liveIllusts;
+}; // ? collectLiveIllustData
+
+const collectSceneID = (rawArray) => {
+  const result = [];
+
+  for (const item of rawArray) {
+    result.push(item.scene_id);
+  }
+
+  return result;
+}; // ? collectSceneID
+
+const collectEpisodeID = (rawArray) => {
+  const result = [];
+
+  for (const item of rawArray) {
+    result.push(item.episode_id);
+  }
+
+  return result;
+}; // ? collectEpisodeID
+
 // * 2021.12.19 프로젝트 리소스 한번에 가져오기
 // * 쿼리 통합
 const getProjectResources = async (project_id, lang, userkey) => {
@@ -2546,8 +2637,76 @@ const getProjectResources = async (project_id, lang, userkey) => {
   return responseData;
 };
 
+// * 2023.01 오토메 프로젝트 리소스 가져오기
+export const getOtomeProjectResources = async (project_id, lang, userkey) => {
+  const responseData = {};
+  let query = "";
+
+  query += mysql.format(Q_SELECT_PROJECT_DETAIL, [lang, project_id]); // 0. detail 프로젝트 상세정보
+  query += mysql.format(Q_SELECT_PROJECT_DRESS_CODE, [project_id]); // 1. dressCode 의상정보
+  query += mysql.format(Q_SELECT_PROJECT_NAME_TAG, [project_id]); // 2. nametag 네임태그
+  query += mysql.format(Q_SELECT_PROJECT_BGM, [project_id, lang]); // 3. bgms. BGM
+  query += mysql.format(Q_SELECT_PROJECT_ALL_ILLUST, [lang, project_id]); // 4. illusts 일러스트
+  query += mysql.format(Q_SELECT_PROJECT_MODEL_ALL_FILES, [project_id]); // 5. models 캐릭터 모델
+  query += mysql.format(Q_SELECT_PROJECT_LIVE_OBJECT_ALL_FILES, [project_id]); // 6. liveObjects 라이브 오브제
+  query += mysql.format(Q_SELECT_PROJECT_LIVE_ILLUST_ALL_FILES, [project_id]); // 7. liveIllusts 라이브 일러스트
+  query += mysql.format(Q_SELECT_PROJECT_ALL_MINICUT, [lang, project_id]); // 8. minicuts 미니컷
+  query += mysql.format(Q_SELECT_EPISODE_LOADING, [project_id]); // [9]. 에피소드 로딩 리스트
+  query += mysql.format(Q_USER_EPISODE_SCENE_PROGRESS, [userkey, project_id]); // [10] 유저별 에피소드 상황 히스토리 Progress
+  query += mysql.format(Q_SELECT_SCENE_HISTORY, [userkey, project_id]); // [11] 유저, 프로젝트에서 경험한 모든 사건 ID 목록
+  query += mysql.format(Q_USER_EPISODE_PURCHASE, [userkey, project_id]); // [12] 에피소드 구매 정보
+
+  //////
+  query += mysql.format(Q_SELECT_EPISODE_PROGRESS, [userkey, project_id]); //  [13]. 에피소드 progress
+  query += mysql.format(Q_SELECT_EPISODE_HISTORY, [userkey, project_id]); // [14]. 에피소드 히스토리
+  query += mysql.format(Q_SELECT_PROJECT_ALL_BG, [project_id]); // [15] 프로젝트 모든 배경
+  query += mysql.format(Q_SELECT_PROJECT_ALL_EMOTICONS, [project_id]); // [16] 프로젝트 모든 이모티콘
+
+  // * 모인 쿼리 실행
+  const result = await slaveDB(query);
+
+  if (!result.state) {
+    logger.error(result.error);
+    return null;
+  }
+
+  // * 데이터 포장하기
+  const emoticons = collectEmoticonData(result.row[16]);
+  const models = collectModelData(result.row[5]);
+  const liveObjects = collectLiveObjectData(result.row[6]);
+  const liveIllusts = collectLiveIllustData(result.row[7]);
+  const sceneProgress = collectSceneID(result.row[10]);
+  const sceneHistory = collectSceneID(result.row[11]);
+  const episodeProgress = collectEpisodeID(result.row[13]);
+  const episodeHistory = collectEpisodeID(result.row[14]);
+
+  // 결과
+  responseData.detail = result.row[0];
+  responseData.dressCode = result.row[1];
+  responseData.nametag = result.row[2];
+  responseData.bgms = result.row[3];
+  responseData.illusts = result.row[4];
+
+  responseData.backgrounds = result.row[15];
+  responseData.minicuts = result.row[8];
+  responseData.episodeLoadingList = result.row[9];
+
+  responseData.emoticons = emoticons;
+  responseData.models = models;
+  responseData.liveObjects = liveObjects;
+  responseData.liveIllusts = liveIllusts;
+  responseData.sceneProgress = sceneProgress;
+  responseData.sceneHistory = sceneHistory;
+  responseData.episodeProgress = episodeProgress;
+  responseData.episodeHistory = episodeHistory;
+
+  responseData.episodePurchase = result.row[12];
+
+  return responseData;
+}; // ? getOtomeProjectResources
+
 // 현재 시점의 로딩 정보 가져오기
-const getCurrentLoadingData = async (project_id, episode_id, lang) => {
+export const getCurrentLoadingData = async (project_id, episode_id, lang) => {
   const result = {};
 
   const loading = await slaveDB(`
