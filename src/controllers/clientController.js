@@ -226,6 +226,7 @@ import {
   purchaseSingleNovelProduct,
   requestNovelPackageReceiveAllMail,
   requestNovelPackageReceiveSingleMail,
+  requestPackageStoryInfo,
   spendEnergyByChoice,
 } from "./packageController";
 import { initializeClient } from "../com/centralControll";
@@ -1884,6 +1885,8 @@ export const clientHome = (req, res) => {
   else if (func === "loginSinglePackage") loginPackage(req, res);
   else if (func === "getPackageProject") getPackageProject(req, res);
   else if (func === "getUserSelectedStory") getUserSelectedStory(req, res);
+  else if (func === "requestPackageStoryInfo")
+    requestPackageStoryInfo(req, res);
   else if (func === "clearUserEpisodeSceneHistory")
     clearUserEpisodeSceneProgress(req, res);
   else if (func === "updateUserEpisodeSceneHistory")
