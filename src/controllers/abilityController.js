@@ -1,6 +1,7 @@
 import mysql from "mysql2/promise";
 import { response } from "express";
-import { DB, logAction, transactionDB } from "../mysqldb";
+import { profile } from "winston";
+import { DB, logAction, slaveDB, transactionDB } from "../mysqldb";
 import { logger } from "../logger";
 import { respondDB } from "../respondent";
 
@@ -34,7 +35,7 @@ export const getUserProjectAbilityCurrent = async (userInfo) => {
   const responseData = {};
 
   // 프로젝트에 등록된 모든 능력치
-  const projectAbility = await DB(`
+  const projectAbility = await slaveDB(`
   SELECT ca.speaker 
        , ca.ability_name
        , ca.local_id
@@ -47,6 +48,13 @@ export const getUserProjectAbilityCurrent = async (userInfo) => {
        , fn_get_design_info(standing_id, 'url') background_url 
 	     , fn_get_design_info(standing_id, 'key') background_key 
 	     , ca.ability_id 
+       , ca.profile_height 
+       , ca.profile_age 
+       , date_format(ifnull(ca.profile_birth_date, now()), '%Y-%m-%d') profile_birth_date 
+       , ca.profile_favorite_id 
+       , ca.profile_hate_id 
+       , ca.profile_line_id
+       , ca.profile_introduce_id 
        , 0 current_value
     FROM com_ability ca 
       LEFT OUTER JOIN list_nametag t ON t.speaker = ca.speaker AND t.project_id = ca.project_id
@@ -140,6 +148,41 @@ export const getUserProjectAbilityCurrent = async (userInfo) => {
 
   return responseData;
 }; // ? end;
+
+export const getOtomeProfileLines = async (userInfo) => {
+  const { project_id = -1 } = userInfo;
+
+  const responseData = {};
+
+  const profileLines = await slaveDB(`
+  SELECT ifnull(ca.speaker, 'unknown') speaker
+      , cpl.ability_id 
+      , cpl.line_id 
+      , cpl.motion_id
+      , fn_get_motion_name_by_id(cpl.motion_id) motion_name
+      , cpl.condition_type 
+      , ifnull(cpl.line_condition, '') line_condition 
+    FROM com_profile_lines cpl 
+      , com_ability ca 
+  WHERE ca.project_id = ${project_id}
+    AND ca.ability_id = cpl.ability_id
+  ORDER BY ability_id, line_id
+  ;
+  `);
+
+  if (profileLines.state) {
+    // eslint-disable-next-line no-restricted-syntax
+    for (const item of profileLines.row) {
+      if (!Object.prototype.hasOwnProperty.call(responseData, item.speaker)) {
+        responseData[item.speaker] = [];
+      }
+
+      responseData[item.speaker].push(item);
+    }
+  }
+
+  return responseData;
+}; // ? getOtomeProfileLines
 
 //! 능력치 수치 추가
 export const addUserAbility = async (req, res) => {
