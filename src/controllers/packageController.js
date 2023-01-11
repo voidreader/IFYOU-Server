@@ -25,6 +25,7 @@ import {
 import { cache } from "../init";
 import { getUserVoiceHistory } from "./soundController";
 import {
+  getOtomeProfileLines,
   getUserProjectAbilityCurrent,
   getUserStoryAbilityRawList,
 } from "./abilityController";
@@ -958,6 +959,7 @@ export const requestPackageStoryInfo = async (req, res) => {
   storyInfo.voiceHistory = voiceData.voiceHistory; // 화자별로 포장된 보이스
   storyInfo.rawVoiceHistory = voiceData.rawVoiceHistory; // 리스트 그대로 형태의 보이스
   storyInfo.episodes = await requestMainEpisodeList(userInfo); // 유저의 정규 에피소드 리스트
+  storyInfo.sides = [];
 
   storyInfo.bubbleMaster = bubbleMaster; // 말풍선 마스터 정보
   // * 말풍선 상세 정보 (버전체크를 통해서 필요할때만 내려준다)
@@ -976,6 +978,7 @@ export const requestPackageStoryInfo = async (req, res) => {
 
   storyInfo.ability = await getUserProjectAbilityCurrent(userInfo); //유저의 현재 능력치 정보
   storyInfo.rawStoryAbility = await getUserStoryAbilityRawList(req.body); // 스토리에서 획득한 능력치 Raw 리스트
+  storyInfo.profileLine = await getOtomeProfileLines(userInfo);
   storyInfo.selectionPurchase = await getUserSelectionPurchaseInfo(userInfo); // 과금 선택지 정보
   storyInfo.selectionHistory = await getUserStorySelectionHistory(req.body); // 선택지 히스토리
 
