@@ -1126,7 +1126,7 @@ export const purchaseOtomeChoice = async (req, res) => {
   responseData.list = result.row;
   responseData.energy = finalEnergy;
 
-  res.status(200).json(responseData);
+  respondSuccess(res, responseData);
 
   // 로그 추가
   logAction(userkey, "paid_selection", req.body);
