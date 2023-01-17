@@ -223,6 +223,7 @@ import {
   getPackageProject,
   getPackUserPurchaseList,
   loginPackage,
+  purchaseOtomeChoice,
   purchaseSingleNovelProduct,
   requestNovelPackageReceiveAllMail,
   requestNovelPackageReceiveSingleMail,
@@ -2057,6 +2058,7 @@ export const clientHome = (req, res) => {
     requestWaitingEpisodeWithAD(req, res);
   //능력치 추가
   else if (func === "purchaseSelection") purchaseSelection(req, res);
+  else if (func === "purchaseOtomeChoice") purchaseOtomeChoice(req, res);
   else if (func === "requestRemoveCurrentAD") requestRemoveCurrentAD(req, res);
   else if (func === "resetPlayingEpisode") resetPlayingEpisode(req, res);
   //과금 선택지 구매
