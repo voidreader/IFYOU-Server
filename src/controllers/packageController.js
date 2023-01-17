@@ -57,6 +57,12 @@ AND a.expire_date > now()
 ORDER BY a.mail_no desc;
 `;
 
+const QUERY_CONSUME_ENERGY = `
+UPDATE table_account
+   SET energy = ?
+ WHERE userkey = ?;
+`;
+
 const getRandomPIN = () => {
   return Math.random().toString(36).substr(2, 4).toUpperCase();
 };
@@ -1018,3 +1024,110 @@ export const requestPackageStoryInfo = async (req, res) => {
   // 응답
   respondSuccess(res, storyInfo);
 }; // ? requestPackageStoryInfo
+
+export const purchaseOtomeChoice = async (req, res) => {
+  logger.info(`purchaseOtomeChoice : ${JSON.stringify(req.body)}`);
+
+  const {
+    body: {
+      userkey,
+      project_id,
+      episode_id,
+      selection_group,
+      selection_no,
+      price = 0,
+      lang = "KO",
+    },
+  } = req;
+
+  let hasPurchaseHistory = false;
+  let energy = 0;
+  let realPrice = price;
+
+  const responseData = {};
+
+  if (price <= 0) {
+    logger.error(`purchaseOtomeChoice error in price [${userkey}]`);
+    respondFail(res, {}, "price", 80019);
+    return;
+  }
+
+  const historyCheckResult = await DB(`
+  SELECT a.userkey 
+  FROM user_selection_purchase a
+ WHERE a.userkey = ${userkey}
+   AND a.project_id = ${project_id}
+   AND a.episode_id = ${episode_id}
+   AND a.selection_group = ${selection_group}
+   AND a.selection_no  = ${selection_no};
+  `);
+
+  // 히스토리 체크
+  if (historyCheckResult.state && historyCheckResult.row.length > 0) {
+    hasPurchaseHistory = true;
+    realPrice = 0;
+  }
+
+  energy = await getUserEnergy(userkey);
+  if (energy < price) {
+    logger.error(`not enough energy ${energy}`);
+    respondFail(res, {}, "no energy", 80019);
+    return;
+  }
+
+  // 입력 쿼리 생성
+  let currentQuery = ``;
+  let finalEnergy = 0;
+
+  finalEnergy = energy - realPrice;
+
+  // 신규 구매만 처리한다.
+  if (!hasPurchaseHistory) {
+    //
+    currentQuery += mysql.format(
+      `INSERT INTO user_selection_purchase(userkey, project_id, episode_id, selection_group, selection_no, price) 
+      VALUES(?, ?, ?, ?, ?, ?);`,
+      [
+        userkey,
+        project_id,
+        episode_id,
+        selection_group,
+        selection_no,
+        realPrice,
+      ]
+    );
+
+    currentQuery += mysql.format(QUERY_CONSUME_ENERGY, [finalEnergy, userkey]);
+
+    const updateResult = await transactionDB(currentQuery);
+    if (!updateResult.state) {
+      logger.error(`purchaseOtomeChoice [${updateResult.error}]`);
+      respondFail(res, {}, "error", 80019);
+      return;
+    }
+  } // ?
+
+  // 구매내역 전달
+  const result = await DB(
+    `
+    SELECT episode_id
+    , selection_group
+    , selection_no
+    , price 
+    FROM user_selection_purchase
+    WHERE userkey = ? 
+    AND project_id = ? 
+    AND episode_id = ? 
+    ORDER BY selection_group, selection_no;
+    `,
+    [userkey, project_id, episode_id]
+  );
+
+  responseData.list = result.row;
+  responseData.energy = finalEnergy;
+
+  res.status(200).json(responseData);
+
+  // 로그 추가
+  logAction(userkey, "paid_selection", req.body);
+};
