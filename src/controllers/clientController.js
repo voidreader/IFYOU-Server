@@ -228,6 +228,7 @@ import {
   requestNovelPackageReceiveAllMail,
   requestNovelPackageReceiveSingleMail,
   requestPackageStoryInfo,
+  resetOtomeGameProgress,
   spendEnergyByChoice,
 } from "./packageController";
 import { initializeClient } from "../com/centralControll";
@@ -1875,27 +1876,62 @@ const requestOfferwallCredit = async (req, res) => {
 // clientHome에서 func에 따라 분배
 // controller에서 또다시 controller로 보내는것이 옳을까..? ㅠㅠ
 export const clientHome = (req, res) => {
-  console.log(req.body);
+  // console.log(req.body);
   const { func } = req.body;
+
+  if (!func) {
+    logger.error(`no func ${JSON.stringify(req.body)}`);
+    respondFail(req, {}, "no func", 80019);
+    return;
+  }
+
+  switch (func) {
+    case "startEpisodePlay":
+      startEpisodePlay(req, res);
+      break;
+
+    case "loginClient":
+      loginClient(req, res);
+      break;
+
+    case "loginPackage":
+      loginPackage(req, res);
+      break;
+
+    case "loginSinglePackage":
+      loginPackage(req, res);
+      break;
+    case "getPackageProject":
+      getPackageProject(req, res);
+      break;
+    case "getUserSelectedStory":
+      getUserSelectedStory(req, res);
+      break;
+    case "requestPackageStoryInfo":
+      requestPackageStoryInfo(req, res);
+      break;
+    case "clearUserEpisodeSceneHistory":
+      clearUserEpisodeSceneProgress(req, res);
+      break;
+    case "updateUserEpisodeSceneHistory":
+      insertUserEpisodeSceneHistory(req, res);
+      break;
+    case "updateUserEpisodeSceneRecord":
+      updateUserSceneRecord(req, res);
+      break;
+    case "updateUserProjectSceneHist":
+      updateUserProjectSceneHist(req, res);
+      break;
+    case "resetOtomeGameProgress":
+      resetOtomeGameProgress(req, res);
+      break;
+
+    default:
+      break;
+  }
 
   // 스크립트 전체 행 조회
   if (func === "getEpisodeScript") getEpisodeScriptWithResources(req, res);
-  else if (func === "startEpisodePlay") startEpisodePlay(req, res);
-  else if (func === "loginClient") loginClient(req, res);
-  else if (func === "loginPackage") loginPackage(req, res);
-  else if (func === "loginSinglePackage") loginPackage(req, res);
-  else if (func === "getPackageProject") getPackageProject(req, res);
-  else if (func === "getUserSelectedStory") getUserSelectedStory(req, res);
-  else if (func === "requestPackageStoryInfo")
-    requestPackageStoryInfo(req, res);
-  else if (func === "clearUserEpisodeSceneHistory")
-    clearUserEpisodeSceneProgress(req, res);
-  else if (func === "updateUserEpisodeSceneHistory")
-    insertUserEpisodeSceneHistory(req, res);
-  else if (func === "updateUserEpisodeSceneRecord")
-    updateUserSceneRecord(req, res);
-  else if (func === "updateUserProjectSceneHist")
-    updateUserProjectSceneHist(req, res);
   else if (func === "updateUserIllustHistory")
     updateUserIllustHistory(req, res);
   else if (func === "updateUserMissionHistory")

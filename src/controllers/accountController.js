@@ -378,7 +378,7 @@ const getUserProjectDressProgress = async (userInfo) => {
 //////////////////////////// 의상 정보 관련 처리 끝 ///////////////////////////////////////
 
 // 유저 에피소드 상황 History
-const getUserEpisodeSceneProgress = async (userInfo) => {
+export const getUserEpisodeSceneProgress = async (userInfo) => {
   const result = await DB(Q_USER_EPISODE_SCENE_PROGRESS, [
     userInfo.userkey,
     userInfo.project_id,
@@ -1164,7 +1164,7 @@ const requestProjectMainThumbnail = async (userInfo) => {
 };
 
 // 유저 에피소드 진행도 조회
-const getUserEpisodeProgress = async (userInfo) => {
+export const getUserEpisodeProgress = async (userInfo) => {
   const result = await DB(
     `SELECT a.episode_id
   FROM user_episode_progress a 
