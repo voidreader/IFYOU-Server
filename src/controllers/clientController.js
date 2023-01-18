@@ -1888,43 +1888,43 @@ export const clientHome = (req, res) => {
   switch (func) {
     case "startEpisodePlay":
       startEpisodePlay(req, res);
-      break;
+      return;
 
     case "loginClient":
       loginClient(req, res);
-      break;
+      return;
 
     case "loginPackage":
       loginPackage(req, res);
-      break;
+      return;
 
     case "loginSinglePackage":
       loginPackage(req, res);
-      break;
+      return;
     case "getPackageProject":
       getPackageProject(req, res);
-      break;
+      return;
     case "getUserSelectedStory":
       getUserSelectedStory(req, res);
-      break;
+      return;
     case "requestPackageStoryInfo":
       requestPackageStoryInfo(req, res);
-      break;
+      return;
     case "clearUserEpisodeSceneHistory":
       clearUserEpisodeSceneProgress(req, res);
-      break;
+      return;
     case "updateUserEpisodeSceneHistory":
       insertUserEpisodeSceneHistory(req, res);
-      break;
+      return;
     case "updateUserEpisodeSceneRecord":
       updateUserSceneRecord(req, res);
-      break;
+      return;
     case "updateUserProjectSceneHist":
       updateUserProjectSceneHist(req, res);
-      break;
+      return;
     case "resetOtomeGameProgress":
       resetOtomeGameProgress(req, res);
-      break;
+      return;
 
     default:
       break;
