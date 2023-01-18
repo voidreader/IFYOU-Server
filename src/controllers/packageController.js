@@ -21,10 +21,13 @@ import {
   arrangeBubbleSet,
   getUserStorySelectionHistory,
   getOtomeProjectResources,
+  getUserEpisodeProgress,
+  getUserEpisodeSceneProgress,
 } from "./accountController";
 import { cache } from "../init";
 import { getUserVoiceHistory } from "./soundController";
 import {
+  createQueryResetAbility,
   getOtomeProfileLines,
   getUserProjectAbilityCurrent,
   getUserStoryAbilityRawList,
@@ -1131,3 +1134,49 @@ export const purchaseOtomeChoice = async (req, res) => {
   // 로그 추가
   logAction(userkey, "paid_selection", req.body);
 };
+
+// * 오토메 게임 리셋
+export const resetOtomeGameProgress = async (req, res) => {
+  logger.info(`resetOtomeGameProgress [${JSON.stringify(req.body)}]`);
+
+  const {
+    body: { userkey, project_id, episodeID },
+  } = req;
+
+  //능력치 리셋 쿼리 가져오기
+  const abilityResetQuery = await createQueryResetAbility({
+    userkey,
+    project_id,
+    episode_id: episodeID,
+  });
+
+  // 리셋 처리 시작 !!
+  const resetResult = await transactionDB(
+    `
+    CALL sp_reset_user_episode_progress(?, ?, ?);
+    ${abilityResetQuery}
+    `,
+    [userkey, project_id, episodeID]
+  );
+
+  if (!resetResult.state) {
+    logger.error(`resetUserEpisodeProgressType2 Error 1 ${resetResult.error}`);
+    respondFail(res, {}, "error in reset", 80019);
+    return;
+  }
+
+  const responseData = {};
+  responseData.episodeProgress = await getUserEpisodeProgress(req.body); // * 유저 에피소드 진행도
+  responseData.sceneProgress = await getUserEpisodeSceneProgress(req.body); // * 유저 사건ID 진행도
+  responseData.projectCurrent = await getUserProjectCurrent(req.body);
+  responseData.selectionProgress = await getUserProjectSelectionProgress(
+    req.body
+  ); // 프로젝트 선택지 Progress
+
+  // 능력치 2개 추가
+  responseData.ability = await getUserProjectAbilityCurrent(req.body);
+  responseData.rawStoryAbility = await getUserStoryAbilityRawList(req.body);
+
+  respondSuccess(res, responseData);
+  logAction(userkey, "reset_progress", req.body);
+}; // ? END resetOtomeGameProgress
