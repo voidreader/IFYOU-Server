@@ -899,7 +899,40 @@ export const checkDailyEnergy = async (req, res) => {
   responseData.energy = await getUserEnergy(userkey);
 
   respondSuccess(res, responseData);
-};
+}; // ? requestNovelPackageReceiveAllMail END
+
+// * 오토메 아이템 정보 조회
+export const getOtomeItems = async (userkey, project_id) => {
+  const responseData = {};
+
+  const itemQueryResult = await DB(`
+  SELECT a.currency
+      , a.local_code
+      , fn_get_design_info(a.icon_image_id, 'url') icon_url
+      , fn_get_design_info(a.icon_image_id, 'key') icon_key
+      , a.is_ability 
+      , a.model_id 
+      , fn_get_model_speaker(a.model_id) speaker
+      , ccp.product_type 
+      , ccp.connected_bg 
+      , ifnull(bg.image_name, '') connected_bg_name
+      , ifnull(cca.ability_id, -1) ability_id
+      , ifnull(cca.add_value, 0) add_value
+      , fn_get_user_property(${userkey}, a.currency) hasCurrency
+    FROM com_currency a
+      LEFT OUTER JOIN com_currency_ability cca ON cca.currency = a.currency 
+    LEFT OUTER JOIN com_ability ca ON ca.ability_id = cca.ability_id
+      , com_coin_product ccp
+      LEFT OUTER JOIN list_bg bg ON bg.bg_id = ccp.connected_bg 
+    WHERE a.connected_project = ${project_id}
+    AND a.currency_type = 'standing'
+    AND ccp.currency = a.currency 
+    AND ccp.is_public  > 0
+    ORDER BY a.sortkey;
+  `);
+
+  return itemQueryResult.row;
+}; // ?
 
 // * 패키지 작품의 상세 정보 가져오기
 export const requestPackageStoryInfo = async (req, res) => {
@@ -985,9 +1018,10 @@ export const requestPackageStoryInfo = async (req, res) => {
     storyInfo.bubbleSet = arrangeBubbleSet(allBubbleSet);
   } // ? 말풍선 상세정보 끝
 
+  storyInfo.items = await getOtomeItems(userInfo.userkey, userInfo.project_id); //
   storyInfo.ability = await getUserProjectAbilityCurrent(userInfo); //유저의 현재 능력치 정보
   storyInfo.rawStoryAbility = await getUserStoryAbilityRawList(req.body); // 스토리에서 획득한 능력치 Raw 리스트
-  storyInfo.profileLine = await getOtomeProfileLines(userInfo);
+  storyInfo.profileLine = await getOtomeProfileLines(userInfo); // 캐릭터별 프로필 대사 정보
   storyInfo.selectionPurchase = await getUserSelectionPurchaseInfo(userInfo); // 과금 선택지 정보
   storyInfo.selectionHistory = await getUserStorySelectionHistory(req.body); // 선택지 히스토리
 
