@@ -901,6 +901,46 @@ export const checkDailyEnergy = async (req, res) => {
   respondSuccess(res, responseData);
 }; // ? requestNovelPackageReceiveAllMail END
 
+// * 오토메 유저 의상 커스텀 세팅 정보
+const getUserDress = async (userkey, project_id) => {
+  if (project_id != 142) return [];
+
+  const userDressResult = await DB(`
+  SELECT upd.speaker
+       , upd.current_currency
+       , upd.is_main
+   FROM user_project_dress upd 
+  WHERE upd.project_id = ${project_id}
+    AND upd.userkey = ${userkey};
+  `);
+
+  // 프로젝트에 유저 데이터가 없는 경우 디폴트 데이터 입력 처리
+  if (userDressResult.row.length <= 0) {
+    // 입력처리 (프로젝트마다..)
+    if (project_id == 142) {
+      await DB(`
+      INSERT INTO user_project_dress (userkey, project_id, speaker, current_currency, is_main, default_dress_id) 
+      VALUES (${userkey}, ${project_id}, '디비', 'error_db_base', 1, -1);
+      `);
+
+      const userDressResult2 = await DB(`
+      SELECT upd.speaker
+           , upd.current_currency
+           , upd.is_main
+       FROM user_project_dress upd 
+      WHERE upd.project_id = ${project_id}
+        AND upd.userkey = ${userkey};
+      `);
+
+      return userDressResult2.row;
+    } else {
+      return [];
+    }
+  } else {
+    return userDressResult.row;
+  }
+}; // ? END getUserDress
+
 // * 오토메 아이템 정보 조회
 export const getOtomeItems = async (userkey, project_id) => {
   const responseData = {};
@@ -919,6 +959,7 @@ export const getOtomeItems = async (userkey, project_id) => {
       , ifnull(cca.ability_id, -1) ability_id
       , ifnull(cca.add_value, 0) add_value
       , fn_get_user_property(${userkey}, a.currency) hasCurrency
+      , fn_get_currency_model_name('standing', ${project_id}, a.model_id) origin_model_name
     FROM com_currency a
       LEFT OUTER JOIN com_currency_ability cca ON cca.currency = a.currency 
     LEFT OUTER JOIN com_ability ca ON ca.ability_id = cca.ability_id
@@ -930,6 +971,8 @@ export const getOtomeItems = async (userkey, project_id) => {
     AND ccp.is_public  > 0
     ORDER BY a.sortkey;
   `);
+
+  // product_type = 'free' 인 아이템중에 없는 것을 입력해줘야한다.??
 
   return itemQueryResult.row;
 }; // ?
@@ -1019,6 +1062,11 @@ export const requestPackageStoryInfo = async (req, res) => {
   } // ? 말풍선 상세정보 끝
 
   storyInfo.items = await getOtomeItems(userInfo.userkey, userInfo.project_id); //
+  storyInfo.dressCustom = await getUserDress(
+    userInfo.userkey,
+    userInfo.project_id
+  );
+
   storyInfo.ability = await getUserProjectAbilityCurrent(userInfo); //유저의 현재 능력치 정보
   storyInfo.rawStoryAbility = await getUserStoryAbilityRawList(req.body); // 스토리에서 획득한 능력치 Raw 리스트
   storyInfo.profileLine = await getOtomeProfileLines(userInfo); // 캐릭터별 프로필 대사 정보
