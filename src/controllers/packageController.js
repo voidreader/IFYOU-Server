@@ -941,6 +941,22 @@ const getUserDress = async (userkey, project_id) => {
   }
 }; // ? END getUserDress
 
+// * 오토메 유저 의상 커스텀 세팅 정보
+const getOtomeUserDress = async (userkey, project_id) => {
+  const userDressResult = await DB(`
+  SELECT upd.speaker
+       , upd.current_currency
+       , upd.is_main
+   FROM user_project_dress upd 
+  WHERE upd.project_id = ${project_id}
+    AND upd.userkey = ${userkey};
+  `);
+
+  if (!userDressResult.state) return [];
+
+  return userDressResult.row;
+}; // ? END getUserDress
+
 // * 오토메 아이템 정보 조회
 export const getOtomeItems = async (userkey, project_id) => {
   const responseData = {};
@@ -1062,7 +1078,7 @@ export const requestPackageStoryInfo = async (req, res) => {
   } // ? 말풍선 상세정보 끝
 
   storyInfo.items = await getOtomeItems(userInfo.userkey, userInfo.project_id); //
-  storyInfo.dressCustom = await getUserDress(
+  storyInfo.dressCustom = await getOtomeUserDress(
     userInfo.userkey,
     userInfo.project_id
   );
