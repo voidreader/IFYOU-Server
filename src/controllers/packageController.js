@@ -33,6 +33,7 @@ import {
   getUserStoryAbilityRawList,
 } from "./abilityController";
 import { getUserSelectionPurchaseInfo } from "./selectionController";
+import { requestReceiveSingleMail } from "./mailController";
 
 // 유저 미수신 메일 리스트(만료일 지나지 않은 것들)
 const QUERY_NOVEL_USER_UNREAD_MAIL_LIST = `
@@ -956,6 +957,61 @@ const getOtomeUserDress = async (userkey, project_id) => {
 
   return userDressResult.row;
 }; // ? END getUserDress
+
+// * 오토메 캐릭터의 의상 체인지
+export const updateChangeOtomeDress = async (req, res) => {
+  const {
+    body: { userkey, project_id, speaker, currency },
+  } = req;
+
+  const result = await DB(`
+  UPDATE user_project_dress 
+  SET current_currency = '${currency}'
+ WHERE userkey = ${userkey}
+   AND project_id = ${project_id}
+   AND speaker  = '${speaker}';
+  `);
+
+  if (!result.state) {
+    respondFail(res, {}, `updateChangeOtomeDress`, 80019);
+    return;
+  }
+
+  respondSuccess(res, {});
+};
+
+// * 오토메 작품의 메인 의상 캐릭터 설정
+export const updateMainOtomeDress = async (req, res) => {
+  const {
+    body: { userkey, project_id, speaker },
+  } = req;
+
+  let query = ``;
+  query += `
+  UPDATE user_project_dress 
+   SET is_main = 0
+ WHERE userkey = ${userkey}
+   AND project_id = ${project_id};
+   `;
+  query += `
+  UPDATE user_project_dress
+   SET is_main = 1
+ WHERE userkey = ${userkey}
+   AND project_id = ${project_id}
+   AND speaker  = '${speaker}'; 
+   `;
+
+  const result = await transactionDB(query);
+
+  if (!result.state) {
+    logger.error(`updateMainOtomeDress ${JSON.stringify(result.error)}`);
+    respondFail(res, {}, "error", 80019);
+  }
+
+  const responseData = {};
+  responseData.dressCustom = await getOtomeUserDress(userkey, project_id);
+  respondSuccess(res, responseData);
+};
 
 // * 오토메 아이템 정보 조회
 export const getOtomeItems = async (userkey, project_id) => {
