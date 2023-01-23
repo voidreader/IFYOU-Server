@@ -230,6 +230,8 @@ import {
   requestPackageStoryInfo,
   resetOtomeGameProgress,
   spendEnergyByChoice,
+  updateChangeOtomeDress,
+  updateMainOtomeDress,
 } from "./packageController";
 import { initializeClient } from "../com/centralControll";
 
@@ -1924,6 +1926,12 @@ export const clientHome = (req, res) => {
       return;
     case "resetOtomeGameProgress":
       resetOtomeGameProgress(req, res);
+      return;
+    case "updateMainOtomeDress":
+      updateMainOtomeDress(req, res);
+      return;
+    case "updateChangeOtomeDress":
+      updateChangeOtomeDress(req, res);
       return;
 
     default:
