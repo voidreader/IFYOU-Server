@@ -977,7 +977,9 @@ export const updateChangeOtomeDress = async (req, res) => {
     return;
   }
 
-  respondSuccess(res, {});
+  const responseData = {};
+  responseData.dressCustom = await getOtomeUserDress(userkey, project_id);
+  respondSuccess(res, responseData);
 };
 
 // * 오토메 작품의 메인 의상 캐릭터 설정
