@@ -964,12 +964,12 @@ export const updateChangeOtomeDress = async (req, res) => {
     body: { userkey, project_id, speaker, currency },
   } = req;
 
+  logger.info(`updateChangeOtomeDress : ${JSON.stringify(req.body)}`);
+
   const result = await DB(`
-  UPDATE user_project_dress 
-  SET current_currency = '${currency}'
- WHERE userkey = ${userkey}
-   AND project_id = ${project_id}
-   AND speaker  = '${speaker}';
+  INSERT INTO user_project_dress (userkey, project_id, speaker, current_currency, is_main)
+  VALUES (${userkey}, ${project_id}, '${speaker}', '${currency}', 0)
+  ON DUPLICATE KEY UPDATE current_currency = '${currency}';
   `);
 
   if (!result.state) {
@@ -985,8 +985,10 @@ export const updateChangeOtomeDress = async (req, res) => {
 // * 오토메 작품의 메인 의상 캐릭터 설정
 export const updateMainOtomeDress = async (req, res) => {
   const {
-    body: { userkey, project_id, speaker },
+    body: { userkey, project_id, speaker, currency },
   } = req;
+
+  logger.info(`updateMainOtomeDress : ${JSON.stringify(req.body)}`);
 
   let query = ``;
   query += `
@@ -996,11 +998,9 @@ export const updateMainOtomeDress = async (req, res) => {
    AND project_id = ${project_id};
    `;
   query += `
-  UPDATE user_project_dress
-   SET is_main = 1
- WHERE userkey = ${userkey}
-   AND project_id = ${project_id}
-   AND speaker  = '${speaker}'; 
+  INSERT INTO user_project_dress (userkey, project_id, speaker, current_currency, is_main)
+  VALUES (${userkey}, ${project_id}, '${speaker}', '${currency}', 1)
+  ON DUPLICATE KEY UPDATE is_main = 1;
    `;
 
   const result = await transactionDB(query);
