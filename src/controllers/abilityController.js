@@ -17,12 +17,16 @@ export const getUserStoryAbilityRawList = async (userInfo) => {
      , ca.ability_id 
      , ca.ability_name
      , a.add_value 
+     , le.episode_type 
+     , le.chapter_number 
   FROM user_story_ability a
-     , com_ability ca 
+     , com_ability ca
+     , list_episode le
  WHERE a.userkey = ${userkey}
    AND a.project_id = ${project_id}
    AND ca.project_id = a.project_id 
-   AND ca.ability_id = a.ability_id ;
+   AND ca.ability_id = a.ability_id 
+   AND a.episode_id = le.episode_id ;
     `);
 
   return result.row;
@@ -56,6 +60,7 @@ export const getUserProjectAbilityCurrent = async (userInfo) => {
        , ca.profile_line_id
        , ca.profile_introduce_id 
        , 0 current_value
+       , 0 item_value
     FROM com_ability ca 
       LEFT OUTER JOIN list_nametag t ON t.speaker = ca.speaker AND t.project_id = ca.project_id
     WHERE ca.project_id = ${project_id}
@@ -140,6 +145,8 @@ export const getUserProjectAbilityCurrent = async (userInfo) => {
             responseData[item.speaker][i].current_value =
               parseInt(responseData[item.speaker][i].current_value, 10) +
               parseInt(item.current_value, 10);
+
+            responseData[item.speaker][i].item_value += item.current_value;
           }
         } // end of for
       }
