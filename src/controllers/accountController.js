@@ -569,6 +569,7 @@ export const requestMainEpisodeList = async (userInfo) => {
   , CASE WHEN ifnull(a.publish_date, '2020-01-01') > now() THEN 1 ELSE 0 END is_serial -- 
   , date_format(ifnull(a.publish_date, '2020-01-01'), '%Y-%m-%d %T') publish_date
   , ifnull(ueh.episode_id, 0) is_clear
+  , ifnull(a.speaker, '') speaker
 FROM list_episode a
 LEFT OUTER JOIN user_episode_hist ueh ON ueh.userkey = ${userInfo.userkey} AND ueh.project_id = a.project_id AND ueh.episode_id = a.episode_id
 WHERE a.project_id = ${userInfo.project_id}
@@ -789,6 +790,7 @@ export const getUserGalleryHistory = async (userInfo) => {
     , z.appear_episode
     , fn_get_episode_type(z.appear_episode) appear_episode_type
     , z.live_pair_id
+    , ifnull(z.speaker, '') speaker
   FROM (
       SELECT 'illust' illust_type
         , li.illust_id illust_id
@@ -803,6 +805,7 @@ export const getUserGalleryHistory = async (userInfo) => {
         , li.image_key
         , li.appear_episode
         , li.live_pair_id
+        , li.speaker
         , 'illust' origin_type
       FROM list_illust li
       WHERE li.project_id = ${userInfo.project_id}
@@ -822,6 +825,7 @@ export const getUserGalleryHistory = async (userInfo) => {
       , '' image_key
       , lli.appear_episode
       , -1 live_pair_id
+      , lli.speaker
       , 'live2d' origin_type
       FROM list_live_illust lli
       WHERE lli.project_id = ${userInfo.project_id}
@@ -841,6 +845,7 @@ export const getUserGalleryHistory = async (userInfo) => {
       , '' image_key
       , a.appear_episode
       , -1 live_pair_id
+      , a.speaker
       , 'live2d' origin_type
       FROM list_live_object a 
       WHERE a.project_id = ${userInfo.project_id}
@@ -860,6 +865,7 @@ export const getUserGalleryHistory = async (userInfo) => {
       , a.image_key
       , a.appear_episode
       , a.live_pair_id
+      , a.speaker
       , 'minicut' origin_type
       FROM list_minicut a 
       WHERE a.project_id = ${userInfo.project_id}
