@@ -1051,6 +1051,32 @@ export const getOtomeItems = async (userkey, project_id) => {
   return itemQueryResult.row;
 }; // ?
 
+// * 오토메 리워드 카운트 정보 가져오기
+const getOtomeRewardCount = async (userkey, project_id) => {
+  const responseData = {};
+
+  const timerResult = await DB(`
+  SELECT ifnull(sum(a.reward_count), 0) reward_count
+    FROM user_timer_reward a
+  WHERE a.userkey = ${userkey}
+    AND a.project_id = ${project_id}
+    AND a.local_receive_date BETWEEN date_format(now(), '%Y-%m-%d 00:00:00') AND concat(date_format(now(), '%Y-%m-%d 23:59:59'));
+  `);
+
+  const adResult = await DB(`
+  SELECT count(*) reward_count
+  FROM user_ad_reward a
+ WHERE a.userkey = ${userkey}
+   AND a.project_id = ${project_id}
+   AND a.local_receive_date BETWEEN date_format(now(), '%Y-%m-%d 00:00:00') AND concat(date_format(now(), '%Y-%m-%d 23:59:59'));
+  `);
+
+  responseData.ad_reward_count = adResult.row[0].reward_count;
+  responseData.timer_reward_count = timerResult.row[0].reward_count;
+
+  return responseData;
+};
+
 // * 패키지 작품의 상세 정보 가져오기
 export const requestPackageStoryInfo = async (req, res) => {
   const {
@@ -1146,6 +1172,10 @@ export const requestPackageStoryInfo = async (req, res) => {
   storyInfo.profileLine = await getOtomeProfileLines(userInfo); // 캐릭터별 프로필 대사 정보
   storyInfo.selectionPurchase = await getUserSelectionPurchaseInfo(userInfo); // 과금 선택지 정보
   storyInfo.selectionHistory = await getUserStorySelectionHistory(req.body); // 선택지 히스토리
+  storyInfo.reward = await getOtomeRewardCount(
+    userInfo.userkey,
+    userInfo.project_id
+  ); // 리워드 정보
 
   const projectResources = await getOtomeProjectResources(
     userInfo.project_id,
