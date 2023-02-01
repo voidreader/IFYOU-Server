@@ -227,9 +227,12 @@ import {
   purchaseSingleNovelProduct,
   requestNovelPackageReceiveAllMail,
   requestNovelPackageReceiveSingleMail,
+  requestOtomeAdReward,
+  requestOtomeTimerReward,
   requestPackageStoryInfo,
   resetOtomeGameProgress,
   spendEnergyByChoice,
+  updateAlterName,
   updateChangeOtomeDress,
   updateMainOtomeDress,
 } from "./packageController";
@@ -1932,6 +1935,15 @@ export const clientHome = (req, res) => {
       return;
     case "updateChangeOtomeDress":
       updateChangeOtomeDress(req, res);
+      return;
+    case "requestOtomeAdReward": // 오토메 광고 보상 요청
+      requestOtomeAdReward(req, res);
+      return;
+    case "requestOtomeTimerReward": // 오토메 타이머 보상 요청
+      requestOtomeTimerReward(req, res);
+      return;
+    case "updateAlterName": // 오토메 이름 수정
+      updateAlterName(req, res);
       return;
 
     default:
