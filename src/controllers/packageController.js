@@ -205,6 +205,7 @@ export const loginPackage = async (req, res) => {
       , ta.rate_result
       , ifyou_pass_day
       , ta.energy
+      , ifnull(ta.alter_name, '') alter_name
       FROM table_account ta 
    LEFT OUTER JOIN user_tutorial t ON t.userkey = ta.userkey
      WHERE ta.package = ?
@@ -1052,15 +1053,19 @@ export const getOtomeItems = async (userkey, project_id) => {
 }; // ?
 
 // * 오토메 리워드 카운트 정보 가져오기
-const getOtomeRewardCount = async (userkey, project_id) => {
+const getOtomeRewardCount = async (userkey, project_id, localTime) => {
   const responseData = {};
+
+  if (!localTime || localTime === "") {
+    return responseData;
+  }
 
   const timerResult = await DB(`
   SELECT ifnull(sum(a.reward_count), 0) reward_count
     FROM user_timer_reward a
   WHERE a.userkey = ${userkey}
     AND a.project_id = ${project_id}
-    AND a.local_receive_date BETWEEN date_format(now(), '%Y-%m-%d 00:00:00') AND concat(date_format(now(), '%Y-%m-%d 23:59:59'));
+    AND a.local_receive_date BETWEEN date_format('${localTime}', '%Y-%m-%d 00:00:00') AND concat(date_format('${localTime}', '%Y-%m-%d 23:59:59'));
   `);
 
   const adResult = await DB(`
@@ -1068,7 +1073,7 @@ const getOtomeRewardCount = async (userkey, project_id) => {
   FROM user_ad_reward a
  WHERE a.userkey = ${userkey}
    AND a.project_id = ${project_id}
-   AND a.local_receive_date BETWEEN date_format(now(), '%Y-%m-%d 00:00:00') AND concat(date_format(now(), '%Y-%m-%d 23:59:59'));
+   AND a.local_receive_date BETWEEN date_format('${localTime}', '%Y-%m-%d 00:00:00') AND concat(date_format('${localTime}', '%Y-%m-%d 23:59:59'));
   `);
 
   responseData.ad_reward_count = adResult.row[0].reward_count;
@@ -1086,6 +1091,7 @@ export const requestPackageStoryInfo = async (req, res) => {
       userBubbleVersion = 0,
       clientBubbleSetID = -1,
       lang = "KO",
+      localTime = "",
     },
   } = req;
 
@@ -1099,6 +1105,7 @@ export const requestPackageStoryInfo = async (req, res) => {
     userBubbleVersion,
     clientBubbleSetID,
     lang,
+    localTime,
   };
 
   // 프로젝트에 연결된 BubbleSet ID, Version 정보 추가
@@ -1174,7 +1181,8 @@ export const requestPackageStoryInfo = async (req, res) => {
   storyInfo.selectionHistory = await getUserStorySelectionHistory(req.body); // 선택지 히스토리
   storyInfo.reward = await getOtomeRewardCount(
     userInfo.userkey,
-    userInfo.project_id
+    userInfo.project_id,
+    userInfo.localTime
   ); // 리워드 정보
 
   const projectResources = await getOtomeProjectResources(
@@ -1366,3 +1374,142 @@ export const resetOtomeGameProgress = async (req, res) => {
   respondSuccess(res, responseData);
   logAction(userkey, "reset_progress", req.body);
 }; // ? END resetOtomeGameProgress
+
+// * 오토메 광고 리워드 요청
+export const requestOtomeAdReward = async (req, res) => {
+  const {
+    body: { userkey, project_id, localTime },
+  } = req;
+
+  logger.info(`requestOtomeAdReward : [${JSON.stringify(req.body)}]`);
+
+  const responseData = {};
+  let todayRewardCount = 0;
+
+  // 대상일의 광고 보상 횟수를 체크한다
+  const todayQueryResult = await slaveDB(`
+  SELECT count(*) reward_count
+  FROM user_ad_reward a
+ WHERE a.userkey = ${userkey}
+   AND a.project_id = ${project_id}
+   AND a.local_receive_date BETWEEN date_format('${localTime}', '%Y-%m-%d 00:00:00') AND concat(date_format('${localTime}', '%Y-%m-%d 23:59:59'));
+  `);
+
+  todayRewardCount = todayQueryResult.row[0].cnt;
+
+  // 광고 보상 횟수가 5회를 넘지 못하게 처리
+  if (todayRewardCount >= 5) {
+    respondFail(res, responseData, "limit ad reward", 80139);
+    return;
+  }
+
+  // 입력하고, 보상 지급 처리
+  const insertResult = await DB(`
+  INSERT INTO user_ad_reward (userkey, gem, local_receive_date, project_id)
+  VALUES (${userkey}, 6, '${localTime}', ${project_id});
+  `);
+
+  if (!insertResult.state) {
+    logger.error(
+      `requestOtomeAdReward : [${JSON.stringify(insertResult.error)}]`
+    );
+    respondFail(res, responseData, "requestOtomeAdReward", 80019);
+    return;
+  }
+
+  // 보상 지급
+  const currentEnergy = await getUserEnergy(userkey);
+  responseData.energy = currentEnergy + 6; // 6을 더해줄것.
+  responseData.addEnergy = 6;
+  respondSuccess(res, responseData);
+
+  DB(
+    `UPDATE table_account SET energy = ${responseData.energy} WHERE userkey = ${userkey};`
+  );
+}; // ? requestOtomeAdReward
+
+// * 오토메 타이머 리워드 요청
+export const requestOtomeTimerReward = async (req, res) => {
+  const {
+    body: { userkey, project_id, localTime, request_count = 0 },
+  } = req;
+
+  logger.info(`requestOtomeTimerReward : [${JSON.stringify(req.body)}]`);
+
+  const responseData = {};
+  let todayRewardCount = 0;
+
+  // 대상일의 광고 보상 횟수를 체크한다
+  const todayQueryResult = await slaveDB(`
+  SELECT ifnull(sum(a.reward_count), 0) reward_count
+    FROM user_timer_reward a
+  WHERE a.userkey = ${userkey}
+    AND a.project_id = ${project_id}
+    AND a.local_receive_date BETWEEN date_format('${localTime}', '%Y-%m-%d 00:00:00') AND concat(date_format('${localTime}', '%Y-%m-%d 23:59:59'));
+  `);
+
+  todayRewardCount = todayQueryResult.row[0].cnt;
+
+  // 6회 제한
+  if (todayRewardCount + request_count >= 6) {
+    respondFail(res, responseData, "limit timer reward", 80140);
+    return;
+  }
+
+  // 입력하고, 보상 지급 처리
+  const insertResult = await DB(`
+  INSERT INTO user_timer_reward (userkey, gem, local_receive_date, project_id, reward_count)
+  VALUES (${userkey}, ${
+    request_count * 5
+  }, '${localTime}', ${project_id}, ${request_count});
+  `);
+
+  if (!insertResult.state) {
+    logger.error(
+      `requestOtomeTimerReward : [${JSON.stringify(insertResult.error)}]`
+    );
+    respondFail(res, responseData, "requestOtomeTimerReward", 80019);
+    return;
+  }
+
+  // 보상 지급
+  const currentEnergy = await getUserEnergy(userkey);
+  responseData.energy = currentEnergy + request_count * 5;
+  responseData.addEnergy = request_count * 5;
+  responseData.addCount = request_count;
+  respondSuccess(res, responseData);
+
+  DB(
+    `UPDATE table_account SET energy = ${responseData.energy} WHERE userkey = ${userkey};`
+  );
+}; // ? requestOtomeTimerReward
+
+// * 게임 대체 이름 적용 (오토메)
+export const updateAlterName = async (req, res) => {
+  const {
+    body: { userkey, alterName = "" },
+  } = req;
+
+  const responseData = { alterName };
+
+  // 비속어 체크
+  const checkResult = await slaveDB(`
+  SELECT cpw.prohibited_words
+    FROM com_prohibited_words cpw 
+  WHERE '${alterName}' LIKE concat('%', cpw.prohibited_words, '%');  
+  `);
+
+  if (checkResult.row.length > 0) {
+    respondFail(res, responseData, "altername", 80141);
+    return;
+  }
+
+  // update
+  DB(`
+  UPDATE table_account
+     SET alter_name = '${alterName}'
+  WHERE userkey = ${userkey};
+  `);
+
+  respondSuccess(res, responseData);
+};
