@@ -1025,6 +1025,8 @@ export const getOtomeItems = async (userkey, project_id) => {
       , a.local_code
       , fn_get_design_info(a.icon_image_id, 'url') icon_url
       , fn_get_design_info(a.icon_image_id, 'key') icon_key
+      , fn_get_design_info(a.resource_image_id, 'url') resource_url
+      , fn_get_design_info(a.resource_image_id, 'key') resource_key
       , a.is_ability 
       , a.model_id 
       , fn_get_model_speaker(a.model_id) speaker
@@ -1035,6 +1037,8 @@ export const getOtomeItems = async (userkey, project_id) => {
       , ifnull(cca.add_value, 0) add_value
       , fn_get_user_property(${userkey}, a.currency) hasCurrency
       , fn_get_currency_model_name('standing', ${project_id}, a.model_id) origin_model_name
+      , ccp.price
+      , ccp.sale_price
     FROM com_currency a
       LEFT OUTER JOIN com_currency_ability cca ON cca.currency = a.currency 
     LEFT OUTER JOIN com_ability ca ON ca.ability_id = cca.ability_id
