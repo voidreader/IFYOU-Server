@@ -1494,6 +1494,8 @@ export const updateAlterName = async (req, res) => {
     body: { userkey, alterName = "" },
   } = req;
 
+  logger.info(`updateAlterName : [${JSON.stringify(req.body)}]`);
+
   const responseData = { alterName };
 
   // 비속어 체크
@@ -1504,6 +1506,7 @@ export const updateAlterName = async (req, res) => {
   `);
 
   if (checkResult.row.length > 0) {
+    logger.info(`updateAlterName bad word!!!`);
     respondFail(res, responseData, "altername", 80141);
     return;
   }
