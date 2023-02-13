@@ -12,10 +12,6 @@ AND c.lang = ?
 ORDER BY sortkey ;
 `;
 
-export const Q_PROJECT_ENDING_COUNT = `
-SELECT count(*) cnt FROM list_episode le WHERE project_id = ? AND episode_type ='ending';
-`;
-
 // 게임베이스 연동(userkey, previous GameBase ID) 신규 계정정보 까지 불러온다.
 export const Q_CHANGE_USERKEY_GAMEBASE = `
 CALL sp_change_account_gamebase(?, ?);
@@ -440,15 +436,6 @@ SELECT a.mission_id
   WHERE a.project_id = ?;
 `;
 
-export const Q_SELECT_PROJECT_CURRENCY = `
-SELECT cc.currency
-  , fn_get_localize_text(cc.local_code, ?) origin_name
-  , cc.currency_type 
-  , cc.local_code
-  , cc.is_unique 
-  FROM com_currency cc WHERE connected_project = ?;
-`;
-
 export const Q_SELECT_SCENE_HISTORY = `
 SELECT hist.scene_id
   FROM user_scene_hist hist
@@ -501,6 +488,7 @@ LEFT OUTER JOIN user_episode_hist ueh ON ueh.userkey = ? AND ueh.project_id = a.
 WHERE a.project_id = ?
 AND a.episode_type = 'side'
 AND a.unlock_style <> 'coupon'
+AND a.dlc_id = -1
 ORDER BY a.episode_type, a.sortkey;  
 `;
 
@@ -520,88 +508,6 @@ AND a.project_id = ?
 ORDER BY first_play DESC;
 `;
 
-// 유저의 프로젝트 메인 에피소드 (CHAPTER, ENDING) 조회
-export const UQ_SELECT_USER_MAIN_EPISODE = `
-SELECT a.episode_id 
-     , a.project_id 
-     , a.episode_type
-     , TRIM(fn_get_episode_title_lang(a.episode_id, 'KO')) title 
-     , fn_check_episode_lang_exists(a.episode_id, 'KO') lang_exists
-     , a.episode_status 
-     , a.currency
-     , a.price 
-     , a.ending_type 
-     , a.depend_episode
-     , TRIM(fn_get_episode_title_lang(a.depend_episode, 'KO')) depend_episode_title
-     , a.unlock_style 
-     , ifnull(a.unlock_episodes, '') unlock_episodes
-     , ifnull(a.unlock_scenes, '') unlock_scenes 
-     , a.unlock_coupon 
-     , a.sale_price
-     , a.one_currency
-     , a.one_price
-     , a.first_reward_currency
-     , a.first_reward_quantity
-     , a.sortkey 
-     , a.chapter_number
-     , fn_check_episode_in_progress(?, a.episode_id) in_progress
-     , fn_check_episode_in_history(?, a.episode_id) in_history
-     , fn_get_design_info(a.square_image_id, 'url') title_image_url
-     , fn_get_design_info(a.square_image_id, 'key') title_image_key
-     , fn_get_design_info(a.popup_image_id, 'url') popup_image_url
-     , fn_get_design_info(a.popup_image_id, 'key') popup_image_key
-     , TRIM(fn_get_episode_summary_lang(a.episode_id, 'KO')) summary
-     , fn_get_count_scene_in_history(?, a.episode_id, 'KO', 'total') total_scene_count
-     , fn_get_count_scene_in_history(?, a.episode_id, 'KO', 'played') played_scene_count
-     , CASE WHEN a.episode_type = 'ending' THEN fn_check_user_ending(?, a.episode_id) 
-            ELSE 0 END ending_open
-FROM list_episode a
-WHERE a.project_id = ?
-  AND a.episode_type IN ('chapter', 'ending')
-ORDER BY a.episode_type, a.sortkey 
-;
-`;
-
-export const UQ_SELECT_USER_SIDE_EPISODE = `
-SELECT a.episode_id 
-     , a.project_id 
-     , a.episode_type
-     , TRIM(fn_get_episode_title_lang(a.episode_id, 'KO')) title 
-     , fn_check_episode_lang_exists(a.episode_id, 'KO') lang_exists
-     , a.episode_status 
-     , a.currency
-     , a.price 
-     , a.ending_type 
-     , a.depend_episode
-     , TRIM(fn_get_episode_title_lang(a.depend_episode, 'KO')) depend_episode_title
-     , a.unlock_style 
-     , ifnull(a.unlock_episodes, '') unlock_episodes
-     , ifnull(a.unlock_scenes, '') unlock_scenes 
-     , a.unlock_coupon 
-     , a.sale_price 
-     , a.one_currency
-     , a.one_price
-     , a.first_reward_currency
-     , a.first_reward_quantity
-     , a.sortkey 
-     , a.chapter_number
-     , 0 in_progress
-     , TRIM(fn_get_episode_title_lang(a.episode_id, 'KO')) indexed_title
-     , fn_get_design_info(a.square_image_id, 'url') title_image_url
-     , fn_get_design_info(a.square_image_id, 'key') title_image_key
-     , fn_get_design_info(a.popup_image_id, 'url') popup_image_url
-     , fn_get_design_info(a.popup_image_id, 'key') popup_image_key
-     , TRIM(fn_get_episode_summary_lang(a.episode_id, 'KO')) summary
-     , fn_get_count_scene_in_history(?, a.episode_id, 'KO', 'total') total_scene_count
-     , fn_get_count_scene_in_history(?, a.episode_id, 'KO', 'played') played_scene_count     
-     , fn_check_special_episode_open(?, a.episode_id) is_open
-FROM list_episode a
-WHERE a.project_id = ?
-  AND a.episode_type = 'side'
-ORDER BY a.episode_type, a.sortkey 
-;
-`;
-
 // 재화 획득 userkey, currency, quantity, path_code, expire
 export const UQ_ACCQUIRE_CURRENCY = `
 CALL sp_insert_user_property(?, ?, ?, ?);
@@ -610,37 +516,6 @@ CALL sp_insert_user_property(?, ?, ?, ?);
 // 재화 소모 userkey, currency, quantity, reason
 export const UQ_USE_CURRENCY = `
 CALL sp_use_user_property(?, ?, ?, ?, ?);
-`;
-
-// 연결된 대여권 티켓에 대한 이름!
-export const UQ_GET_CONNECTED_TICKET = `
-SELECT cc.currency
-  FROM com_currency cc
- WHERE cc.currency_type  = 'ticket'
-   AND cc.connected_project = ?;
-`;
-
-// 에피소드 가격 구하기
-export const UQ_GET_EPISODE_PRICE = `
-SELECT le.episode_type
-     , le.price
-     , le.sale_price 
-  FROM list_episode le
- WHERE le.episode_id = ?;
-`;
-
-export const UQ_CHECK_EPISODE_PERMANENT_PURCHASE = `
-SELECT uep.* 
-FROM user_episode_purchase uep 
-WHERE uep.userkey = ?
- AND uep.episode_id =  ?
- AND uep.permanent = 1;
-`;
-
-// 유저가 보유한 작품 1회권 개수 조회 쿼리
-export const UQ_GET_PROJECT_USER_ONETIME_COUNT = `
-SELECT fn_get_user_property(?, fn_get_project_onetime(?)) onetime_count
-FROM DUAL;
 `;
 
 // 유저의 작품과 관련된 재화 모두 조회

@@ -224,6 +224,7 @@ import {
   getPackUserPurchaseList,
   loginPackage,
   purchaseOtomeChoice,
+  purchaseOtomeItem,
   purchaseSingleNovelProduct,
   requestNovelPackageReceiveAllMail,
   requestNovelPackageReceiveSingleMail,
@@ -1944,6 +1945,9 @@ export const clientHome = (req, res) => {
       return;
     case "updateAlterName": // 오토메 이름 수정
       updateAlterName(req, res);
+      return;
+    case "purchaseOtomeItem": // 오토메 아이템 구매하기
+      purchaseOtomeItem(req, res);
       return;
 
     default:

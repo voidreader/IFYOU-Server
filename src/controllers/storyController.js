@@ -5,8 +5,6 @@ import { DB, slaveDB, transactionDB } from "../mysqldb";
 import {
   Q_SCRIPT_CHARACTER_EXPRESSION_DROPDOWN,
   Q_SELECT_PROJECT_MODEL,
-  Q_SELECT_PROJECT_SCENES_FOR_UNLOCK,
-  Q_SELECT_COUPONS_FOR_UNLOCK,
 } from "../QStore";
 import { logger } from "../logger";
 import { respond, respondRedirect, respondDB } from "../respondent";
@@ -565,110 +563,6 @@ export const getProjectModelList = async (project_id, res) => {
   res.status(200).json(result.row);
 };
 
-// 잠금해제 dropdown 용도 - 에피소드 리스트
-const getProjectEpisodsForUnlock = async (project_id, res) => {
-  const result = await DB(Q_SELECT_PROJECT_EPISODES_FOR_UNLOCK, [project_id]);
-
-  res.status(200).json(result.row);
-};
-
-// 잠금해제 dropdown 용도 - 사건ID 리스트
-const getProjectScenesForUnlock = async (project_id, res) => {
-  const result = await DB(Q_SELECT_PROJECT_SCENES_FOR_UNLOCK, [project_id]);
-
-  res.status(200).json(result.row);
-};
-
-// 잠금해제 dropdown 용도 - 쿠폰그룹
-const getCouponsForUnlock = async (project_id, res) => {
-  const result = await DB(Q_SELECT_COUPONS_FOR_UNLOCK, [project_id]);
-
-  res.status(200).json(result.row);
-};
-
-// 작품의 프로젝트 리스트 조회
-const getAdminProjectList = async (req, res) => {
-  const result = await DB(
-    `
-  SELECT a.project_id, a.title
-    FROM list_project_master a
-   ORDER BY a.sortkey;`,
-    []
-  );
-
-  if (!result.state) {
-    logger.error(`getAdminProjectList Error ${result.error}`);
-    respondDB(res, 80026, result.error);
-    return;
-  }
-
-  res.status(200).json(result.row);
-};
-
-// 어드민에서 사용하는 에피소드 단순 리스트
-const getAdminEpisodeList = async (projectID, res) => {
-  const result = await DB(
-    `
-    SELECT le.episode_id, le.title 
-    FROM list_episode le 
-   WHERE le.project_id = ?
-   ORDER BY le.episode_type, le.sortkey ;`,
-    [projectID]
-  );
-
-  if (!result.state) {
-    logger.error(`getAdminEpisodeList Error ${result.error}`);
-    respondDB(res, 80026, result.error);
-    return;
-  }
-
-  res.status(200).json(result.row);
-};
-
-// 어드민에서 사용하는 단순 사건ID 리스트
-const getAdminSceneList = async (projectID, res) => {
-  const result = await DB(
-    `
-    SELECT DISTINCT ls.scene_id , CONCAT(ls.scene_id, ' ', ls.script_data) scene_text
-  FROM list_script ls
-     , list_episode le 
- WHERE ls.project_id = ?
-   AND le.episode_id = ls.episode_id 
-   AND ls.scene_id <> ''
-   AND ls.scene_id IS NOT NULL
- ORDER BY le.episode_type , le.sortkey ;`,
-    [projectID]
-  );
-
-  if (!result.state) {
-    logger.error(`getAdminSceneList Error ${result.error}`);
-    respondDB(res, 80026, result.error);
-    return;
-  }
-
-  res.status(200).json(result.row);
-};
-
-const getAdminMissionCurrencyList = async (req, res) => {
-  const result = await DB(
-    `
-    SELECT cc.currency 
-    , cc.origin_name
-    FROM com_currency cc
-    WHERE cc.mission_reward = 1
-    ORDER BY cc.sortkey ;`,
-    []
-  );
-
-  if (!result.state) {
-    logger.error(`getAdminMissionCurrencyList Error ${result.error}`);
-    respondDB(res, 80026, result.error);
-    return;
-  }
-
-  res.status(200).json(result.row);
-};
-
 //! JE - 메인배너/썸네일/보이스배너 목록
 const getProjectImageList = async (projectID, code, res) => {
   console.log(projectID, code);
@@ -784,16 +678,6 @@ export const getCommonInfo = async (req, res) => {
     getProjectCharacterExpressionList(project_id, res);
   else if (func === "getProjectModelList") getProjectModelList(project_id, res);
   else if (func === "bubble_sprite") getBubbleSpriteCodeList(code, res);
-  else if (func === "targetProjectEpisodeUnlock")
-    getProjectEpisodsForUnlock(project_id, res);
-  else if (func === "targetProjectSceneUnlock")
-    getProjectScenesForUnlock(project_id, res);
-  else if (func === "targetCouponUnlock") getCouponsForUnlock(project_id, res);
-  else if (func === "adminProjectList") getAdminProjectList(req, res);
-  else if (func === "adminEpisodeList") getAdminEpisodeList(project_id, res);
-  else if (func === "adminSceneList") getAdminSceneList(project_id, res);
-  else if (func === "adminMissionCurrencyList")
-    getAdminMissionCurrencyList(req, res);
   else if (func === "projectImageList")
     getProjectImageList(project_id, code, res);
   else if (func === "mainLoadingList" || func === "getAllProductImageList")

@@ -508,6 +508,8 @@ export const getPackageProduct = async (req, res) => {
     body: { lang, pack },
   } = req;
 
+  logger.info(`getPackageProduct : [${JSON.stringify(req.body)}]`);
+
   const result = await slaveDB(
     `    
     SELECT a.product_master_id 
@@ -1520,3 +1522,62 @@ export const updateAlterName = async (req, res) => {
 
   respondSuccess(res, responseData);
 };
+
+// * 오토메 아이템 구매
+export const purchaseOtomeItem = async (req, res) => {
+  const {
+    body: { userkey, currency },
+  } = req;
+
+  logger.info(`purchaseOtomeItem [${JSON.stringify(req.body)}]`);
+
+  // 가격조회
+  const priceQueryResult = await slaveDB(`
+   SELECT ccp.sale_price
+      FROM com_currency cc 
+        , com_coin_product ccp 
+    WHERE cc.connected_project = 142
+      AND ccp.currency = cc.currency
+      AND ccp.currency = '${currency}';
+   `);
+
+  if (!priceQueryResult.state || priceQueryResult.row.length === 0) {
+    respondFail(
+      res,
+      {},
+      `purchaseOtomeItem 아이템 데이터 없음 [${JSON.stringify(req.body)}]`,
+      80039
+    );
+    return;
+  }
+
+  const price = priceQueryResult.row[0].sale_price;
+  let userCurrentEnergy = await getUserEnergy(userkey);
+
+  if (price > userCurrentEnergy) {
+    // 하트 부족함
+    respondFail(
+      res,
+      {},
+      `purchaseOtomeItem 하트 부족 [${JSON.stringify(req.body)}]`,
+      80142
+    );
+    return;
+  }
+
+  // 구매 처리 시작
+  const responseData = { currency };
+  userCurrentEnergy -= price;
+
+  responseData.energy = userCurrentEnergy; // 갱신된 에너지 (하트)
+  respondSuccess(res, responseData);
+
+  let processQuery = ``;
+  processQuery += `UPDATE table_account SET energy = ${userCurrentEnergy} WHERE userkey = ${userkey};`;
+  processQuery += `
+  INSERT INTO user_property (userkey, currency, quantity, current_quantity, path_code, expire_date, paid) 
+  VALUES (${userkey}, '${currency}', 1, 1, 'custom', '9999-12-31', 0);
+  `;
+
+  transactionDB(processQuery);
+}; // ? purchaseOtomeItem

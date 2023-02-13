@@ -252,16 +252,16 @@ export const addUserAbility = async (req, res) => {
 
 //! 능력치 수치 리셋 쿼리
 export const createQueryResetAbility = async (userInfo) => {
-  const { userkey, project_id, episode_id } = userInfo;
+  const { userkey, project_id, episode_id, dlc_id = -1 } = userInfo;
 
   let isMatch = false;
   let deleteQuery = ``;
 
   //에피소드 조회
-  const result = await DB(
-    `SELECT episode_id FROM list_episode WHERE project_id = ? AND episode_type = 'chapter' ORDER BY sortkey, episode_id;`,
-    [project_id]
-  );
+  const result = await slaveDB(`
+  SELECT episode_id FROM list_episode WHERE project_id = ${project_id} AND dlc_id = ${dlc_id}
+    AND episode_type = 'chapter' ORDER BY sortkey, episode_id;`);
+
   if (result.state && result.row.length > 0) {
     const currentQuery = `DELETE FROM user_story_ability WHERE userkey = ? AND project_id = ? AND episode_id = ?;`;
     // eslint-disable-next-line no-restricted-syntax
