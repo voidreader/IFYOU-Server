@@ -451,83 +451,6 @@ export const clearUserEpisodeSceneProgress = async (req, res) => {
   res.status(200).json(list);
 };
 
-// 앱에서 사용되는 사이드 에피소드 리스트
-const requestSideEpisodeList = async (userInfo) => {
-  /*
-  const sideEpisodes = await DB(UQ_SELECT_USER_SIDE_EPISODE, [
-    userInfo.userkey,
-    userInfo.userkey,
-    userInfo.userkey,
-    userInfo.project_id,
-  ]);
-  */
-
-  const sideEpisodes = await DB(
-    `
-  SELECT a.episode_id 
-  , a.project_id 
-  , a.episode_type
-  , TRIM(fn_get_episode_title_lang(a.episode_id, '${userInfo.lang}')) title 
-  , fn_check_episode_lang_exists(a.episode_id, '${userInfo.lang}') lang_exists
-  , a.episode_status 
-  , a.currency
-  , a.price 
-  , a.ending_type 
-  , a.depend_episode
-  , TRIM(fn_get_episode_title_lang(a.depend_episode, '${userInfo.lang}')) depend_episode_title
-  , a.unlock_style 
-  , ifnull(a.unlock_episodes, '') unlock_episodes
-  , ifnull(a.unlock_scenes, '') unlock_scenes 
-  , a.unlock_coupon 
-  , a.sale_price 
-  , a.one_currency
-  , a.one_price
-  , a.first_reward_currency
-  , a.first_reward_quantity
-  , a.sortkey 
-  , a.chapter_number
-  , 0 in_progress
-  , TRIM(fn_get_episode_title_lang(a.episode_id, '${userInfo.lang}')) indexed_title
-  , fn_get_design_info(a.square_image_id, 'url') title_image_url
-  , fn_get_design_info(a.square_image_id, 'key') title_image_key
-  , fn_get_design_info(a.popup_image_id, 'url') popup_image_url
-  , fn_get_design_info(a.popup_image_id, 'key') popup_image_key
-  , TRIM(fn_get_episode_summary_lang(a.episode_id, '${userInfo.lang}')) summary
-  , fn_get_count_scene_in_history(${userInfo.userkey}, a.episode_id, '${userInfo.lang}', 'total') total_scene_count
-  , fn_get_count_scene_in_history(${userInfo.userkey}, a.episode_id, '${userInfo.lang}', 'played') played_scene_count     
-  , fn_check_special_episode_open(${userInfo.userkey}, a.episode_id) is_open
-FROM list_episode a
-WHERE a.project_id = ${userInfo.project_id}
-AND a.episode_type = 'side'
-ORDER BY a.episode_type, a.sortkey;  
-  `
-  );
-
-  if (!sideEpisodes.state) {
-    logger.error(`requestSideEpisodeList Error ${sideEpisodes.error}`);
-    return [];
-  }
-
-  // ! 2021.09.01 갤러리 이미지 리소스의 첫 등장 에피소드 정보에 따라서 각 에피소드에 넣어준다.
-  /*
-  const galleryImages = await getConnectedGalleryImages(userInfo.project_id);
-
-  // 정렬된 에피소드 목록을 돌면서 연결된 갤러리 이미지를 넣어준다.
-  sideEpisodes.row.forEach((item) => {
-    item.galleryImage = []; // 빈 배열을 만들어주기!
-
-    for (let i = 0; i < galleryImages.length; i++) {
-      if (galleryImages[i].appear_episode === item.episode_id) {
-        // 첫 등장 에피소드 ID를 비교해서 일치하면 push!
-        item.galleryImage.push(galleryImages[i]); // push 해준다.
-      }
-    } //
-  });
-  */
-
-  return sideEpisodes.row;
-};
-
 // 앱에서 사용되는 메인 에피소드 리스트
 export const requestMainEpisodeList = async (userInfo) => {
   // 유저의 메인 에피소드 리스트
@@ -573,7 +496,8 @@ export const requestMainEpisodeList = async (userInfo) => {
 FROM list_episode a
 LEFT OUTER JOIN user_episode_hist ueh ON ueh.userkey = ${userInfo.userkey} AND ueh.project_id = a.project_id AND ueh.episode_id = a.episode_id
 WHERE a.project_id = ${userInfo.project_id}
-AND a.episode_type IN ('chapter', 'ending')
+  AND a.dlc_id = -1
+  AND a.episode_type IN ('chapter', 'ending')
 ORDER BY a.episode_type, a.sortkey;  
 `);
 

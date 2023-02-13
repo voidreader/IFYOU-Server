@@ -165,7 +165,7 @@ export const purchaseSelection = async (req, res) => {
 export const getUserSelectionPurchaseInfo = async (userInfo) => {
   logger.info(`getUserSelectionPurchaseInfo`);
 
-  const { userkey, project_id } = userInfo;
+  const { userkey, project_id, dlc_id = -1 } = userInfo;
 
   const responseData = {};
   const result = await DB(
@@ -178,6 +178,7 @@ export const getUserSelectionPurchaseInfo = async (userInfo) => {
     WHERE a.episode_id = b.episode_id 
     AND userkey = ? 
     AND a.project_id = ?
+    AND a.dlc_id = ${dlc_id}
     ORDER BY sortkey, episode_id;`,
     [userkey, project_id]
   );

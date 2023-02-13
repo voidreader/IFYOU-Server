@@ -12,6 +12,8 @@ export const respondSuccess = (res, responseData) => {
 
 // 응답을 성공형태로 보내주지만, 클라이언트에서는 실패로 처리해야하는 응답처리
 export const respondFail = (res, responseData, dev_message, textID) => {
+  logger.error(dev_message);
+
   responseData.result = 0;
   responseData.message = dev_message;
   responseData.messageID = textID;
