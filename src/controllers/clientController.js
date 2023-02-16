@@ -218,11 +218,14 @@ import {
   checkDailyEnergy,
   checkPackageVersion,
   chooseChoiceWithEnergy,
+  getDetailDLC,
   getNovelPackageUserUnreadMailList,
+  getPackageDLC,
   getPackageProduct,
   getPackageProject,
   getPackUserPurchaseList,
   loginPackage,
+  purchaseDLC,
   purchaseOtomeChoice,
   purchaseOtomeItem,
   purchaseSingleNovelProduct,
@@ -1948,6 +1951,17 @@ export const clientHome = (req, res) => {
       return;
     case "purchaseOtomeItem": // 오토메 아이템 구매하기
       purchaseOtomeItem(req, res);
+      return;
+
+    case "getPackageDLC": // 패키지 DLC 정보
+      getPackageDLC(req, res);
+      return;
+
+    case "purchaseDLC":
+      purchaseDLC(req, res);
+      return;
+    case "getDetailDLC":
+      getDetailDLC(req, res);
       return;
 
     default:
