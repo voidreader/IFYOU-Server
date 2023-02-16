@@ -67,6 +67,36 @@ UPDATE table_account
  WHERE userkey = ?;
 `;
 
+// * 유저 하트 에너지 갱신
+const updateUserEnergy = (userkey, nextEnergy) => {
+  DB(
+    `UPDATE table_account SET energy = ${nextEnergy} WHERE userkey = ${userkey};`
+  );
+};
+
+// 선택한 DLC의 위치정보 가져오기
+const getUserCurrentDLC = async (userInfo) => {
+  const result = await DB(`
+  SELECT a.project_id
+  , a.dlc_id 
+  , a.episode_id 
+  , ifnull(a.scene_id, '') scene_id
+  , ifnull(a.script_no, 0) script_no
+  , fn_check_episode_is_ending(a.episode_id) is_ending
+  , a.is_final
+  , le.chapter_number 
+  FROM user_dlc a
+     , list_episode le
+  WHERE a.userkey = ${userInfo.userkey}
+  AND a.project_id = ${userInfo.project_id}
+  AND a.dlc_id = ${userInfo.dlc_id}
+  AND le.project_id = a.project_id 
+  AND le.episode_id = a.episode_id 
+  `);
+
+  return result.row;
+};
+
 const getRandomPIN = () => {
   return Math.random().toString(36).substr(2, 4).toUpperCase();
 };
@@ -1581,3 +1611,189 @@ export const purchaseOtomeItem = async (req, res) => {
 
   transactionDB(processQuery);
 }; // ? purchaseOtomeItem
+
+// * 패키지 DLC 정보 조회
+export const getPackageDLC = async (req, res) => {
+  const {
+    body: { userkey, project_id, lang = "KO" },
+  } = req;
+
+  const responseData = {};
+  const result = await DB(`
+  SELECT a.dlc_id 
+  , a.dlc_type 
+  , a.price 
+  , a.sale_price 
+  , a.cast1 
+  , ifnull(a.cast2, '') cast2
+  , ifnull(a.cast3, '') cast3
+  , ifnull(a.cast4, '') cast4
+  , b.lang 
+  , b.dlc_title 
+  , b.dlc_summary 
+  , b.banner_id 
+  , fn_get_design_info(b.banner_id, 'url') banner_url
+  , fn_get_design_info(b.banner_id, 'key') banner_url
+  , (SELECT EXISTS (SELECT z.userkey FROM user_dlc z WHERE z.userkey = ${userkey}) FROM DUAL) has_dlc
+  FROM dlc_master a
+    , dlc_detail b
+  WHERE a.project_id = ${project_id}
+  AND b.dlc_id = a.dlc_id 
+  AND b.lang  = '${lang}'
+  ORDER BY a.dlc_id 
+  ;`);
+
+  // responseData.userDLC = await getUserCurrentDLC(req.body);
+  responseData.dlc = result.row;
+  respondSuccess(res, responseData);
+}; // ? getPackageDLC
+
+// DLC 에피소드 리스트 가져오기
+const getDLC_EpisodeList = async (userInfo) => {
+  const regularEpisodes = await slaveDB(`
+    SELECT a.episode_id 
+    , a.project_id 
+    , a.episode_type
+    , TRIM(fn_get_episode_title_lang(a.episode_id, '${userInfo.lang}')) title 
+    , fn_check_episode_lang_exists(a.episode_id, '${userInfo.lang}') lang_exists
+    , a.ending_type 
+    , a.depend_episode
+    , TRIM(fn_get_episode_title_lang(a.depend_episode, '${userInfo.lang}')) depend_episode_title
+    , a.unlock_style 
+    , ifnull(a.unlock_episodes, '') unlock_episodes
+    , ifnull(a.unlock_scenes, '') unlock_scenes 
+    , a.unlock_coupon 
+    , a.first_reward_currency
+    , a.first_reward_quantity
+    , a.sortkey 
+    , a.chapter_number
+    , fn_check_episode_in_progress(${userInfo.userkey}, a.episode_id) in_progress
+    , fn_check_episode_in_history(${userInfo.userkey}, a.episode_id) in_history
+    , TRIM(fn_get_episode_summary_lang(a.episode_id, '${userInfo.lang}')) summary
+    , fn_get_count_scene_in_history(${userInfo.userkey}, a.episode_id, '${userInfo.lang}', 'total') total_scene_count
+    , fn_get_count_scene_in_history(${userInfo.userkey}, a.episode_id, '${userInfo.lang}', 'played') played_scene_count
+    , ifnull(ueh.episode_id, 0) is_clear
+    , ifnull(a.speaker, '') speaker
+  FROM list_episode a
+  LEFT OUTER JOIN user_episode_hist ueh ON ueh.userkey = ${userInfo.userkey} AND ueh.project_id = a.project_id AND ueh.episode_id = a.episode_id
+  WHERE a.project_id = ${userInfo.project_id}
+    AND a.dlc_id = ${userInfo.dlc_id}
+    AND a.episode_type IN ('chapter', 'ending')
+  ORDER BY a.episode_type, a.chapter_number;  
+  `);
+
+  const mainEpisodes = []; // 메인 에피소드
+  const endingEpisodes = []; // 엔딩
+  const organized = []; // 정렬된
+
+  // 에피소드 type에 따라서 각 배열로 따로 정리
+  regularEpisodes.row.forEach((element) => {
+    // 에피소드 형태별 수집하기
+    if (element.episode_type === "chapter") {
+      mainEpisodes.push(element);
+    } else if (element.episode_type === "ending") {
+      element.indexed_title = `[엔딩] ${element.title}`;
+      endingEpisodes.push(element);
+    }
+  }); // 분류 끝.
+
+  let mainIndex = 1;
+  // 정규 에피소드부터 쌓기 시작한다.
+  // title은 그대로 두고 색인 타이틀 indexed_title 을 추가한다.
+  mainEpisodes.forEach((item) => {
+    item.indexed_title = `[${mainIndex}] ${item.title}`;
+    item.episode_no = mainIndex;
+    mainIndex += 1;
+
+    organized.push(item);
+
+    // ending쪽에서 연결된거 찾는다. (리스트 순서 떄문에!)
+    endingEpisodes.forEach((ending) => {
+      if (ending.depend_episode === item.episode_id) organized.push(ending);
+    });
+  }); // 메인과 연결된 엔딩 집어넣기.
+
+  // 연결되지 않은 엔딩 집어넣기
+  endingEpisodes.forEach((item) => {
+    if (item.depend_episode < 0) {
+      item.indexed_title = `[X]${item.title}`;
+      // 연결되지 않은 것만
+      organized.push(item);
+    }
+  });
+
+  return organized;
+}; // ? getDLC_EpisodeList
+
+// * DLC 디테일 정보
+export const getDetailDLC = async (req, res) => {
+  const {
+    body: { userkey, dlc_id, project_id, lang },
+  } = req;
+
+  const responseData = {};
+  responseData.userDLC = await getUserCurrentDLC(req.body); // 위치
+  responseData.dlcEpisodes = await getDLC_EpisodeList(req.body);
+
+  // DLC 에피소드 리스트 조회
+
+  respondSuccess(res, responseData); // 응답
+}; // ? getDetailDLC
+
+export const purchaseDLC = async (req, res) => {
+  const {
+    body: { userkey, dlc_id, project_id, lang },
+  } = req;
+
+  const responseData = {};
+
+  // 지정된 DLC 정보 가져온다.
+  const dlcInfoResult = await slaveDB(`
+  SELECT a.dlc_id
+       , a.dlc_type
+       , a.price
+       , a.sale_price
+    FROM dlc_master a
+  WHERE a.dlc_id = ${dlc_id};
+  `);
+
+  if (!dlcInfoResult.state || dlcInfoResult.row.length === 0) {
+    respondFail(res, {}, "DLC 정보 없음", 80019);
+    return;
+  }
+
+  const dlcType = dlcInfoResult.row[0].dlc_type;
+  const price = dlcInfoResult.row[0].sale_price;
+
+  if (dlcType == "paid" && price > 0) {
+    // 유료 DLC에 대한 재화 소모
+
+    let userEnergy = await getUserEnergy(userkey);
+
+    if (userEnergy < price) {
+      respondFail(res, {}, "재화 부족함", "80142");
+      return;
+    }
+
+    // 소모 처리
+    userEnergy -= price;
+    updateUserEnergy(userkey, userEnergy);
+
+    responseData.energy = userEnergy;
+  } // ? 유료 DLC 관련 프로세스 끝
+
+  const purchaseResult = await DB(
+    `
+  CALL sp_init_user_dlc_current(?, ?, ?);
+  `,
+    [userkey, project_id, dlc_id]
+  );
+
+  if (!purchaseResult.state) {
+    logger.error(`purchaseDLC : [${JSON.stringify(purchaseResult.error)}]`);
+    respondFail(res, {}, "sp_init_user_dlc_current 실패", 80019);
+    return;
+  }
+
+  getDetailDLC(req, res); // 여기로 넘긴다.
+};
