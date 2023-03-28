@@ -108,7 +108,7 @@ import {
   requestIfYouPass,
 } from "./shopController";
 import { getUserPropertyHistory, reportRequestError } from "./logController";
-import { useCoupon } from "./couponController";
+import { requestSingleGameCoupon, useCoupon } from "./couponController";
 import { getUserBankInfo, getUserBankInfoWithResponse } from "./bankController";
 
 import {
@@ -1894,6 +1894,7 @@ export const clientHome = (req, res) => {
     return;
   }
 
+  // func로 분류하자..!
   switch (func) {
     case "startEpisodePlay":
       startEpisodePlay(req, res);
@@ -1957,16 +1958,33 @@ export const clientHome = (req, res) => {
       getPackageDLC(req, res);
       return;
 
-    case "purchaseDLC":
+    case "purchaseDLC": // DLC 구매 (싱글 오토메)
       purchaseDLC(req, res);
       return;
-    case "getDetailDLC":
+    case "getDetailDLC": // DLC 상세 정보(싱글 오토메)
       getDetailDLC(req, res);
+      return;
+    case "useCoupon": // 이프유 플랫폼 쿠폰 사용 처리
+      useCoupon(req, res);
+      return;
+    case "requestSingleGameCoupon": // 싱글 오토메 게임 쿠폰 사용 처리
+      requestSingleGameCoupon(req, res);
+      return;
+
+    case "getSurveyMain": // 설문조사(이프유)
+      getSurveyMain(req, res);
+      return;
+    case "getSurveyDetail": // 설문조사 상세정보(이프유)
+      getSurveyDetail(req, res);
+      return;
+    case "receiveSurveyReward": // 설문조사 리워드 처리(이프유)
+      receiveSurveyReward(req, res);
       return;
 
     default:
       break;
   }
+  // else if (func === "useCoupon") useCoupon(req, res);
 
   // 스크립트 전체 행 조회
   if (func === "getEpisodeScript") getEpisodeScriptWithResources(req, res);
@@ -2023,7 +2041,6 @@ export const clientHome = (req, res) => {
     updateTutorialSelection(req, res);
   else if (func === "getUserPropertyHistory") getUserPropertyHistory(req, res);
   else if (func === "getAppCommonResources") getAppCommonResources(req, res);
-  else if (func === "useCoupon") useCoupon(req, res);
   else if (func === "reportRequestError") reportRequestError(req, res);
   else if (func === "updateWithdrawDate") updateWithdrawDate(req, res);
   else if (func === "getProjectCreditList") getProjectCreditList(req, res);
@@ -2087,9 +2104,6 @@ export const clientHome = (req, res) => {
   else if (func === "getCoinProductPurchaseList")
     getCoinProductPurchaseList(req, res);
   // 코인 재화 구매 내역
-  else if (func === "updateUserLevelProcess") updateUserLevelProcess(req, res);
-  // 레벨업 처리
-  else if (func === "getLevelList") getLevelList(req, res);
   else if (func === "insertUserProperty") insertUserProperty(req, res);
   // 레벨 리스트
   else if (func === "updateProjectLike") updateProjectLike(req, res);
@@ -2271,9 +2285,6 @@ export const clientHome = (req, res) => {
   else if (func === "refundPreviousInappStar")
     refundPreviousInappStar(req, res);
   else if (func === "refreshCacheFixedData") refreshCacheFixedData(req, res);
-  else if (func === "getSurveyMain") getSurveyMain(req, res);
-  else if (func === "getSurveyDetail") getSurveyDetail(req, res);
-  else if (func === "receiveSurveyReward") receiveSurveyReward(req, res);
   else if (func === "requestOfferwallCredit") requestOfferwallCredit(req, res);
   else if (func === "requestIfYouPass") requestIfYouPass(req, res);
   // 이프유패스 구매
