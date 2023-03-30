@@ -4,7 +4,17 @@ import { response } from "express";
 import { DB, logAction, logDB, slaveDB, transactionDB } from "../mysqldb";
 import { logger } from "../logger";
 import { respondDB, respondFail, respondSuccess } from "../respondent";
-import { Q_UPDATE_CLIENT_ACCOUNT_WITH_GAMEBASE } from "../QStore";
+import {
+  Q_SCRIPT,
+  Q_SCRIPT_RESOURCE_BG,
+  Q_SCRIPT_RESOURCE_BGM,
+  Q_SCRIPT_RESOURCE_EMOTICON,
+  Q_SCRIPT_RESOURCE_ILLUST,
+  Q_SCRIPT_RESOURCE_IMAGE,
+  Q_SCRIPT_RESOURCE_SE,
+  Q_SCRIPT_RESOURCE_VOICE,
+  Q_UPDATE_CLIENT_ACCOUNT_WITH_GAMEBASE,
+} from "../QStore";
 import {
   getUserProjectCurrent,
   getUserProjectSelectionProgress,
@@ -1796,4 +1806,123 @@ export const purchaseDLC = async (req, res) => {
   }
 
   getDetailDLC(req, res); // 여기로 넘긴다.
+}; // ? purchaseDLC
+
+// 하나의 에피소드 스크립트 및 필요한 리소스 조회
+// ! # 중요합니다!
+export const getSingleGameScriptWithResources = async (req, res) => {
+  const {
+    body: { userkey, project_id, episode_id, lang = "KO" },
+  } = req;
+
+  logger.info(
+    `getSingleGameScriptWithResources : [${JSON.stringify(req.body)}]`
+  );
+
+  if (!episode_id) {
+    respondFail(res, {}, "에피소드 ID 없음", 80030);
+    return;
+  }
+
+  const result = {}; // 결과
+
+  // 스크립트
+  const sc = await slaveDB(Q_SCRIPT, [episode_id, lang]);
+
+  console.log("script count : ", sc.row.length);
+
+  // 배경
+  const background = await slaveDB(Q_SCRIPT_RESOURCE_BG, [
+    project_id,
+    episode_id,
+    lang,
+  ]);
+
+  // 이미지
+  const image = await slaveDB(Q_SCRIPT_RESOURCE_IMAGE, [
+    project_id,
+    episode_id,
+    lang,
+  ]);
+  // 일러스트
+  const illust = await slaveDB(Q_SCRIPT_RESOURCE_ILLUST, [
+    project_id,
+    episode_id,
+    lang,
+  ]);
+  // 이모티콘
+  const emoticon = await slaveDB(Q_SCRIPT_RESOURCE_EMOTICON, [
+    project_id,
+    episode_id,
+    lang,
+  ]);
+
+  // BGM
+  const bgm = await slaveDB(Q_SCRIPT_RESOURCE_BGM, [
+    project_id,
+    episode_id,
+    lang,
+  ]);
+
+  // 음성
+  const voice = await slaveDB(Q_SCRIPT_RESOURCE_VOICE, [
+    project_id,
+    episode_id,
+    lang,
+  ]);
+
+  // 효과음
+  const se = await slaveDB(Q_SCRIPT_RESOURCE_SE, [
+    project_id,
+    episode_id,
+    lang,
+  ]);
+
+  // 현재 에피소드에서 활성화된 로딩 중 랜덤하게 하나 가져온다.
+  const loading = await slaveDB(`
+  SELECT a.loading_id
+     , a.loading_name
+     , a.image_id 
+     , fn_get_design_info(a.image_id, 'url') image_url
+     , fn_get_design_info(a.image_id, 'key') image_key
+  FROM list_loading a
+     , list_loading_appear b
+WHERE a.project_id = ${project_id}
+  AND b.loading_id = a.loading_id
+  AND b.episode_id = ${episode_id}
+  AND b.is_use = 1
+ORDER BY rand() LIMIT 1;
+  `);
+
+  result.loading = loading.row;
+  result.loadingDetail = [];
+
+  if (loading.row.length > 0) {
+    const loadingID = loading.row[0].loading_id;
+    const loadingDetail = await DB(`
+      SELECT a.detail_no
+          , a.lang 
+          , a.loading_text 
+        FROM list_loading_detail a
+      WHERE a.loading_id = ${loadingID}
+      AND a.lang = '${lang}'
+      ORDER BY rand();
+    `);
+
+    result.loadingDetail = loadingDetail.row;
+  }
+
+  result.script = sc.row;
+  result.background = background.row;
+  result.image = image.row;
+  result.illust = illust.row;
+  result.emoticon = emoticon.row;
+  result.bgm = bgm.row;
+  result.voice = voice.row;
+  result.se = se.row;
+
+  // res.status(200).send(result);
+  respondSuccess(res, result);
+
+  // logAction(userInfo.userkey, "episode_start", userInfo);
 };

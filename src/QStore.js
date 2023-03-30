@@ -335,6 +335,43 @@ WHERE ls.episode_id = ?
 ORDER BY script_no;
 `;
 
+export const Q_SCRIPT = `
+SELECT ls.script_no   
+     , ls.episode_id 
+     , ls.scene_id 
+     , ls.template 
+     , ls.speaker origin_speaker
+     , substring_index(ls.speaker, ':', 1) speaker 
+     , CASE WHEN ls.speaker IS NOT NULL AND instr(ls.speaker, ':') > 0 THEN substring_index(ls.speaker, ':', -1) 
+            WHEN ls.speaker IS NULL OR ls.speaker = '' THEN ''
+       ELSE 'C' END direction
+     , CASE WHEN ls.template = 'dress' THEN fn_get_custom_user_dress(substring_index(ls.speaker, ':', 1), ls.script_data, ls.project_id, 2332)
+            ELSE ls.script_data END script_data
+     , ls.target_scene_id
+     , ls.requisite 
+     , ls.character_expression 
+     , ls.emoticon_expression 
+     , ls.in_effect 
+     , ls.out_effect 
+     , ls.bubble_size
+     , ls.bubble_pos
+     , ls.bubble_hold
+     , ls.bubble_reverse
+     , ls.emoticon_size 
+     , ls.voice 
+     , ls.sound_effect
+     , ls.autoplay_row 
+     , ls.dev_comment
+     , ls.project_id
+     , ifnull(ls.control, '') control
+     , ls.selection_group
+     , ls.selection_no
+ FROM list_script ls
+WHERE ls.episode_id = ?
+  AND ls.lang = ?
+ORDER BY script_no;
+`;
+
 // 스크립트에서 사용하는 리소스들
 export const Q_SCRIPT_RESOURCE_BG = `
 SELECT DISTINCT lb.bg_id

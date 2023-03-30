@@ -224,6 +224,7 @@ import {
   getPackageProduct,
   getPackageProject,
   getPackUserPurchaseList,
+  getSingleGameScriptWithResources,
   loginPackage,
   purchaseDLC,
   purchaseOtomeChoice,
@@ -1896,6 +1897,10 @@ export const clientHome = (req, res) => {
 
   // func로 분류하자..!
   switch (func) {
+    case "InitializeClient": // 패키지 연동된 경우 호출
+      initializeClient(req, res);
+      return;
+
     case "startEpisodePlay":
       startEpisodePlay(req, res);
       return;
@@ -1980,16 +1985,20 @@ export const clientHome = (req, res) => {
     case "receiveSurveyReward": // 설문조사 리워드 처리(이프유)
       receiveSurveyReward(req, res);
       return;
+    case "getEpisodeScript": // 에피소드 스크립트 조회(이프유)
+      getEpisodeScriptWithResources(req, res);
+      return;
+
+    case "getSingleGameScript": // 에피소드 스크립트 조회(싱글오토메)
+      getSingleGameScriptWithResources(req, res);
+      return;
 
     default:
       break;
   }
   // else if (func === "useCoupon") useCoupon(req, res);
 
-  // 스크립트 전체 행 조회
-  if (func === "getEpisodeScript") getEpisodeScriptWithResources(req, res);
-  else if (func === "updateUserIllustHistory")
-    updateUserIllustHistory(req, res);
+  if (func === "updateUserIllustHistory") updateUserIllustHistory(req, res);
   else if (func === "updateUserMissionHistory")
     updateUserMissionHistory(req, res);
   else if (func === "updateUserEpisodePlayRecord")
