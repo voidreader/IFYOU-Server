@@ -229,6 +229,7 @@ import {
   purchaseDLC,
   purchaseOtomeChoice,
   purchaseOtomeItem,
+  purchaseOtomeProduct,
   purchaseSingleNovelProduct,
   requestNovelPackageReceiveAllMail,
   requestNovelPackageReceiveSingleMail,
@@ -1993,8 +1994,12 @@ export const clientHome = (req, res) => {
       getSingleGameScriptWithResources(req, res);
       return;
 
-    case "purchaseSingleNovelProduct": // 오토메 게임 인앱상품 구매
+    case "purchaseSingleNovelProduct": // 비주얼 노벨 게임 인앱상품 구매
       purchaseSingleNovelProduct(req, res);
+      return;
+
+    case "purchaseOtomeProduct": // 오토메 게임 인앱상품 구매
+      purchaseOtomeProduct(req, res);
       return;
 
     default:

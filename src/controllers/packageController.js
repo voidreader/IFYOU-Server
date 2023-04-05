@@ -44,6 +44,7 @@ import {
 } from "./abilityController";
 import { getUserSelectionPurchaseInfo } from "./selectionController";
 import { requestReceiveSingleMail } from "./mailController";
+import { getUserUnreadMailCount } from "./clientController";
 
 // 유저 미수신 메일 리스트(만료일 지나지 않은 것들)
 const QUERY_NOVEL_USER_UNREAD_MAIL_LIST = `
@@ -1925,4 +1926,124 @@ ORDER BY rand() LIMIT 1;
   respondSuccess(res, result);
 
   // logAction(userInfo.userkey, "episode_start", userInfo);
+};
+
+// * 오토메 게임에서의 인앱상품 구매
+export const purchaseOtomeProduct = async (req, res) => {
+  const {
+    body: {
+      userkey = 0,
+      product_id = "",
+      product_master_id = 0,
+      receipt = "",
+      price = 0, // 가격
+      currency = "KRW", // 화폐
+      paymentSeq = "XXX", //  거래 식별자 1
+      purchaseToken = "XXX", // 거래 식별자 2
+      os = 0,
+      project_id,
+    },
+  } = req;
+
+  const responseData = { product_id };
+  logger.info(`purchaseOtomeProduct ${JSON.stringify(req.body)}`);
+
+  logAction(userkey, `${paymentSeq} purchase call`, {
+    product_id,
+    receipt,
+    paymentSeq,
+  });
+
+  // user_purchase 입력을 먼저 한다. purchase_no를 따야함.
+  const insertPurchase = await DB(
+    `
+  INSERT INTO user_purchase(userkey, product_id, receipt, price, product_currency, payment_seq, purchase_token, state, product_master_id) 
+  VALUES (${userkey}, ?, ?, ?, ?, ?, ?, 2, ?);
+  `,
+    [
+      product_id,
+      receipt.length > 2000 ? "" : receipt,
+      price,
+      currency,
+      paymentSeq,
+      purchaseToken,
+      product_master_id,
+    ]
+  );
+
+  if (!insertPurchase.state) {
+    logger.error(
+      `requestInappProduct : [${JSON.stringify(insertPurchase.error)}]`
+    );
+
+    respondFail(res, {}, "insertPurchase.error", 80026);
+    return;
+  }
+
+  const purchase_no = insertPurchase.row.insertId; // purchase_no 가져오기.
+
+  // 상품 구성품 가져오기
+  const productInfo = await slaveDB(
+    `
+    SELECT b.currency 
+         , b.quantity 
+         , b.first_purchase
+         , b.is_main 
+     FROM list_product_master a
+         , list_product_detail b
+     WHERE a.product_master_id = ${product_master_id}
+       AND b.master_id = a.product_master_id
+       AND b.is_main > 0
+       AND now() BETWEEN a.from_date AND a.to_date;
+  `
+  );
+
+  // 에너지 토탈 값 가져오기
+  let totalEnergy = 0;
+  productInfo.row.forEach((item) => {
+    if (item.currency === "energy") {
+      totalEnergy += parseInt(item.quantity, 10);
+    }
+  });
+
+  // 루프 돌면서 아이템 메일함 지급
+  let mailQuery = ``;
+
+  if (totalEnergy > 0) {
+    mailQuery += mysql.format(
+      `CALL sp_send_user_mail(${userkey}, ?, ?, ?, ?, 365);`,
+      ["inapp", "energy", totalEnergy, project_id]
+    );
+  }
+
+  productInfo.row.forEach((item) => {
+    if (item.currency !== "energy") {
+      mailQuery += mysql.format(
+        `CALL sp_send_user_mail(${userkey}, ?, ?, ?, ?, 365);`,
+        ["inapp", item.currency, item.quantity, project_id]
+      );
+    }
+  });
+
+  const sendMailResult = await transactionDB(mailQuery);
+
+  if (!sendMailResult.state) {
+    logger.error(sendMailResult.error);
+    respondFail(res, {}, "인앱상품 발송 실패", 80019);
+    return;
+  }
+
+  // 발송했으면,
+  responseData.unreadMailCount = await getUserUnreadMailCount(userkey); // 미수신 메일
+  responseData.userPurchaseHistory = await getPackUserPurchaseList(
+    req,
+    res,
+    false
+  );
+
+  logger.info(
+    `${paymentSeq} purchase_complete :: ${JSON.stringify(responseData)}`
+  );
+
+  respondSuccess(res, responseData);
 };
