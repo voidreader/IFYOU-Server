@@ -1993,6 +1993,10 @@ export const clientHome = (req, res) => {
       getSingleGameScriptWithResources(req, res);
       return;
 
+    case "purchaseSingleNovelProduct": // 오토메 게임 인앱상품 구매
+      purchaseSingleNovelProduct(req, res);
+      return;
+
     default:
       break;
   }
@@ -2043,8 +2047,6 @@ export const clientHome = (req, res) => {
   // 패키지 인앱 상품 조회
   else if (func === "getUserPurchaseList") getUserPurchaseList(req, res);
   else if (func === "getUserRawPurchaseList") getUserRawPurchaseList(req, res);
-  else if (func === "purchaseSingleNovelProduct")
-    purchaseSingleNovelProduct(req, res);
   else if (func === "updateTutorialStep") updateTutorialStep(req, res);
   else if (func === "updateTutorialSelection")
     updateTutorialSelection(req, res);
