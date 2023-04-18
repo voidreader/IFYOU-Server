@@ -12,7 +12,7 @@ const s3 = new aws.S3({
   secretAccessKey: process.env.AWS_SECRET_KEY,
 });
 
-const bucketName = `pierstore/assets`;
+const bucketName = `carpestore/assets`;
 const uploadFile = "uploadFile";
 
 // 파일 업로드 = multer npm 사용해야 한다.
@@ -22,7 +22,7 @@ const uploadFile = "uploadFile";
 const multerSound = multer({
   storage: multerS3({
     s3,
-    bucket: "pierstorystore/assets",
+    bucket: "carpestore/assets",
     contentType: multerS3.AUTO_CONTENT_TYPE,
     acl: "public-read",
     fileFilter(req, file, cb) {
@@ -203,7 +203,7 @@ const multerBackground = multer({
 const multerImage = multer({
   storage: multerS3({
     s3,
-    bucket: "pierstorystore/assets",
+    bucket: "carpestore/assets",
     contentType: multerS3.AUTO_CONTENT_TYPE,
     acl: "public-read",
     fileFilter(req, file, cb) {
@@ -235,7 +235,7 @@ const multerImage = multer({
 const multerBubbleImage = multer({
   storage: multerS3({
     s3,
-    bucket: "pierstorystore/assets",
+    bucket: "carpestore/assets",
     contentType: multerS3.AUTO_CONTENT_TYPE,
     acl: "public-read",
     fileFilter(req, file, cb) {
@@ -270,7 +270,7 @@ const multerBubbleImage = multer({
 const multerModelZip = multer({
   storage: multerS3({
     s3, // s3 키 정보
-    bucket: "pierstorystore/models", // 설치될 저장소, 폴더
+    bucket: "carpestore/models", // 설치될 저장소, 폴더
     contentType: multerS3.AUTO_CONTENT_TYPE,
     acl: "public-read", // 권한
 
@@ -299,7 +299,7 @@ const multerModelZip = multer({
 const multerLiveIllust = multer({
   storage: multerS3({
     s3, // s3 키 정보
-    bucket: "pierstorystore/live_illusts", // 설치될 저장소, 폴더
+    bucket: "carpestore/live_illusts", // 설치될 저장소, 폴더
     contentType: multerS3.AUTO_CONTENT_TYPE,
     acl: "public-read", // 권한
 
@@ -328,7 +328,7 @@ const multerLiveIllust = multer({
 const multerLiveObject = multer({
   storage: multerS3({
     s3, // s3 키 정보
-    bucket: "pierstorystore/live_objects", // 설치될 저장소, 폴더
+    bucket: "carpestore/live_objects", // 설치될 저장소, 폴더
     contentType: multerS3.AUTO_CONTENT_TYPE,
     acl: "public-read", // 권한
 
@@ -356,7 +356,7 @@ const multerLiveObject = multer({
 const multerComModel = multer({
   storage: multerS3({
     s3, // s3 키 정보
-    bucket: "pierstore/assets", // 설치될 저장소, 폴더
+    bucket: "carpestore/assets", // 설치될 저장소, 폴더
     contentType: multerS3.AUTO_CONTENT_TYPE,
     acl: "public-read", // 권한
 
