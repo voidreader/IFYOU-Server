@@ -23,7 +23,7 @@ export const awsAccessInfo = new aws.S3({
 });
 
 // 버킷!
-export const mainBucketName = `pierstore/assets`;
+export const mainBucketName = `carpestore/assets`;
 
 const { Translate } = require("@google-cloud/translate").v2;
 const { TranslationServiceClient } = require("@google-cloud/translate");

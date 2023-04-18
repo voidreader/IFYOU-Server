@@ -15,7 +15,7 @@ const s3 = new aws.S3({
 // S3 정리 로직..
 export const alignS3Objects = async (req, res) => {
   const awsParamas = {
-    Bucket: "pierstorystore",
+    Bucket: "carpestore",
     // Delimiter: "/",
     Prefix: "assets/",
   };
