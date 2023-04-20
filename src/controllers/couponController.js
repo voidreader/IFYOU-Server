@@ -442,3 +442,197 @@ export const requestSingleGameCoupon = async (req, res) => {
 
   respondSuccess(res, responseData);
 }; // ? requestSingleGameCoupon
+
+// * 단일게임에서의 쿠폰 사용
+export const requestSingleGameCouponFromWeb = async (req, res) => {
+  const {
+    body: { userkey, coupon_code, project_id = -1, pincode },
+  } = req;
+
+  logger.info(
+    `requestSingleGameCouponFromWeb : [${JSON.stringify(req.body)}] `
+  );
+
+  if (!userkey || !pincode) {
+    respondFail(res, {}, "유저 정보가 입력되지 않음", 6052);
+    return;
+  }
+
+  if (!coupon_code) {
+    respondFail(res, {}, "쿠폰코드가 입력되지 않음", 80053);
+    return;
+  }
+
+  if (project_id < 0) {
+    respondFail(res, {}, "프로젝트 정보가 입력되지 않음", 80039);
+    return;
+  }
+
+  // 유저의 언어 정보 필요하다.
+  const userLangResult = await slaveDB(
+    `SELECT ifnull(a.current_lang, 'KO') lang FROM table_account a WHERE a.userkey = ${userkey} and a.pincode = '${pincode}';`
+  );
+
+  logger.info(`userLangResult count : ${userLangResult.row.length}`);
+  if (userLangResult.row.length === 0) {
+    respondFail(
+      res,
+      {},
+      "UID가 올바르지 않습니다. 유저 정보를 찾을 수 없습니다",
+      80056
+    );
+    return;
+  }
+
+  const { lang } = userLangResult.row[0];
+
+  //* 쿠폰 정보 가져오기
+  const couponInfo = await slaveDB(
+    `SELECT coupon_id
+    , coupon_type
+    , use_limit
+    , remain_keyword_count
+    , a.unlock_dlc_id
+    FROM com_coupon_master a
+    WHERE ( keyword = '${coupon_code}' OR ( SELECT EXISTS (SELECT * FROM com_coupon_serial WHERE coupon_id = a.coupon_id AND serial = '${coupon_code}') > 0 ) ) 
+    AND now() BETWEEN start_date AND end_date
+    AND a.project_id = ${project_id}
+    ;
+    `,
+    [coupon_code, coupon_code]
+  );
+
+  if (couponInfo.row.length === 0) {
+    respondFail(res, {}, "쿠폰 정보가 없습니다.", 80053);
+    return;
+  }
+
+  const {
+    coupon_id,
+    coupon_type,
+    use_limit,
+    remain_keyword_count,
+    unlock_dlc_id,
+  } = couponInfo.row[0];
+
+  // * 대상 유저의 사용건수, 쿠폰 사용여부 확인하기.
+  const userLimit = await DB(
+    `SELECT * FROM user_coupon WHERE userkey = ${userkey} AND coupon_id = ${coupon_id};`
+  );
+
+  // 사용횟수 체크
+  if (userLimit.row.length >= parseInt(use_limit, 10)) {
+    respondFail(res, {}, "쿠폰 사용 횟수 초과", 80054);
+    return;
+  }
+
+  // 마감과 사용횟수 체크
+  if (coupon_type === "keyword") {
+    //* 쿠폰 초과 사용 확인
+    if (parseInt(remain_keyword_count, 10) <= 0) {
+      respondFail(res, {}, "마감된 쿠폰입니다", 80055);
+      return;
+    }
+  } else {
+    //* 쿠폰 사용 확인(동일 시리얼 번호)
+    const usedCoupon = await slaveDB(
+      `SELECT * FROM user_coupon WHERE coupon_id = ${coupon_id} AND coupon_code = '${coupon_code}';`
+    );
+
+    if (usedCoupon.row.length > 0) {
+      respondFail(res, {}, "이미 사용된 쿠폰입니다", 80052);
+      return;
+    }
+  }
+
+  logger.info(
+    `requestSingleGameCouponFromWeb ${project_id}/${userkey}/${lang}/${coupon_id}/${coupon_code}`
+  );
+
+  // * 재화 정보 및 해금 DLC 정보
+  // 재화 정보
+  const couponCurrency = await slaveDB(
+    `SELECT a.currency, a.quantity 
+          , cc.connected_project
+      FROM com_coupon_reward a
+          , com_currency cc
+      WHERE coupon_id = ${coupon_id}
+        AND cc.currency = a.currency;`
+  );
+
+  // DLC 정보
+  const couponDLC = await slaveDB(`
+  SELECT a.dlc_id 
+     , fn_get_dlc_name(a.dlc_id, '${lang}') dlc_name
+  FROM dlc_master a
+ WHERE a.project_id = ${project_id}
+   AND a.dlc_type = 'coupon'
+   AND a.dlc_id = ${unlock_dlc_id};
+  `);
+
+  // * 결과 처리 시작
+  // * 쿠폰 사용 내역 추가 및 메일 전송
+  // 재화 먼저 메일 발송
+  let insertQuery = ``;
+  let unlockDlcName = "";
+  let index = 0;
+
+  couponCurrency.row.forEach((item) => {
+    const queryParams = [];
+
+    const currentQuery = `
+        INSERT INTO user_mail(userkey, mail_type, currency, quantity, expire_date, connected_project) 
+        VALUES(?, 'coupon', ?, ?, DATE_ADD(NOW(), INTERVAL 1 YEAR), ?);
+        `;
+
+    queryParams.push(userkey);
+    queryParams.push(item.currency);
+    queryParams.push(item.quantity);
+    queryParams.push(item.connected_project); // 프리패스 때문에...
+
+    insertQuery += mysql.format(currentQuery, queryParams);
+    if (index === 0) console.log(insertQuery);
+
+    index += 1;
+  });
+
+  // 연결된 DLC가 있으면 해금처리하기
+  if (couponDLC.row.length > 0) {
+    unlockDlcName = couponDLC.row[0].dlc_name;
+
+    insertQuery += mysql.format(`CALL sp_init_user_dlc_current(?, ?, ?);`, [
+      userkey,
+      project_id,
+      unlock_dlc_id,
+    ]);
+  }
+
+  //* 키워드일 경우, remain_keyword_count 업데이트 추가
+  let updateQuery = ``;
+  if (coupon_type === "keyword") {
+    const keywordQuery = `UPDATE com_coupon_master SET remain_keyword_count = remain_keyword_count-1 WHERE coupon_id = ?;`;
+    updateQuery = mysql.format(keywordQuery, coupon_id);
+  }
+
+  const result = await transactionDB(
+    `
+  INSERT INTO user_coupon(userkey, coupon_id, coupon_code) VALUES(?, ?, ?);
+  ${updateQuery}
+  ${insertQuery}
+  `,
+    [userkey, coupon_id, coupon_code]
+  );
+
+  if (!result.state) {
+    logger.error(`useCoupon Error 13 ${result.error}`);
+    respondFail(res, {}, "처리 중 오류", 80026);
+    return;
+  }
+
+  // * 안읽은 메일 건수 전달
+  const unreadMailCount = await getUserUnreadMailCount(userkey);
+  const responseData = { unreadMailCount };
+  responseData.dlcName = unlockDlcName;
+
+  respondSuccess(res, responseData);
+}; // ? requestSingleGameCouponFromWeb

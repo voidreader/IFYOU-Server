@@ -108,7 +108,11 @@ import {
   requestIfYouPass,
 } from "./shopController";
 import { getUserPropertyHistory, reportRequestError } from "./logController";
-import { requestSingleGameCoupon, useCoupon } from "./couponController";
+import {
+  requestSingleGameCoupon,
+  requestSingleGameCouponFromWeb,
+  useCoupon,
+} from "./couponController";
 import { getUserBankInfo, getUserBankInfoWithResponse } from "./bankController";
 
 import {
@@ -1975,6 +1979,9 @@ export const clientHome = (req, res) => {
       return;
     case "requestSingleGameCoupon": // 싱글 오토메 게임 쿠폰 사용 처리
       requestSingleGameCoupon(req, res);
+      return;
+    case "requestSingleGameCouponFromWeb": // 싱글 오토메 게임 쿠폰 사용 처리(웹페이지)
+      requestSingleGameCouponFromWeb(req, res);
       return;
 
     case "getSurveyMain": // 설문조사(이프유)
