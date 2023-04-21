@@ -2009,6 +2009,10 @@ export const clientHome = (req, res) => {
       purchaseOtomeProduct(req, res);
       return;
 
+    case "getPackageProduct": // 단일 게임 패키지 조회
+      getPackageProduct(req, res);
+      return;
+
     default:
       break;
   }
@@ -2055,8 +2059,6 @@ export const clientHome = (req, res) => {
   else if (func === "updateSelectionProgress")
     updateSelectionProgress(req, res);
   else if (func === "getAllProductList") getAllProductList(req, res);
-  else if (func === "getPackageProduct") getPackageProduct(req, res);
-  // 패키지 인앱 상품 조회
   else if (func === "getUserPurchaseList") getUserPurchaseList(req, res);
   else if (func === "getUserRawPurchaseList") getUserRawPurchaseList(req, res);
   else if (func === "updateTutorialStep") updateTutorialStep(req, res);

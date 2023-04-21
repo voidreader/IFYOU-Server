@@ -793,6 +793,7 @@ export const readNovelPackageUserSingleMail = async (req, res, next) => {
   } = req;
 
   logger.info(`readPackageUserSingleMail [${JSON.stringify(req.body)}]`);
+  let updateQuery = ``;
 
   const mailInfo = await slaveDB(
     `
@@ -815,53 +816,45 @@ WHERE a.mail_no = ?
 
   if (!mailInfo.state || mailInfo.row.length === 0) {
     logger.error(`readPackageUserSingleMail Error 1 ${mailInfo.error}`);
-    respondFail(res, {}, "Invalid Mail");
+    respondFail(res, {}, "Invalid Mail", 80011);
     return;
   }
 
   const currentMail = mailInfo.row[0];
-  // 일반 메일 처리
-  // 메일에 재화가 energy만 온다.
-  if (currentMail.currency != "energy") {
-    respondFail(res, {}, "it is not energy");
-    return;
-  }
 
-  let currentEnergy = currentMail.energy;
-  let addEnergy = currentMail.quantity;
+  // 에너지(하트) , 그외 분류.
+  if (currentMail.currency === "energy") {
+    let currentEnergy = currentMail.energy;
+    const addEnergy = currentMail.quantity;
 
-  // 최대치를 넘어가지 않도록 한다.
-  if (currentEnergy < 150 && currentEnergy + addEnergy > 150) {
-    addEnergy = 150 - currentEnergy;
-    currentEnergy = 150;
-  } else if (currentEnergy + addEnergy <= 150) {
     currentEnergy += addEnergy;
-  } else {
-    addEnergy = 0;
+
+    // 에너지(하트) 업데이트
+    updateQuery += mysql.format(`UPDATE table_account
+                                  SET energy = ${currentEnergy}
+                                  WHERE userkey = ${userkey};`);
+  } // ? 에너지(하트) 종료
+  else {
+    // 그 외에는 user_property에 추가.
+    updateQuery += mysql.format(
+      `CALL sp_insert_user_property(${userkey}, '${currentMail.currency}', ${currentMail.quantity}, 'mail');`
+    );
   }
 
-  // 받는 에너지가 0이 넘을때만
-  if (addEnergy > 0) {
-    await DB(`UPDATE table_account
-                  SET energy = ${currentEnergy}
-                  WHERE userkey = ${userkey};`);
+  updateQuery += `
+  UPDATE user_mail 
+  SET is_receive = 1
+    , receive_date = now()
+  WHERE mail_no = ${mail_no};  
+  `;
 
-    // 3. 메일 수신 처리
-    const updateMail = await DB(
-      `
-          UPDATE user_mail 
-          SET is_receive = 1
-            , receive_date = now()
-          WHERE mail_no = ?;
-      `,
-      [mail_no]
+  const updateResult = await transactionDB(updateQuery);
+  if (!updateResult.state) {
+    logger.error(
+      `readNovelPackageUserSingleMail Error 3 ${updateResult.error}`
     );
-
-    if (!updateMail.state) {
-      logger.error(`readPackageUserSingleMail Error 3 ${updateMail.error}`);
-      respondFail(res, {}, "fail receive");
-      return;
-    }
+    respondFail(res, {}, "fail receive", 80012);
+    return;
   }
 
   // 다했으면 ! next 불러주세요.
