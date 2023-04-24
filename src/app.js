@@ -8,7 +8,6 @@ import bodyParser from "body-parser";
 import globalRouter from "./routers/globalRouter";
 import { logger } from "./logger";
 
-// import { localsMiddleware } from "./middlewares";
 import routes from "./routes";
 
 const app = express();
