@@ -758,6 +758,9 @@ export const getNovelPackageUserUnreadMailList = async (req, res) => {
     body: { userkey, lang = "KO" },
   } = req;
 
+  logger.info(
+    `getNovelPackageUserUnreadMailList : ${JSON.stringify(req.body)}`
+  );
   const responseData = {};
 
   // 조회 쿼리 QUERY_USER_UNREAD_MAIL_LIST
@@ -781,9 +784,11 @@ export const getNovelPackageUserUnreadMailList = async (req, res) => {
   // 에너지 업데이트
   responseData.energy = await getUserEnergy(userkey);
 
-  console.log(responseData);
+  logger.info(
+    `return getNovelPackageUserUnreadMailList : [${JSON.stringify(req.body)}]`
+  );
 
-  res.status(200).json(responseData);
+  respondSuccess(res, responseData);
 };
 
 // * 노벨 패키지 메일 실제 읽기 처리하기!
