@@ -224,6 +224,7 @@ import {
   chooseChoiceWithEnergy,
   getDetailDLC,
   getNovelPackageUserUnreadMailList,
+  getOtomeEpisodeAdRewardExists,
   getPackageDLC,
   getPackageProduct,
   getPackageProject,
@@ -238,6 +239,7 @@ import {
   requestNovelPackageReceiveAllMail,
   requestNovelPackageReceiveSingleMail,
   requestOtomeAdReward,
+  requestOtomeEpisodeClearAdReward,
   requestOtomeTimerReward,
   requestPackageStoryInfo,
   resetOtomeGameProgress,
@@ -2011,6 +2013,14 @@ export const clientHome = (req, res) => {
 
     case "getPackageProduct": // 단일 게임 패키지 조회
       getPackageProduct(req, res);
+      return;
+
+    case "getOtomeEpisodeAdRewardExists": // 오토메 에피소드 클리어 광고보상 유무 체크
+      getOtomeEpisodeAdRewardExists(req, res);
+      return;
+
+    case "requestOtomeEpisodeClearAdReward": // 오토메 에피소드 클리어 광고보상 요청
+      requestOtomeEpisodeClearAdReward(req, res);
       return;
 
     default:

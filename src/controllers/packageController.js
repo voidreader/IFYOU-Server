@@ -2046,3 +2046,58 @@ export const purchaseOtomeProduct = async (req, res) => {
 
   respondSuccess(res, responseData);
 };
+
+// * 오토메 에피소드 클리어 광고보상 유무 체크
+export const getOtomeEpisodeAdRewardExists = async (req, res) => {
+  const {
+    body: { userkey, episode_id, project_id },
+  } = req;
+
+  const responseData = {};
+  const queryResult = await slaveDB(`
+  SELECT a.episode_id
+    FROM user_episode_ad_reward a
+  WHERE a.userkey = ${userkey}
+    AND a.episode_id = ${episode_id}
+    AND a.project_id = ${project_id};
+  `);
+
+  responseData.isExists = queryResult.row.length > 0 ? 1 : 0;
+
+  respondSuccess(res, responseData);
+};
+
+// * 오토메 에피소드 클리어 광고보상 요청
+export const requestOtomeEpisodeClearAdReward = async (req, res) => {
+  const {
+    body: { userkey, episode_id, project_id },
+  } = req;
+
+  let query = ``;
+  const responseData = {};
+
+  query += mysql.format(
+    `
+  INSERT INTO user_episode_ad_reward(userkey, project_id, episode_id, quantity) 
+  VALUES (?, ?, ?, 10);
+  `,
+    [userkey, project_id, episode_id]
+  );
+
+  const currentEnergy = await getUserEnergy(userkey);
+  responseData.energy = currentEnergy + 10;
+  responseData.addEnergy = 10;
+
+  query += mysql.format(
+    `UPDATE table_account SET energy = ? WHERE userkey = ?;`,
+    [responseData.energy, userkey]
+  );
+
+  const result = await transactionDB(query);
+  if (!result.state) {
+    respondFail(res, result.error, "광고 보상 지급 실패", 80019);
+    return;
+  }
+
+  respondSuccess(res, responseData);
+};
