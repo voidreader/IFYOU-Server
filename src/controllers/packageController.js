@@ -1649,6 +1649,7 @@ export const getPackageDLC = async (req, res) => {
   WHERE a.project_id = ${project_id}
   AND b.dlc_id = a.dlc_id 
   AND b.lang  = '${lang}'
+  AND a.is_public > 0
   ORDER BY a.dlc_id 
   ;`);
 

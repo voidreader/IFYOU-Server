@@ -715,6 +715,7 @@ export const getUserGalleryHistory = async (userInfo) => {
     , fn_get_episode_type(z.appear_episode) appear_episode_type
     , z.live_pair_id
     , ifnull(z.speaker, '') speaker
+    , le.dlc_id
   FROM (
       SELECT 'illust' illust_type
         , li.illust_id illust_id
