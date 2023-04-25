@@ -1827,7 +1827,7 @@ export const getSingleGameScriptWithResources = async (req, res) => {
   const result = {}; // 결과
 
   // 스크립트
-  const sc = await slaveDB(Q_SCRIPT, [episode_id, lang]);
+  const sc = await slaveDB(Q_SCRIPT, [userkey, episode_id, lang]);
 
   console.log("script count : ", sc.row.length);
 

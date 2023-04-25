@@ -345,7 +345,7 @@ SELECT ls.script_no
      , CASE WHEN ls.speaker IS NOT NULL AND instr(ls.speaker, ':') > 0 THEN substring_index(ls.speaker, ':', -1) 
             WHEN ls.speaker IS NULL OR ls.speaker = '' THEN ''
        ELSE 'C' END direction
-     , CASE WHEN ls.template = 'dress' THEN fn_get_custom_user_dress(substring_index(ls.speaker, ':', 1), ls.script_data, ls.project_id, 2332)
+     , CASE WHEN ls.template = 'dress' THEN fn_get_custom_user_dress(substring_index(ls.speaker, ':', 1), ls.script_data, ls.project_id, ?)
             ELSE ls.script_data END script_data
      , ls.target_scene_id
      , ls.requisite 
