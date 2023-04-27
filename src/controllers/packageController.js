@@ -2024,12 +2024,14 @@ export const purchaseOtomeProduct = async (req, res) => {
     }
   });
 
-  const sendMailResult = await transactionDB(mailQuery);
+  if (mailQuery) {
+    const sendMailResult = await transactionDB(mailQuery);
 
-  if (!sendMailResult.state) {
-    logger.error(sendMailResult.error);
-    respondFail(res, {}, "인앱상품 발송 실패", 80019);
-    return;
+    if (!sendMailResult.state) {
+      logger.error(sendMailResult.error);
+      respondFail(res, {}, "인앱상품 발송 실패", 80019);
+      return;
+    }
   }
 
   // 발송했으면,
