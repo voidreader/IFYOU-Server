@@ -1742,7 +1742,7 @@ export const getDetailDLC = async (req, res) => {
   } = req;
 
   const responseData = {};
-  responseData.userDLC = await getUserCurrentDLC(req.body); // 위치
+  responseData.dlcCurrent = await getUserCurrentDLC(req.body); // 위치
   responseData.dlcEpisodes = await getDLC_EpisodeList(req.body);
 
   // DLC 에피소드 리스트 조회
