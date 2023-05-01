@@ -2011,7 +2011,7 @@ export const purchaseOtomeProduct = async (req, res) => {
          , list_product_detail b
      WHERE a.product_master_id = ${product_master_id}
        AND b.master_id = a.product_master_id
-       AND b.is_main > 0
+       AND b.is_main >= 0
        AND now() BETWEEN a.from_date AND a.to_date;
   `
   );
