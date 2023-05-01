@@ -108,6 +108,21 @@ const getUserCurrentDLC = async (userInfo) => {
   return result.row;
 };
 
+// * 유저 아이템 Property 리스트 조회(distinct)
+const getUserItemProperty = async (userkey) => {
+  const result = await DB(`
+    SELECT DISTINCT up.currency 
+    FROM user_property up
+      , com_currency cc 
+  WHERE userkey = ${userkey}
+    AND cc.currency = up.currency
+    AND up.current_quantity > 0
+    AND cc.consumable = 0;  
+  `);
+
+  return result.row;
+};
+
 const getRandomPIN = () => {
   return Math.random().toString(36).substr(2, 4).toUpperCase();
 };
@@ -783,9 +798,13 @@ export const getNovelPackageUserUnreadMailList = async (req, res) => {
 
   // 에너지 업데이트
   responseData.energy = await getUserEnergy(userkey);
+  // 유저 보유 아이템 리스트
+  responseData.property = await getUserItemProperty(userkey);
 
   logger.info(
-    `return getNovelPackageUserUnreadMailList : [${JSON.stringify(req.body)}]`
+    `return getNovelPackageUserUnreadMailList : [${JSON.stringify(
+      responseData
+    )}]`
   );
 
   respondSuccess(res, responseData);
@@ -2100,6 +2119,14 @@ export const requestOtomeEpisodeClearAdReward = async (req, res) => {
     respondFail(res, result.error, "광고 보상 지급 실패", 80019);
     return;
   }
+
+  respondSuccess(res, responseData);
+};
+
+// * 유저 프로필 능력치 정보만 가져오기 (상태이상)
+export const requestUserProfileAbilityOnly = async (req, res) => {
+  const responseData = {};
+  responseData.ability = await getUserProjectAbilityCurrent(req.body);
 
   respondSuccess(res, responseData);
 };
