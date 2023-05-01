@@ -242,6 +242,7 @@ import {
   requestOtomeEpisodeClearAdReward,
   requestOtomeTimerReward,
   requestPackageStoryInfo,
+  requestUserProfileAbilityOnly,
   resetOtomeGameProgress,
   spendEnergyByChoice,
   updateAlterName,
@@ -2021,6 +2022,10 @@ export const clientHome = (req, res) => {
 
     case "requestOtomeEpisodeClearAdReward": // 오토메 에피소드 클리어 광고보상 요청
       requestOtomeEpisodeClearAdReward(req, res);
+      return;
+
+    case "requestUserProfileAbilityOnly": // 유저 능력치 현재 수치정보만 요청하기 (상태이상)
+      requestUserProfileAbilityOnly(req, res);
       return;
 
     default:
