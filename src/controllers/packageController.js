@@ -105,7 +105,11 @@ const getUserCurrentDLC = async (userInfo) => {
   AND le.episode_id = a.episode_id 
   `);
 
-  return result.row;
+  if (result.row.length > 0) {
+    return result.row[0];
+  } else {
+    return {};
+  }
 };
 
 // * 유저 아이템 Property 리스트 조회(distinct)
@@ -1701,6 +1705,8 @@ const getDLC_EpisodeList = async (userInfo) => {
     , TRIM(fn_get_episode_summary_lang(a.episode_id, '${userInfo.lang}')) summary
     , fn_get_count_scene_in_history(${userInfo.userkey}, a.episode_id, '${userInfo.lang}', 'total') total_scene_count
     , fn_get_count_scene_in_history(${userInfo.userkey}, a.episode_id, '${userInfo.lang}', 'played') played_scene_count
+    , CASE WHEN a.episode_type = 'ending' THEN fn_check_user_ending(${userInfo.userkey}, a.episode_id) 
+    ELSE 0 END ending_open
     , ifnull(ueh.episode_id, 0) is_clear
     , ifnull(a.speaker, '') speaker
   FROM list_episode a
@@ -2129,4 +2135,33 @@ export const requestUserProfileAbilityOnly = async (req, res) => {
   responseData.ability = await getUserProjectAbilityCurrent(req.body);
 
   respondSuccess(res, responseData);
+};
+
+// * 유저 DLC 진도 저장하기 (상태이상)
+export const updateUserDLC_Current = async (req, res) => {
+  const {
+    body: {
+      userkey,
+      project_id,
+      episode_id,
+      dlc_id,
+      scene_id = null,
+      script_no = 0,
+      is_final = 0,
+      callby = "",
+    },
+  } = req;
+
+  logger.info(`updateUserDLC_Current : <${JSON.stringify(req.body)}>`);
+
+  if (!episode_id || !dlc_id) {
+    logger.error(`error updateUserDLC_Current <${JSON.stringify(req.body)}>`);
+    respondFail(res, {}, "Invalid Data", 80019);
+    return;
+  }
+
+  const saveResult = await DB(
+    `CALL sp_save_user_project_current(?, ?, ?, ?, ?, ?, ?);`,
+    [userkey, project_id, dlc_id, episode_id, scene_id, script_no, is_final]
+  );
 };

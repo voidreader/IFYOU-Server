@@ -169,7 +169,13 @@ export const getOtomeProfileLines = async (userInfo) => {
       , fn_get_motion_name_by_id(cpl.motion_id) motion_name
       , cpl.condition_type 
       , ifnull(cpl.line_condition, '') line_condition 
+      , cpl.sound_name
+      , ls.sound_id 
+      , ls.sound_url 
+      , ls.sound_key  
+      , ls.game_volume      
     FROM com_profile_lines cpl 
+    LEFT OUTER JOIN list_sound ls ON ls.project_id = ${project_id} AND ls.sound_type = 'voice' AND ls.sound_name  = cpl.sound_name 
       , com_ability ca 
   WHERE ca.project_id = ${project_id}
     AND ca.ability_id = cpl.ability_id
