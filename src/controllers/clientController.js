@@ -248,6 +248,7 @@ import {
   updateAlterName,
   updateChangeOtomeDress,
   updateMainOtomeDress,
+  updateUserDLC_Current,
 } from "./packageController";
 import { initializeClient } from "../com/centralControll";
 
@@ -2026,6 +2027,10 @@ export const clientHome = (req, res) => {
 
     case "requestUserProfileAbilityOnly": // 유저 능력치 현재 수치정보만 요청하기 (상태이상)
       requestUserProfileAbilityOnly(req, res);
+      return;
+
+    case "updateUserDLC_Current": // DLC 플레이 지점 저장 (상태이상)
+      updateUserDLC_Current(req, res);
       return;
 
     default:

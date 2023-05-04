@@ -2161,7 +2161,33 @@ export const updateUserDLC_Current = async (req, res) => {
   }
 
   const saveResult = await DB(
-    `CALL sp_save_user_project_current(?, ?, ?, ?, ?, ?, ?);`,
+    `CALL sp_update_user_dlc_current(?, ?, ?, ?, ?, ?, ?);`,
     [userkey, project_id, dlc_id, episode_id, scene_id, script_no, is_final]
   );
+
+  // Procedure에서 오류 났을때.
+  if (!saveResult.state) {
+    logger.error(
+      `error updateUserDLC_Current <${JSON.stringify(req.body)}> / <${
+        saveResult.error
+      }>`
+    );
+    respondFail(res, {}, "Invalid Process", 80019);
+    return;
+  }
+
+  // 결과가 없을때.
+  if (saveResult.row[0].length === 0) {
+    logger.info(
+      `updateUserDLC_Current Empty Result : <${JSON.stringify(req.body)}>`
+    );
+
+    respondFail(res, {}, "Invalid Result", 80019);
+    return;
+  }
+
+  const responseData = {};
+  responseData.dlcCurrent = saveResult.row[0][0];
+
+  respondSuccess(res, responseData);
 };
