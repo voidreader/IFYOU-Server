@@ -493,6 +493,7 @@ export const requestMainEpisodeList = async (userInfo) => {
   , date_format(ifnull(a.publish_date, '2020-01-01'), '%Y-%m-%d %T') publish_date
   , ifnull(ueh.episode_id, 0) is_clear
   , ifnull(a.speaker, '') speaker
+  , a.dlc_id
 FROM list_episode a
 LEFT OUTER JOIN user_episode_hist ueh ON ueh.userkey = ${userInfo.userkey} AND ueh.project_id = a.project_id AND ueh.episode_id = a.episode_id
 WHERE a.project_id = ${userInfo.project_id}
