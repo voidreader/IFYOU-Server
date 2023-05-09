@@ -8,7 +8,12 @@ import {
   logAllPass,
   logAD,
 } from "../mysqldb";
-import { respondDB, respondError } from "../respondent";
+import {
+  respondDB,
+  respondError,
+  respondFail,
+  respondSuccess,
+} from "../respondent";
 import { logger } from "../logger";
 import {
   getUserProjectCurrent,
@@ -23,6 +28,7 @@ import {
 import { getUserBankInfo } from "./bankController";
 import { UQ_ACCQUIRE_CURRENCY } from "../USERQStore";
 import { getUserStorySelectionHistory } from "./accountController";
+import { updateUserDLC_Current } from "./packageController";
 
 // * 인게임에서 호출되는 API
 
@@ -208,4 +214,55 @@ export const requestCompleteEpisodeOptimized = async (req, res) => {
 
   // 클리어 로그
   logAction(userkey, "episode_clear_result", responseData);
+};
+
+// * DLC 에피소드 클리어 처리
+export const requestCompleteDLC_Episode = async (req, res) => {
+  const {
+    body: {
+      userkey,
+      project_id,
+      dlc_id = -1,
+      episode_id,
+      next_episode_id = -1,
+      is_next_ending = 0,
+      scene_id,
+      lang = "EN",
+    },
+  } = req;
+
+  const responseData = {};
+  logger.info(`requestCompleteDLC_Episode : ${JSON.stringify(req.body)}`);
+
+  // 쿼리만들기
+  let currentQuery = "";
+
+  // hist, progress 입력하기.(에피소드ID 및 사건ID)
+  currentQuery += `INSERT IGNORE INTO user_episode_hist (userkey, project_id, episode_id) VALUES (${userkey}, ${project_id}, ${episode_id});`;
+  currentQuery += `INSERT IGNORE INTO user_episode_progress (userkey, project_id, episode_id) VALUES (${userkey}, ${project_id}, ${episode_id});`;
+  currentQuery += `INSERT IGNORE INTO user_scene_progress (userkey, project_id, episode_id, scene_id) VALUES (${userkey}, ${project_id}, ${episode_id}, '${scene_id}');`;
+  currentQuery += `INSERT IGNORE INTO user_scene_hist (userkey, project_id, episode_id, scene_id) VALUES (${userkey}, ${project_id}, ${episode_id},'${scene_id}');`;
+
+  if (is_next_ending > 0) {
+    currentQuery += `INSERT IGNORE INTO user_ending (userkey, episode_id, project_id) VALUES (${userkey}, ${next_episode_id}, ${project_id});`;
+  }
+
+  const updateEpisodeRecordResult = await DB(currentQuery);
+  if (!updateEpisodeRecordResult.state) {
+    logger.error(
+      `requestCompleteDLC_Episode : [${updateEpisodeRecordResult.error}]`
+    );
+
+    respondFail(res, {}, "requestCompleteDLC_Episode 실패", 80019);
+    return;
+  }
+
+  // dlc project current를 업데이트 하기 위한 param 변경
+  req.body.episode_id = next_episode_id < 0 ? episode_id : next_episode_id; // 다음 에피소드 설정이 있다면 지정
+  req.body.is_final = next_episode_id < 0 ? 1 : 0;
+
+  responseData.episode_id = episode_id;
+  responseData.dlcCurrent = await updateUserDLC_Current(req, res, false);
+
+  respondSuccess(res, responseData);
 };

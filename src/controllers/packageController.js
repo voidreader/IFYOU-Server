@@ -1666,7 +1666,7 @@ export const getPackageDLC = async (req, res) => {
   , b.banner_id 
   , fn_get_design_info(b.banner_id, 'url') banner_url
   , fn_get_design_info(b.banner_id, 'key') banner_key
-  , (SELECT EXISTS (SELECT z.userkey FROM user_dlc z WHERE z.userkey = ${userkey}) FROM DUAL) has_dlc
+  , (SELECT EXISTS (SELECT z.userkey FROM user_dlc z WHERE z.userkey = ${userkey} AND z.dlc_id = a.dlc_id) FROM DUAL) has_dlc
   FROM dlc_master a
     , dlc_detail b
   WHERE a.project_id = ${project_id}
@@ -2139,7 +2139,7 @@ export const requestUserProfileAbilityOnly = async (req, res) => {
 };
 
 // * 유저 DLC 진도 저장하기 (상태이상)
-export const updateUserDLC_Current = async (req, res) => {
+export const updateUserDLC_Current = async (req, res, needResponse = true) => {
   const {
     body: {
       userkey,
@@ -2190,5 +2190,6 @@ export const updateUserDLC_Current = async (req, res) => {
   const responseData = {};
   responseData.dlcCurrent = saveResult.row[0][0];
 
-  respondSuccess(res, responseData);
+  if (needResponse) respondSuccess(res, responseData);
+  else return responseData.dlcCurrent;
 };
