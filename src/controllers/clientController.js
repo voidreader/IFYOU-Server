@@ -170,6 +170,7 @@ import {
 } from "./achievementController";
 import { getIFyouWebMainPageInfo, receiveInquiry } from "./webController";
 import {
+  requestCompleteDLC_Episode,
   requestCompleteEpisodeOptimized,
   requestEpisodeFirstClear,
   requestUnlockMission,
@@ -2033,6 +2034,14 @@ export const clientHome = (req, res) => {
       updateUserDLC_Current(req, res);
       return;
 
+    case "requestCompleteEpisodeOptimized": // 메인 스트림 에피소드 클리어 처리
+      requestCompleteEpisodeOptimized(req, res);
+      return;
+
+    case "requestCompleteDLC_Episode": // DLC 에피소드 클리어 처리
+      requestCompleteDLC_Episode(req, res);
+      return;
+
     default:
       break;
   }
@@ -2228,9 +2237,6 @@ export const clientHome = (req, res) => {
     collectProjectRetention(req, res);
   else if (func === "collectAllProjectRetention")
     collectAllProjectRetention(req, res);
-  else if (func === "requestCompleteEpisodeOptimized")
-    requestCompleteEpisodeOptimized(req, res);
-  // 신규
   //신규 2022.07.27
   else if (func === "requestEpisodeFirstClear")
     requestEpisodeFirstClear(req, res);
