@@ -1974,11 +1974,15 @@ export const purchaseOtomeProduct = async (req, res) => {
   // logger.info(`purchaseOtomeProduct ${JSON.stringify(req.body)}`);
 
   if (receipt) {
-    const receiptJSON = JSON.parse(receipt.replace(`\\\\`, ``));
+    const newString = receipt.replace(`\\\\`, "");
+    console.log(newString);
+    const receiptJSON = JSON.parse(newString);
 
     if (receiptJSON !== null) {
       logger.info(`receipt JSON : ${JSON.stringify(receiptJSON)}`);
     }
+
+    console.log(receipt.Payload.orderId);
   }
 
   logAction(userkey, `${paymentSeq} purchase call`, {
@@ -2077,7 +2081,9 @@ export const purchaseOtomeProduct = async (req, res) => {
   );
 
   logger.info(
-    `${paymentSeq} purchase_complete :: ${JSON.stringify(responseData)}`
+    `${paymentSeq} purchase_complete :: ${JSON.stringify(
+      responseData.product_id
+    )}`
   );
 
   respondSuccess(res, responseData);
