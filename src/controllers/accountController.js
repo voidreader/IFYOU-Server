@@ -1757,6 +1757,7 @@ export const resetUserEpisodeProgressType2 = async (req, res) => {
       isFree = false,
       scene_id,
       kind = "reset",
+      dlc_id = -1,
     },
   } = req;
 
@@ -1817,10 +1818,10 @@ export const resetUserEpisodeProgressType2 = async (req, res) => {
   const resetResult = await transactionDB(
     `
     ${useQuery}
-    CALL sp_reset_user_episode_progress(?, ?, ?);
+    CALL sp_reset_user_episode_progress(?, ?, ?, ?);
     ${abilityResetQuery}
     `,
-    [userkey, project_id, episodeID]
+    [userkey, project_id, episodeID, dlc_id]
   );
 
   if (!resetResult.state) {
@@ -1879,7 +1880,7 @@ export const resetPlayingEpisode = async (req, res) => {
   logger.info(`resetPlayingEpisode [${JSON.stringify(req.body)}]`);
 
   const {
-    body: { userkey, episode_id, project_id },
+    body: { userkey, episode_id, project_id, dlc_id = -1 },
   } = req;
 
   //능력치 리셋 쿼리 가져오기
@@ -1891,10 +1892,10 @@ export const resetPlayingEpisode = async (req, res) => {
 
   const resetResult = await transactionDB(
     `
-  CALL sp_reset_user_episode_progress(?, ?, ?);
+  CALL sp_reset_user_episode_progress(?, ?, ?, ?);
   ${abilityResetQuery}
   `,
-    [userkey, project_id, episode_id]
+    [userkey, project_id, episode_id, dlc_id]
   );
 
   if (!resetResult.state) {

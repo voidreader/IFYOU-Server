@@ -1402,7 +1402,7 @@ export const resetOtomeGameProgress = async (req, res) => {
   logger.info(`resetOtomeGameProgress [${JSON.stringify(req.body)}]`);
 
   const {
-    body: { userkey, project_id, episodeID },
+    body: { userkey, project_id, episodeID, dlc_id = -1 },
   } = req;
 
   //능력치 리셋 쿼리 가져오기
@@ -1415,10 +1415,10 @@ export const resetOtomeGameProgress = async (req, res) => {
   // 리셋 처리 시작 !!
   const resetResult = await transactionDB(
     `
-    CALL sp_reset_user_episode_progress(?, ?, ?);
+    CALL sp_reset_user_episode_progress(?, ?, ?, ?);
     ${abilityResetQuery}
     `,
-    [userkey, project_id, episodeID]
+    [userkey, project_id, episodeID, dlc_id]
   );
 
   if (!resetResult.state) {
