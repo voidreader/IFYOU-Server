@@ -1960,7 +1960,7 @@ export const purchaseOtomeProduct = async (req, res) => {
       userkey = 0,
       product_id = "",
       product_master_id = 0,
-      receipt = null,
+      receipt = "",
       price = 0, // 가격
       currency = "KRW", // 화폐
       paymentSeq = "XXX", //  거래 식별자 1
@@ -1973,21 +1973,21 @@ export const purchaseOtomeProduct = async (req, res) => {
   const responseData = { product_id };
   // logger.info(`purchaseOtomeProduct ${JSON.stringify(req.body)}`);
 
-  if (receipt) {
-    const newString = receipt.replace(`\\\\`, "");
-    // console.log(newString);
-    const receiptJSON = JSON.parse(newString);
+  // if (receipt) {
+  //   const newString = receipt.replace(`\\\\`, "");
+  //   // console.log(newString);
+  //   const receiptJSON = JSON.parse(newString);
 
-    if (receiptJSON !== null) {
-      logger.info(`receipt JSON : ${JSON.stringify(receiptJSON)}`);
+  //   if (receiptJSON !== null) {
+  //     logger.info(`receipt JSON : ${JSON.stringify(receiptJSON)}`);
 
-      if (receiptJSON.hasOwnProperty("Payload")) {
-        logger.info(`Payload JSON : ${JSON.stringify(receiptJSON.Payload)}`);
-        const payloadJSON = receiptJSON.Payload;
-        logger.info(`${Object.keys(payloadJSON)}`);
-      }
-    }
-  }
+  //     if (receiptJSON.hasOwnProperty("Payload")) {
+  //       logger.info(`Payload JSON : ${JSON.stringify(receiptJSON.Payload)}`);
+  //       const payload = receiptJSON.Payload;
+  //       const payloadJSON = rec
+  //     }
+  //   }
+  // }
 
   logAction(userkey, `${paymentSeq} purchase call`, {
     product_id,
