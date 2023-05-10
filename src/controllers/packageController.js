@@ -1980,8 +1980,12 @@ export const purchaseOtomeProduct = async (req, res) => {
 
     if (receiptJSON !== null) {
       logger.info(`receipt JSON : ${JSON.stringify(receiptJSON)}`);
-      logger.info(`Payload JSON : ${JSON.stringify(receiptJSON.Payload)}`);
-      logger.info(`json JSON : ${JSON.stringify(receiptJSON.Payload.json)}`);
+
+      if (receiptJSON.hasOwnProperty("Payload")) {
+        logger.info(`Payload JSON : ${JSON.stringify(receiptJSON.Payload)}`);
+        const payloadJSON = receiptJSON.Payload;
+        logger.info(`${Object.keys(payloadJSON)}`);
+      }
     }
   }
 
