@@ -1975,14 +1975,13 @@ export const purchaseOtomeProduct = async (req, res) => {
 
   if (receipt) {
     const newString = receipt.replace(`\\\\`, "");
-    console.log(newString);
+    // console.log(newString);
     const receiptJSON = JSON.parse(newString);
 
     if (receiptJSON !== null) {
       logger.info(`receipt JSON : ${JSON.stringify(receiptJSON)}`);
+      logger.info(`Payload JSON : ${JSON.stringify(receiptJSON.Payload)}`);
     }
-
-    console.log(receipt.Payload.orderId);
   }
 
   logAction(userkey, `${paymentSeq} purchase call`, {
