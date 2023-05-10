@@ -1974,7 +1974,7 @@ export const purchaseOtomeProduct = async (req, res) => {
   // logger.info(`purchaseOtomeProduct ${JSON.stringify(req.body)}`);
 
   if (receipt) {
-    const receiptJSON = JSON.parse(receipt);
+    const receiptJSON = JSON.parse(receipt.replace(`\\\\`, ``));
 
     if (receiptJSON !== null) {
       logger.info(`receipt JSON : ${JSON.stringify(receiptJSON)}`);
