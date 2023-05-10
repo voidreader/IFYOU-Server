@@ -1960,7 +1960,7 @@ export const purchaseOtomeProduct = async (req, res) => {
       userkey = 0,
       product_id = "",
       product_master_id = 0,
-      receipt = "",
+      receipt = null,
       price = 0, // 가격
       currency = "KRW", // 화폐
       paymentSeq = "XXX", //  거래 식별자 1
@@ -1971,7 +1971,12 @@ export const purchaseOtomeProduct = async (req, res) => {
   } = req;
 
   const responseData = { product_id };
-  logger.info(`purchaseOtomeProduct ${JSON.stringify(req.body)}`);
+  // logger.info(`purchaseOtomeProduct ${JSON.stringify(req.body)}`);
+
+  if (receipt !== null) {
+    logger.info(`${JSON.stringify(receipt)}`);
+    logger.info(`${JSON.stringify(receipt.Payload)}`);
+  }
 
   logAction(userkey, `${paymentSeq} purchase call`, {
     product_id,
