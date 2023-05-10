@@ -1973,9 +1973,12 @@ export const purchaseOtomeProduct = async (req, res) => {
   const responseData = { product_id };
   // logger.info(`purchaseOtomeProduct ${JSON.stringify(req.body)}`);
 
-  if (receipt !== null) {
-    logger.info(`${JSON.stringify(receipt)}`);
-    logger.info(`${JSON.stringify(receipt.Payload)}`);
+  if (receipt) {
+    const receiptJSON = JSON.parse(receipt);
+
+    if (receiptJSON !== null) {
+      logger.info(`receipt JSON : ${JSON.stringify(receiptJSON)}`);
+    }
   }
 
   logAction(userkey, `${paymentSeq} purchase call`, {
