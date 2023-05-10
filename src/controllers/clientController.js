@@ -244,6 +244,7 @@ import {
   requestOtomeTimerReward,
   requestPackageStoryInfo,
   requestUserProfileAbilityOnly,
+  resetDLC,
   resetOtomeGameProgress,
   spendEnergyByChoice,
   updateAlterName,
@@ -2040,6 +2041,10 @@ export const clientHome = (req, res) => {
 
     case "requestCompleteDLC_Episode": // DLC 에피소드 클리어 처리
       requestCompleteDLC_Episode(req, res);
+      return;
+
+    case "resetDLC": // DLC 리셋
+      resetDLC(req, res);
       return;
 
     default:

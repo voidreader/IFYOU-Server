@@ -1397,7 +1397,7 @@ export const purchaseOtomeChoice = async (req, res) => {
   logAction(userkey, "paid_selection", req.body);
 };
 
-// * 오토메 게임 리셋
+// * 오토메 게임 리셋 (정규 스토리)
 export const resetOtomeGameProgress = async (req, res) => {
   logger.info(`resetOtomeGameProgress [${JSON.stringify(req.body)}]`);
 
@@ -2193,3 +2193,37 @@ export const updateUserDLC_Current = async (req, res, needResponse = true) => {
   if (needResponse) respondSuccess(res, responseData);
   else return responseData.dlcCurrent;
 };
+
+// * 오토메 게임 DLC 리셋 - 상태이상,
+export const resetDLC = async (req, res) => {
+  logger.info(`resetDLC [${JSON.stringify(req.body)}]`);
+
+  const {
+    body: { userkey, project_id, episode_id, dlc_id = -1 },
+  } = req;
+
+  // 리셋 처리 시작 !!
+  const resetResult = await transactionDB(
+    `
+    CALL sp_reset_user_episode_progress(?, ?, ?, ?);
+    CALL sp_init_user_dlc_current(${userkey}, ${project_id}, ${dlc_id});
+    `,
+    [userkey, project_id, episode_id, dlc_id]
+  );
+
+  if (!resetResult.state) {
+    logger.error(`resetDLC Error 1 ${resetResult.error}`);
+    respondFail(res, {}, "error in reset", 80019);
+    return;
+  }
+
+  const responseData = {};
+  responseData.episodeProgress = await getUserEpisodeProgress(req.body); // * 유저 에피소드 진행도
+  responseData.sceneProgress = await getUserEpisodeSceneProgress(req.body); // * 유저 사건ID 진행도
+  responseData.dlcCurrent = await getUserCurrentDLC(req.body);
+  responseData.selectionProgress = await getUserProjectSelectionProgress(
+    req.body
+  ); // 프로젝트 선택지 Progress
+
+  respondSuccess(res, responseData);
+}; // ? END resetDLC
