@@ -774,7 +774,7 @@ export const checkPackageVersion = async (req, res) => {
 // * 노벨 패키지 유저 메일 리스트 조회
 export const getNovelPackageUserUnreadMailList = async (req, res) => {
   const {
-    body: { userkey, lang = "KO" },
+    body: { userkey, lang = "KO", project_id = -1 },
   } = req;
 
   logger.info(
@@ -800,10 +800,13 @@ export const getNovelPackageUserUnreadMailList = async (req, res) => {
   if (unreadMailResult.state && unreadMailResult.row.length > 0)
     responseData.unreadMailCount = unreadMailResult.row[0].cnt;
 
-  // 에너지 업데이트
+  // 에너지(하트) 업데이트
   responseData.energy = await getUserEnergy(userkey);
   // 유저 보유 아이템 리스트
   responseData.property = await getUserItemProperty(userkey);
+
+  // 능력치 정도 갱신 데이터
+  // responseData.ability = await getUserProjectAbilityCurrent(req.body);
 
   logger.info(
     `return getNovelPackageUserUnreadMailList : [${JSON.stringify(
@@ -1214,12 +1217,15 @@ export const requestPackageStoryInfo = async (req, res) => {
   storyInfo.loadingDetail = currentLoadingData.loadingDetail;
 
   storyInfo.selectionProgress = await getUserProjectSelectionProgress(userInfo); // 프로젝트 선택지 Progress
-  // voice
-  const voiceData = await getUserVoiceHistory(userInfo);
-  storyInfo.voiceHistory = voiceData.voiceHistory; // 화자별로 포장된 보이스
-  storyInfo.rawVoiceHistory = voiceData.rawVoiceHistory; // 리스트 그대로 형태의 보이스
+  // voice (2023.05.13 사용하지 않아서 변경)
+  // const voiceData = await getUserVoiceHistory(userInfo);
+  // storyInfo.voiceHistory = voiceData.voiceHistory; // 화자별로 포장된 보이스
+  // storyInfo.rawVoiceHistory = voiceData.rawVoiceHistory; // 리스트 그대로 형태의 보이스
+
   storyInfo.episodes = await requestMainEpisodeList(userInfo); // 유저의 정규 에피소드 리스트
-  storyInfo.sides = [];
+  storyInfo.sides = []; // 사이드 스토리 단일앱에서는 없음
+  storyInfo.voiceHistory = [];
+  storyInfo.rawVoiceHistory = [];
 
   storyInfo.bubbleMaster = bubbleMaster; // 말풍선 마스터 정보
   // * 말풍선 상세 정보 (버전체크를 통해서 필요할때만 내려준다)
@@ -1588,7 +1594,7 @@ export const updateAlterName = async (req, res) => {
 // * 오토메 아이템 구매
 export const purchaseOtomeItem = async (req, res) => {
   const {
-    body: { userkey, currency },
+    body: { userkey, currency, project_id = -1 },
   } = req;
 
   logger.info(`purchaseOtomeItem [${JSON.stringify(req.body)}]`);
@@ -1631,9 +1637,6 @@ export const purchaseOtomeItem = async (req, res) => {
   const responseData = { currency };
   userCurrentEnergy -= price;
 
-  responseData.energy = userCurrentEnergy; // 갱신된 에너지 (하트)
-  respondSuccess(res, responseData);
-
   let processQuery = ``;
   processQuery += `UPDATE table_account SET energy = ${userCurrentEnergy} WHERE userkey = ${userkey};`;
   processQuery += `
@@ -1641,7 +1644,12 @@ export const purchaseOtomeItem = async (req, res) => {
   VALUES (${userkey}, '${currency}', 1, 1, 'custom', '9999-12-31', 0);
   `;
 
-  transactionDB(processQuery);
+  await transactionDB(processQuery);
+
+  responseData.energy = userCurrentEnergy; // 갱신된 에너지 (하트)
+  responseData.ability = await getUserProjectAbilityCurrent(req.body);
+
+  respondSuccess(res, responseData);
 }; // ? purchaseOtomeItem
 
 // * 패키지 DLC 정보 조회
