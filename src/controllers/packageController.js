@@ -2098,6 +2098,12 @@ export const purchaseOtomeProduct = async (req, res) => {
     )}`
   );
 
+  // response에 어떤 목적으로 구매했는지 전달.
+  responseData.purpose = "purchase";
+  if (purchaseToken === "editor" || purchaseToken === "restore") {
+    responseData.purpose = purchaseToken;
+  }
+
   respondSuccess(res, responseData);
 };
 
