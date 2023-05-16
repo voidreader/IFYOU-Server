@@ -1978,8 +1978,14 @@ export const purchaseOtomeProduct = async (req, res) => {
     },
   } = req;
 
-  const responseData = { product_id };
-  // logger.info(`purchaseOtomeProduct ${JSON.stringify(req.body)}`);
+  const responseData = { product_id, purpose: "purchase" };
+
+  // response에 어떤 목적으로 구매했는지 전달.
+
+  if (purchaseToken == "editor" || purchaseToken == "restore") {
+    responseData.purpose = purchaseToken;
+  }
+  logger.info(`purchaseOtomeProduct ${JSON.stringify(req.body)}`);
 
   // if (receipt) {
   //   const newString = receipt.replace(`\\\\`, "");
@@ -2097,12 +2103,6 @@ export const purchaseOtomeProduct = async (req, res) => {
       responseData.product_id
     )}`
   );
-
-  // response에 어떤 목적으로 구매했는지 전달.
-  responseData.purpose = "purchase";
-  if (purchaseToken === "editor" || purchaseToken === "restore") {
-    responseData.purpose = purchaseToken;
-  }
 
   respondSuccess(res, responseData);
 };
