@@ -546,7 +546,7 @@ export const requestSingleGameCouponFromWeb = async (req, res) => {
   }
 
   logger.info(
-    `requestSingleGameCouponFromWeb ${project_id}/${userkey}/${lang}/${coupon_id}/${coupon_code}`
+    `requestSingleGameCouponFromWeb ${project_id}/${userkey}/${lang}/${coupon_id}/${coupon_code}/${unlock_dlc_id}`
   );
 
   // * 재화 정보 및 해금 DLC 정보
@@ -633,6 +633,8 @@ export const requestSingleGameCouponFromWeb = async (req, res) => {
   const unreadMailCount = await getUserUnreadMailCount(userkey);
   const responseData = { unreadMailCount };
   responseData.dlcName = unlockDlcName;
+
+  logger.info(`${JSON.stringify(responseData)}`);
 
   respondSuccess(res, responseData);
 }; // ? requestSingleGameCouponFromWeb
