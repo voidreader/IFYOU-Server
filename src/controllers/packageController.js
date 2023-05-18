@@ -354,6 +354,8 @@ export const chargeEnergyByAdvertisement = async (req, res) => {
        SET energy = ${currentEnergy}
     WHERE userkey = ${userkey};
   `);
+
+  logAction(userkey, "Charge_Heart_AD", req.body);
 };
 
 // * 선택지로 인해서 20개 소모하기
@@ -1501,6 +1503,8 @@ export const requestOtomeAdReward = async (req, res) => {
   DB(
     `UPDATE table_account SET energy = ${responseData.energy} WHERE userkey = ${userkey};`
   );
+
+  logAction(userkey, "otome_ad_charge", req.body);
 }; // ? requestOtomeAdReward
 
 // * 오토메 타이머 리워드 요청
@@ -1557,6 +1561,8 @@ export const requestOtomeTimerReward = async (req, res) => {
   DB(
     `UPDATE table_account SET energy = ${responseData.energy} WHERE userkey = ${userkey};`
   );
+
+  logAction(userkey, "otome_ad_charge", responseData);
 }; // ? requestOtomeTimerReward
 
 // * 게임 대체 이름 적용 (오토메)
@@ -1651,6 +1657,8 @@ export const purchaseOtomeItem = async (req, res) => {
   responseData.ability = await getUserProjectAbilityCurrent(req.body);
 
   respondSuccess(res, responseData);
+
+  logAction(userkey, "purchase_otome_item", req.body);
 }; // ? purchaseOtomeItem
 
 // * 패키지 DLC 정보 조회
@@ -1785,6 +1793,7 @@ export const getDetailDLC = async (req, res) => {
   respondSuccess(res, responseData); // 응답
 }; // ? getDetailDLC
 
+// * DLC 구매
 export const purchaseDLC = async (req, res) => {
   const {
     body: { userkey, dlc_id, project_id, lang },
@@ -1841,6 +1850,9 @@ export const purchaseDLC = async (req, res) => {
   }
 
   getDetailDLC(req, res); // 여기로 넘긴다.
+
+  // log
+  logAction(userkey, "purchase_dlc", req.body);
 }; // ? purchaseDLC
 
 // 하나의 에피소드 스크립트 및 필요한 리소스 조회
@@ -2106,6 +2118,7 @@ export const purchaseOtomeProduct = async (req, res) => {
   );
 
   respondSuccess(res, responseData);
+  logAction(userkey, "purchase_complete", { userkey, product_id });
 };
 
 // * 오토메 에피소드 클리어 광고보상 유무 체크
@@ -2161,6 +2174,9 @@ export const requestOtomeEpisodeClearAdReward = async (req, res) => {
   }
 
   respondSuccess(res, responseData);
+
+  // 로그
+  logAction(userkey, "clear_ad_reward", req.body);
 };
 
 // * 유저 프로필 능력치 정보만 가져오기 (상태이상)
@@ -2259,4 +2275,6 @@ export const resetDLC = async (req, res) => {
   ); // 프로젝트 선택지 Progress
 
   respondSuccess(res, responseData);
+
+  logAction(userkey, "reset_dlc", req.body);
 }; // ? END resetDLC
