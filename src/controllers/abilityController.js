@@ -161,6 +161,7 @@ export const getOtomeProfileLines = async (userInfo) => {
 
   const responseData = {};
 
+  console.log(`getOtomeProfileLines`);
   const profileLines = await slaveDB(`
   SELECT ifnull(ca.speaker, 'unknown') speaker
       , cpl.ability_id 
@@ -179,8 +180,7 @@ export const getOtomeProfileLines = async (userInfo) => {
     LEFT OUTER JOIN list_sound ls ON ls.project_id = ${project_id} AND ls.sound_type = 'voice' AND ls.sound_name  = cpl.sound_name 
   WHERE ca.project_id = ${project_id}
     AND cpl.ability_id = ca.ability_id
-  ORDER BY ca.ability_id, cpl.line_id
-  ;
+  ORDER BY ca.ability_id, cpl.line_id;
   `);
 
   if (profileLines.state) {
@@ -192,6 +192,8 @@ export const getOtomeProfileLines = async (userInfo) => {
 
       responseData[item.speaker].push(item);
     }
+  } else {
+    logger.error(`profileLines error : ${JSON.stringify(userInfo)}`);
   }
 
   return responseData;
