@@ -1,6 +1,6 @@
 /* eslint-disable no-restricted-syntax */
 import mysql from "mysql2/promise";
-import { DB, slaveDB, transactionDB } from "../mysqldb";
+import { DB, logAction, slaveDB, transactionDB } from "../mysqldb";
 import { logger } from "../logger";
 import { respondDB, respondFail, respondSuccess } from "../respondent";
 import { getUserBankInfo } from "./bankController";
@@ -441,6 +441,8 @@ export const requestSingleGameCoupon = async (req, res) => {
   responseData.dlcName = unlockDlcName;
 
   respondSuccess(res, responseData);
+
+  logAction("userkey", "use_coupon_device", req.body);
 }; // ? requestSingleGameCoupon
 
 // * 단일게임에서의 쿠폰 사용
@@ -637,4 +639,6 @@ export const requestSingleGameCouponFromWeb = async (req, res) => {
   logger.info(`${JSON.stringify(responseData)}`);
 
   respondSuccess(res, responseData);
+
+  logAction("userkey", "use_coupon_web", req.body);
 }; // ? requestSingleGameCouponFromWeb
