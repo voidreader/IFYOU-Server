@@ -174,12 +174,12 @@ export const getOtomeProfileLines = async (userInfo) => {
       , ls.sound_url 
       , ls.sound_key  
       , ls.game_volume      
-    FROM com_profile_lines cpl 
+    FROM com_ability ca 
+       , com_profile_lines cpl 
     LEFT OUTER JOIN list_sound ls ON ls.project_id = ${project_id} AND ls.sound_type = 'voice' AND ls.sound_name  = cpl.sound_name 
-      , com_ability ca 
   WHERE ca.project_id = ${project_id}
-    AND ca.ability_id = cpl.ability_id
-  ORDER BY ability_id, line_id
+    AND cpl.ability_id = ca.ability_id
+  ORDER BY ca.ability_id, cpl.line_id
   ;
   `);
 
