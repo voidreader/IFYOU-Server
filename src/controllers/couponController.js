@@ -442,7 +442,7 @@ export const requestSingleGameCoupon = async (req, res) => {
 
   respondSuccess(res, responseData);
 
-  logAction("userkey", "use_coupon_device", req.body);
+  logAction(userkey, "use_coupon_device", req.body);
 }; // ? requestSingleGameCoupon
 
 // * 단일게임에서의 쿠폰 사용
@@ -640,5 +640,5 @@ export const requestSingleGameCouponFromWeb = async (req, res) => {
 
   respondSuccess(res, responseData);
 
-  logAction("userkey", "use_coupon_web", req.body);
+  logAction(userkey, "use_coupon_web", req.body);
 }; // ? requestSingleGameCouponFromWeb
