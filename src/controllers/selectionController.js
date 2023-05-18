@@ -178,6 +178,7 @@ export const getUserSelectionPurchaseInfo = async (userInfo) => {
     WHERE a.episode_id = b.episode_id 
     AND userkey = ? 
     AND a.project_id = ?
+    AND b.project_id = a.project_id
     AND b.dlc_id = ${dlc_id}
     ORDER BY sortkey, episode_id;`,
     [userkey, project_id]

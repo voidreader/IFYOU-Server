@@ -1252,7 +1252,8 @@ export const requestPackageStoryInfo = async (req, res) => {
   storyInfo.rawStoryAbility = await getUserStoryAbilityRawList(req.body); // 스토리에서 획득한 능력치 Raw 리스트
   storyInfo.profileLine = await getOtomeProfileLines(userInfo); // 캐릭터별 프로필 대사 정보
   storyInfo.selectionPurchase = await getUserSelectionPurchaseInfo(userInfo); // 과금 선택지 정보
-  storyInfo.selectionHistory = await getUserStorySelectionHistory(req.body); // 선택지 히스토리
+  // storyInfo.selectionHistory = await getUserStorySelectionHistory(req.body); // 선택지 히스토리
+  storyInfo.selectionHistory = []; //  오토메 게임에서 사용하지 않음
   storyInfo.reward = await getOtomeRewardCount(
     userInfo.userkey,
     userInfo.project_id,
