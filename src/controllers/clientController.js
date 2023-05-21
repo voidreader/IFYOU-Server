@@ -1894,6 +1894,40 @@ const requestOfferwallCredit = async (req, res) => {
   logAction(userkey, "offerwall", req.body);
 };
 
+const requestOP_CalcPackUser = async (req, res) => {
+  const users = await slaveDB(`
+  SELECT a.userkey
+  FROM user_purchase a
+ WHERE a.product_id IN ('dress_pack_01', 'dress_pack_02', 'dress_pack_03', 'dress_pack_04');
+  `);
+
+  logger.info(`target pack user count : ${users.row.length}`);
+
+  let query = "";
+
+  users.row.forEach((user) => {
+    query += mysql.format(`CALL sp_send_user_mail(?, ?, ?, ?, ?, ?);`, [
+      user.userkey,
+      "inapp",
+      "energy",
+      255,
+      142,
+      365,
+    ]);
+  });
+
+  const result = await transactionDB(query);
+
+  if (!result.state) {
+    logger.error(JSON.stringify(result.error));
+    respondFail(res, {}, "failed requestOP_CalcPackUser", 80019);
+  }
+
+  respondSuccess(res, {});
+};
+
+//////////////////////////////////////
+
 // clientHome에서 func에 따라 분배
 // controller에서 또다시 controller로 보내는것이 옳을까..? ㅠㅠ
 export const clientHome = (req, res) => {
@@ -2045,6 +2079,10 @@ export const clientHome = (req, res) => {
 
     case "resetDLC": // DLC 리셋
       resetDLC(req, res);
+      return;
+
+    case "requestOP_CalcPackUser": // 운영업무
+      requestOP_CalcPackUser(req, res);
       return;
 
     default:
