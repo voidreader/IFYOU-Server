@@ -99,7 +99,6 @@ import {
   getUserRawPurchaseList,
   purchaseInappProduct,
   updatePassTimeDeal,
-  userPurchase,
   purchaseInappProductByMail,
   getUserPurchaseListVer2,
   requestInappProduct,
@@ -141,7 +140,6 @@ import {
   requestCoinExchangeListByCoinShop,
 } from "./coinController";
 
-import { getLevelList, updateUserLevelProcess } from "./levelController";
 import { getUserProjectLikeList, updateProjectLike } from "./likeController";
 import {
   getCoinExchangeProductList,
