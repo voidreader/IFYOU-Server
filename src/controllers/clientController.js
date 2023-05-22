@@ -37,8 +37,6 @@ import {
   insertUserProperty,
   requestTutorialReward,
   updateTutorialSelection,
-  requestEpisodeFirstClearReward,
-  updateTutorialHowToPlay,
   resetPlayingEpisode,
   resetUserEpisodeProgressType2,
   requestUserTutorialProgress,
@@ -157,7 +155,7 @@ import {
   resetAttendanceMission,
   sendAttendanceRewardOptimized,
 } from "./attendanceController";
-import { updateSnippetPlayCount } from "./snippetController";
+
 import { firstResetAbility, addUserAbility } from "./abilityController";
 import {
   updateUserSelectionCurrent,
@@ -2222,9 +2220,6 @@ export const clientHome = (req, res) => {
   else if (func === "sendAttendanceReward") sendAttendanceReward(req, res);
   else if (func === "sendAttendanceRewardOptimized")
     sendAttendanceRewardOptimized(req, res);
-  else if (func === "updateSnippetPlayCount") updateSnippetPlayCount(req, res);
-  else if (func === "updateTutorialHowToPlay")
-    updateTutorialHowToPlay(req, res);
   //출석 보상
   else if (func === "userProfileSaveVer2") userProfileSaveVer2(req, res);
   // 통합 프로필 저장Ver2
