@@ -1853,28 +1853,6 @@ export const resetUserEpisodeProgressType2 = async (req, res) => {
   logAction(userkey, "reset_progress", req.body);
 }; // * End of resetUserEpisodeProgress TYPE2
 
-// * 튜토리얼 How to play
-export const updateTutorialHowToPlay = async (req, res) => {
-  const {
-    body: { userkey },
-  } = req;
-
-  const result = await DB(`
-  update user_tutorial 
-    SET how_to_play = 1
-  WHERE userkey = ${userkey};
-  `);
-
-  // 보상으로 2개 주기
-  await addUserProperty(userkey, "gem", 2, "howToPlay");
-
-  const responseData = {};
-  responseData.got = { currency: "gem", quantity: 2 };
-  responseData.bank = await getUserBankInfo(req.body);
-
-  res.status(200).json(responseData);
-}; // ? resetUserEpisodeProgressType2 END
-
 // * 에피소드 플레이 도중 처음으로 돌아가기 호출시 동작.
 export const resetPlayingEpisode = async (req, res) => {
   logger.info(`resetPlayingEpisode [${JSON.stringify(req.body)}]`);
