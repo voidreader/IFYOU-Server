@@ -7,17 +7,17 @@ import { DB, logAction, logDB, slaveDB, transactionDB } from "../mysqldb";
 import {
   Q_CLIENT_LOGIN_BY_DEVICE,
   Q_SELECT_PROJECT_BUBBLE_SET,
-  Q_SELECT_PROJECT_BUBBLE_SPRITE,
   Q_SELECT_PROJECT_MODEL_ALL_FILES,
   Q_SELECT_PROJECT_LIVE_OBJECT_ALL_FILES,
   Q_SELECT_PROJECT_LIVE_ILLUST_ALL_FILES,
   Q_CLIENT_LOGIN_BY_GAMEBASE,
   Q_REGISTER_CLIENT_ACCOUNT_WITH_GAMEBASE,
   Q_UPDATE_CLIENT_ACCOUNT_WITH_GAMEBASE,
-  Q_CLIENT_LOGIN_BY_USERKEY,
   Q_SELECT_PROJECT_BGM,
   Q_SELECT_PROJECT_NAME_TAG,
   Q_SELECT_PROJECT_DETAIL,
+  Q_SELECT_OTOME_ITEM,
+  Q_SELECT_OTOME_USER_DRESS,
 } from "../QStore";
 
 import {
@@ -54,12 +54,9 @@ import {
 import { logger } from "../logger";
 import { getUserVoiceHistory } from "./soundController";
 import {
-  checkSideUnlockByEpisode,
   checkSideUnlockByScene,
-  checkMissionByEpisode,
   checkMissionByScence,
   checkMissionByDrop,
-  getCurrentProjectPassPrice,
 } from "./storyController";
 import { respondDB, respondError } from "../respondent";
 import {
@@ -73,10 +70,7 @@ import {
 import { getUserBankInfo, getCurrencyQuantity } from "./bankController";
 
 import { gamebaseAPI } from "../com/gamebaseAPI";
-import {
-  getProfileCurrencyCurrent,
-  getUserStoryProfile,
-} from "./profileController";
+import { getUserStoryProfile } from "./profileController";
 import {
   getUserProjectAbilityCurrent,
   createQueryResetAbility,
@@ -805,7 +799,7 @@ export const getUserGalleryHistory = async (userInfo) => {
 
   const images = publicImages.row;
 
-  console.log("!!! gallery total images count : ", images.length);
+  // console.log("!!! gallery total images count : ", images.length);
 
   // * illust_type이 illust, minicut인 경우 live_pair_id가 존재하는 경우
   // * live개체 오픈 이력 있음 => illust or minicut 제거
@@ -2550,6 +2544,8 @@ const getProjectResources = async (project_id, lang, userkey) => {
 
 // * 2023.01 오토메 프로젝트 리소스 가져오기
 export const getOtomeProjectResources = async (project_id, lang, userkey) => {
+  // 2023.05.23 episodePurchase 노드 제거
+
   const responseData = {};
   let query = "";
 
@@ -2565,31 +2561,36 @@ export const getOtomeProjectResources = async (project_id, lang, userkey) => {
   query += mysql.format(Q_SELECT_EPISODE_LOADING, [project_id]); // [9]. 에피소드 로딩 리스트
   query += mysql.format(Q_USER_EPISODE_SCENE_PROGRESS, [userkey, project_id]); // [10] 유저별 에피소드 상황 히스토리 Progress
   query += mysql.format(Q_SELECT_SCENE_HISTORY, [userkey, project_id]); // [11] 유저, 프로젝트에서 경험한 모든 사건 ID 목록
-  query += mysql.format(Q_USER_EPISODE_PURCHASE, [userkey, project_id]); // [12] 에피소드 구매 정보
 
   //////
-  query += mysql.format(Q_SELECT_EPISODE_PROGRESS, [userkey, project_id]); //  [13]. 에피소드 progress
-  query += mysql.format(Q_SELECT_EPISODE_HISTORY, [userkey, project_id]); // [14]. 에피소드 히스토리
-  query += mysql.format(Q_SELECT_PROJECT_ALL_BG, [project_id]); // [15] 프로젝트 모든 배경
-  query += mysql.format(Q_SELECT_PROJECT_ALL_EMOTICONS, [project_id]); // [16] 프로젝트 모든 이모티콘
+  query += mysql.format(Q_SELECT_EPISODE_PROGRESS, [userkey, project_id]); //  [12]. 에피소드 progress
+  query += mysql.format(Q_SELECT_EPISODE_HISTORY, [userkey, project_id]); // [13]. 에피소드 히스토리
+  query += mysql.format(Q_SELECT_PROJECT_ALL_BG, [project_id]); // [14] 프로젝트 모든 배경
+  query += mysql.format(Q_SELECT_PROJECT_ALL_EMOTICONS, [project_id]); // [15] 프로젝트 모든 이모티콘
+
+  // 2023.05.23
+  query += mysql.format(Q_SELECT_OTOME_ITEM, [userkey, project_id, project_id]); // [16] 오토메 아이템 정보
+  query += mysql.format(Q_SELECT_OTOME_USER_DRESS, [project_id, userkey]); // [17] 오토메 유저 의상 커스텀 정보
 
   // * 모인 쿼리 실행
   const result = await slaveDB(query);
 
   if (!result.state) {
-    logger.error(result.error);
+    logger.error(
+      `getOtomeProjectResources : ${userkey}/${JSON.stringify(result.error)}`
+    );
     return null;
   }
 
   // * 데이터 포장하기
-  const emoticons = collectEmoticonData(result.row[16]);
+  const emoticons = collectEmoticonData(result.row[15]);
   const models = collectModelData(result.row[5]);
   const liveObjects = collectLiveObjectData(result.row[6]);
   const liveIllusts = collectLiveIllustData(result.row[7]);
   const sceneProgress = collectSceneID(result.row[10]);
   const sceneHistory = collectSceneID(result.row[11]);
-  const episodeProgress = collectEpisodeID(result.row[13]);
-  const episodeHistory = collectEpisodeID(result.row[14]);
+  const episodeProgress = collectEpisodeID(result.row[12]);
+  const episodeHistory = collectEpisodeID(result.row[13]);
 
   // 결과
   responseData.detail = result.row[0];
@@ -2598,7 +2599,7 @@ export const getOtomeProjectResources = async (project_id, lang, userkey) => {
   responseData.bgms = result.row[3];
   responseData.illusts = result.row[4];
 
-  responseData.backgrounds = result.row[15];
+  responseData.backgrounds = result.row[14];
   responseData.minicuts = result.row[8];
   responseData.episodeLoadingList = result.row[9];
 
@@ -2610,8 +2611,8 @@ export const getOtomeProjectResources = async (project_id, lang, userkey) => {
   responseData.sceneHistory = sceneHistory;
   responseData.episodeProgress = episodeProgress;
   responseData.episodeHistory = episodeHistory;
-
-  responseData.episodePurchase = result.row[12];
+  responseData.items = result.row[16];
+  responseData.dressCustom = result.row[17];
 
   return responseData;
 }; // ? getOtomeProjectResources

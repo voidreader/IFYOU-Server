@@ -223,6 +223,62 @@ export const getCacheLocalizedText = async () => {
   return localData;
 };
 
+// * 캐시용 패키지 공지사항 정보
+export const getCachePackageNotice = async () => {
+  const responseData = {};
+  // * 공지사항 정보
+  const noticeMaster = await slaveDB(`
+    SELECT cn.notice_no
+         , cn.notice_type
+         , cn.notice_name
+         , cn.sortkey
+         , cn.is_public
+         , cn.start_date
+         , cn.end_date
+         , cn.os
+         , ifnull(cn.exception_culture, '') exception_culture
+         , cn.connected_project 
+    FROM com_notice cn  
+  WHERE now() BETWEEN cn.start_date AND cn.end_date
+    AND cn.is_public = 1
+  ORDER BY cn.sortkey;
+  `);
+
+  const noticeDetail = await slaveDB(`
+    SELECT b.notice_no
+    , b.lang 
+    , b.title 
+    , b.contents 
+    , fn_get_design_info(b.design_id, 'url') banner_url
+    , fn_get_design_info(b.design_id, 'key') banner_key
+    , fn_get_design_info(b.detail_design_id, 'url') detail_banner_url
+    , fn_get_design_info(b.detail_design_id, 'key') detail_banner_key
+    , b.url_link 
+  FROM com_notice cn
+    , com_notice_detail b
+  WHERE now() BETWEEN cn.start_date AND cn.end_date
+  AND cn.is_public = 1
+  AND b.notice_no = cn.notice_no 
+  ORDER BY cn.sortkey
+  ;  
+  `);
+
+  noticeMaster.row.forEach((notice) => {
+    if (!Object.prototype.hasOwnProperty.call(notice, "detail")) {
+      notice.detail = [];
+    }
+
+    noticeDetail.row.forEach((item) => {
+      if (item.notice_no === notice.notice_no) {
+        notice.detail.push(item);
+      }
+    });
+  }); // ? 공지사항 끝
+
+  responseData.notice = noticeMaster.row; // 공지사항
+  return responseData;
+}; // ?  getCachePackageNotice END
+
 // * 캐시용 플랫폼 이벤트 정보 받아오기
 export const getCachePlatformEvent = async () => {
   const responseData = {};
@@ -409,7 +465,7 @@ const getCacheBubble = async () => {
   return responseData;
 };
 
-// * 공지사항, 프로모션 캐시 리프레시
+// * 공지사항, 프로모션 캐시 리프레시 (이프유)
 export const refreshCachePlatformEvent = async (req, res) => {
   const cacheEvent = await getCachePlatformEvent();
   cache.set("promotion", cacheEvent.promotion);
@@ -417,6 +473,12 @@ export const refreshCachePlatformEvent = async (req, res) => {
   cache.set("intro", cacheEvent.intro);
 
   if (res) res.status(200).send("Done");
+};
+
+// * 패지키 공지사항 캐시 정보
+export const refreshCachePackageEvent = async (req, res) => {
+  const cacheEvent = await getCachePackageNotice();
+  cache.set("notice", cacheEvent.notice);
 };
 
 // * 로컬라이즈 텍스트 캐시 리프레시
@@ -521,3 +583,14 @@ const schduleCacheRefresh = schedule.scheduleJob("*/20 * * * *", async () => {
   await loadingRegularCacheData();
   logger.info(">> schduleCacheRefresh END");
 });
+
+export const getNotice = (project_id) => {
+  const notice = cache.get("notice");
+
+  console.log(`notice count : ${notice.length}`);
+
+  return notice.filter(
+    (item) =>
+      item.connected_project == project_id || item.connected_project == -1
+  );
+};

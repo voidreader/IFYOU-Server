@@ -835,3 +835,43 @@ END exchange_check
 FROM com_coin_exchange_product a
 WHERE is_service > 0;
 `;
+
+export const Q_SELECT_OTOME_ITEM = `
+SELECT a.currency
+, a.local_code
+, fn_get_design_info(a.icon_image_id, 'url') icon_url
+, fn_get_design_info(a.icon_image_id, 'key') icon_key
+, fn_get_design_info(a.resource_image_id, 'url') resource_url
+, fn_get_design_info(a.resource_image_id, 'key') resource_key
+, a.is_ability 
+, a.model_id 
+, fn_get_model_speaker(a.model_id) speaker
+, ccp.product_type 
+, ccp.connected_bg 
+, ifnull(bg.image_name, '') connected_bg_name
+, ifnull(cca.ability_id, -1) ability_id
+, ifnull(cca.add_value, 0) add_value
+, fn_get_user_property(?, a.currency) hasCurrency
+, fn_get_currency_model_name('standing', ?, a.model_id) origin_model_name
+, ccp.price
+, ccp.sale_price
+FROM com_currency a
+LEFT OUTER JOIN com_currency_ability cca ON cca.currency = a.currency 
+LEFT OUTER JOIN com_ability ca ON ca.ability_id = cca.ability_id
+, com_coin_product ccp
+LEFT OUTER JOIN list_bg bg ON bg.bg_id = ccp.connected_bg 
+WHERE a.connected_project = ?
+AND a.currency_type = 'standing'
+AND ccp.currency = a.currency 
+AND ccp.is_public  > 0
+ORDER BY a.sortkey;
+`;
+
+export const Q_SELECT_OTOME_USER_DRESS = `
+SELECT upd.speaker
+, upd.current_currency
+, upd.is_main
+FROM user_project_dress upd 
+WHERE upd.project_id = ?
+AND upd.userkey = ?;
+`;
