@@ -102,62 +102,6 @@ export const getServerMasterInfo = (req, res) => {
   res.status(200).json(responseData);
 };
 
-// * 플랫폼에서 진행중인 이벤트 정보 조회 (삭제대상)
-export const getPlatformEvents = async (req, res) => {
-  const {
-    body: {
-      userkey = 0,
-      build = "pier.make.story",
-      country = "KR",
-      lang = "KO",
-      os = 0,
-    },
-  } = req;
-
-  const responseData = {};
-  let userOS = "all";
-
-  // 안드로이드 ,아이폰 분류 처리
-  if (os === 0) userOS = "Android";
-  else userOS = "iOS";
-
-  // * 장르
-  const genre = await DB(
-    `
-  SELECT DISTINCT fn_get_localize_text(ls.text_id, ?) genre_name
-       , fn_get_localize_text(ls.text_id, 'KO') origin_name
-    FROM list_project_genre genre
-      , list_project_master ma
-      , list_standard ls 
-  WHERE ma.project_id = genre.project_id
-    AND ma.is_public > 0
-    AND ls.standard_class = 'genre'
-    AND ls.code = genre.genre_code 
-    AND ma.service_package LIKE CONCAT('%', ?, '%')
-    ORDER BY ls.sortkey
-  ;`,
-    [lang, build]
-  ); // ? 장르
-
-  // 캐시에서 프로모션 가져오기 (os 필터링)
-  responseData.promotion = cache.get("promotion").filter((item) => {
-    return item.os.includes("all") || item.os.includes(userOS);
-  });
-
-  // 캐시에서 공지사항 가져오기 (os 필터링)
-  responseData.notice = cache.get("notice").filter((item) => {
-    return item.os.includes("all") || item.os.includes(userOS);
-  });
-
-  // 장르
-  responseData.genre = genre.row;
-
-  // 인트로 (캐시)
-  responseData.intro = cache.get("intro");
-
-  res.status(200).json(responseData);
-};
-
 // * 플랫폼에서 진행중인 공지사항 프로모션 정보 조회
 export const getPlatformNoticePromotion = async (req, res) => {
   const {

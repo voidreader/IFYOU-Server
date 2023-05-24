@@ -57,7 +57,6 @@ import {
   getClientLocalizingList,
   getAppCommonResources,
   getServerMasterInfo,
-  getPlatformEvents,
   getPlatformNoticePromotion,
 } from "./serverController";
 import {
@@ -249,6 +248,7 @@ import {
   updateUserDLC_Current,
 } from "./packageController";
 import { initializeClient } from "../com/centralControll";
+import { addUserFeedback, updatePackageMission } from "./userController";
 
 dotenv.config();
 
@@ -1924,6 +1924,46 @@ const requestOP_CalcPackUser = async (req, res) => {
 
 //////////////////////////////////////
 
+// * PUT 응답 받기
+export const putClient = (req, res) => {
+  const { func } = req.body;
+
+  if (!func) {
+    logger.error(`no func in put, ${JSON.stringify(req.body)}`);
+    respondFail(req, {}, "no func", 80019);
+    return;
+  }
+
+  switch (func) {
+    case "userFeedback": // 유저 피드백 입력
+      addUserFeedback(req, res);
+      break;
+
+    default:
+      respondFail(res, {}, `Not matched func in put`, 80019);
+  }
+}; // ? END PUT
+
+// * 패치 응답 받기
+export const patchClient = (req, res) => {
+  const { func } = req.body;
+
+  if (!func) {
+    logger.error(`no func in patch, ${JSON.stringify(req.body)}`);
+    respondFail(req, {}, "no func", 80019);
+    return;
+  }
+
+  switch (func) {
+    case "updatePackageMission":
+      updatePackageMission(req, res);
+      break;
+
+    default:
+      respondFail(res, {}, `Not matched func in patch`, 80019);
+  }
+}; // ? END PATCH
+
 // clientHome에서 func에 따라 분배
 // controller에서 또다시 controller로 보내는것이 옳을까..? ㅠㅠ
 export const clientHome = (req, res) => {
@@ -2244,8 +2284,6 @@ export const clientHome = (req, res) => {
   //현재 선택지
   else if (func === "requestUserTutorialProgress")
     requestUserTutorialProgress(req, res);
-  else if (func === "getPlatformEvents") getPlatformEvents(req, res);
-  // 삭제대상
   else if (func === "getPlatformNoticePromotion")
     getPlatformNoticePromotion(req, res);
   else if (func === "requestGalleryShareBonus")

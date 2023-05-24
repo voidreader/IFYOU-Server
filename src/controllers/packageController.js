@@ -45,6 +45,7 @@ import {
 import { getUserSelectionPurchaseInfo } from "./selectionController";
 import { requestReceiveSingleMail } from "./mailController";
 import { getUserUnreadMailCount } from "./clientController";
+import { getNotice } from "../com/cacheLoader";
 
 // 유저 미수신 메일 리스트(만료일 지나지 않은 것들)
 const QUERY_NOVEL_USER_UNREAD_MAIL_LIST = `
@@ -79,7 +80,7 @@ UPDATE table_account
 `;
 
 // * 유저 하트 에너지 갱신
-const updateUserEnergy = (userkey, nextEnergy) => {
+export const updateUserEnergy = (userkey, nextEnergy) => {
   DB(
     `UPDATE table_account SET energy = ${nextEnergy} WHERE userkey = ${userkey};`
   );
@@ -257,8 +258,6 @@ export const loginPackage = async (req, res) => {
       , ta.current_level
       , ta.current_experience
       , ta.account_link
-      , ifnull(t.tutorial_selection, 0) tutorial_selection
-      , t.how_to_play
       , ta.intro_done
       , ifnull(ta.allpass_expiration, '2022-01-01') allpass_expiration
       , datediff(now(), ta.last_rate_date) diff_rate
@@ -266,8 +265,10 @@ export const loginPackage = async (req, res) => {
       , ifyou_pass_day
       , ta.energy
       , ifnull(ta.alter_name, '') alter_name
+      , ifnull(upm.twitter_mission, 0) twitter_mission
+      , ifnull(upm.review_mission, 0) review_mission
       FROM table_account ta 
-   LEFT OUTER JOIN user_tutorial t ON t.userkey = ta.userkey
+    LEFT OUTER JOIN user_package_mission upm ON upm.userkey = ta.userkey
      WHERE ta.package = ?
      ${conditionQuery}
     ;
@@ -300,7 +301,7 @@ export const loginPackage = async (req, res) => {
   accountInfo.energy = accountInfo.account.energy;
 
   // 응답처리
-  res.status(200).json(accountInfo);
+  respondSuccess(res, accountInfo);
 
   // 마지막 접속일자, 언어정보 등 갱신처리
   DB(Q_UPDATE_CLIENT_ACCOUNT_WITH_GAMEBASE, [
@@ -314,7 +315,7 @@ export const loginPackage = async (req, res) => {
 };
 
 // * 유저의 현재 에너지 구하기
-const getUserEnergy = async (userkey) => {
+export const getUserEnergy = async (userkey) => {
   const energyQuery = await DB(
     `SELECT a.energy FROM table_account a WHERE a.userkey = ${userkey};`
   );
@@ -1244,17 +1245,10 @@ export const requestPackageStoryInfo = async (req, res) => {
     storyInfo.bubbleSet = arrangeBubbleSet(allBubbleSet);
   } // ? 말풍선 상세정보 끝
 
-  storyInfo.items = await getOtomeItems(userInfo.userkey, userInfo.project_id); //
-  storyInfo.dressCustom = await getOtomeUserDress(
-    userInfo.userkey,
-    userInfo.project_id
-  );
-
   storyInfo.ability = await getUserProjectAbilityCurrent(userInfo); //유저의 현재 능력치 정보
   storyInfo.rawStoryAbility = await getUserStoryAbilityRawList(req.body); // 스토리에서 획득한 능력치 Raw 리스트
   storyInfo.profileLine = await getOtomeProfileLines(userInfo); // 캐릭터별 프로필 대사 정보
   storyInfo.selectionPurchase = await getUserSelectionPurchaseInfo(userInfo); // 과금 선택지 정보
-  // storyInfo.selectionHistory = await getUserStorySelectionHistory(req.body); // 선택지 히스토리
   storyInfo.selectionHistory = []; //  오토메 게임에서 사용하지 않음
   storyInfo.reward = await getOtomeRewardCount(
     userInfo.userkey,
@@ -1273,6 +1267,9 @@ export const requestPackageStoryInfo = async (req, res) => {
     respondFail(res, {}, "Error in requestPackageStoryInfo", 80019);
     return;
   }
+
+  storyInfo.items = projectResources.items;
+  storyInfo.dressCustom = projectResources.dressCustom;
 
   storyInfo.backgrounds = projectResources.backgrounds;
   storyInfo.emoticons = projectResources.emoticons;
@@ -1294,6 +1291,9 @@ export const requestPackageStoryInfo = async (req, res) => {
   storyInfo.episodeProgress = projectResources.episodeProgress; // ! 유저 에피소드 진행도
   storyInfo.episodeHistory = projectResources.episodeHistory; // 유저 에피소드 히스토리
   storyInfo.episodePurchase = projectResources.episodePurchase; // 에피소드 구매 정보
+
+  // 프로젝트별 공지사항
+  storyInfo.notice = getNotice(project_id);
 
   // 응답
   respondSuccess(res, storyInfo);
