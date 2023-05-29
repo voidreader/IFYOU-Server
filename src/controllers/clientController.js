@@ -1957,7 +1957,7 @@ export const patchClient = (req, res) => {
   switch (func) {
     case "updatePackageMission":
       updatePackageMission(req, res);
-      break;
+      return;
 
     default:
       respondFail(res, {}, `Not matched func in patch`, 80019);

@@ -47,7 +47,7 @@ export const updatePackageMission = async (req, res) => {
   console.log(currentMission.row);
 
   // 트위터 오픈 미션
-  if (mission === "twitter") {
+  if (mission == "twitter") {
     if (
       currentMission.row.length > 0 &&
       currentMission.row[0].twitter_mission > 0
@@ -71,7 +71,7 @@ export const updatePackageMission = async (req, res) => {
       respondFail(res, {}, "Error in updatePackageMission", 80019);
       return;
     }
-  } else if (mission === "review") {
+  } else if (mission == "review") {
     // 게임 리뷰 미션
 
     if (
@@ -108,6 +108,7 @@ export const updatePackageMission = async (req, res) => {
   responseData.add_energy = 15;
   responseData.mission = mission;
 
+  logger.info(`updatePackageMission response : ${responseData}`);
   respondSuccess(res, responseData);
 
   updateUserEnergy(userkey, responseData.energy);
