@@ -36,11 +36,15 @@ export const updatePackageMission = async (req, res) => {
     body: { userkey, mission },
   } = req;
 
-  const currentMission = await slaveDB(`
+  logger.info(`updatePackageMission : ${JSON.stringify(req.body)}`);
+
+  const currentMission = await DB(`
   SELECT a.twitter_mission, a.review_mission
     FROM user_package_mission a 
    WHERE a.userkey = ${userkey};
   `);
+
+  console.log(currentMission.row);
 
   // 트위터 오픈 미션
   if (mission === "twitter") {
