@@ -1139,7 +1139,7 @@ const getOtomeRewardCount = async (userkey, project_id, localTime) => {
     FROM user_timer_reward a
   WHERE a.userkey = ${userkey}
     AND a.project_id = ${project_id}
-    AND a.local_receive_date BETWEEN date_format('${localTime}', '%Y-%m-%d 00:00:00') AND concat(date_format('${localTime}', '%Y-%m-%d 23:59:59'));
+    AND a.local_receive_date BETWEEN date_format('${localTime}', '%Y-%m-%d 08:00:00') AND concat(date_format('${localTime}', '%Y-%m-%d 23:59:59'));
   `);
 
   const adResult = await DB(`
@@ -1524,7 +1524,7 @@ export const requestOtomeTimerReward = async (req, res) => {
     FROM user_timer_reward a
   WHERE a.userkey = ${userkey}
     AND a.project_id = ${project_id}
-    AND a.local_receive_date BETWEEN date_format('${localTime}', '%Y-%m-%d 00:00:00') AND concat(date_format('${localTime}', '%Y-%m-%d 23:59:59'));
+    AND a.local_receive_date BETWEEN date_format('${localTime}', '%Y-%m-%d 08:00:00') AND concat(date_format('${localTime}', '%Y-%m-%d 23:59:59'));
   `);
 
   todayRewardCount = todayQueryResult.row[0].cnt;
