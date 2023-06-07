@@ -7,9 +7,6 @@ import { DB } from "./mysqldb";
 import app from "./app";
 import { logger } from "./logger";
 import {
-  getCacheLocalizedText,
-  getCachePlatformEvent,
-  getCacheServerMaster,
   refreshCachePlatformEvent,
   refreshCacheServerMaster,
   refreshCacheLocalizedText,

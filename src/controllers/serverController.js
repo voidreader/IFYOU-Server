@@ -1,6 +1,11 @@
 import aws from "aws-sdk";
 import { response } from "express";
-import { respondRedirect, respondError, respondDB } from "../respondent";
+import {
+  respondRedirect,
+  respondError,
+  respondDB,
+  respondSuccess,
+} from "../respondent";
 import { logger } from "../logger";
 import { DB, slaveDB } from "../mysqldb";
 import { getComModelMainBannerClientList } from "./designController";
@@ -38,11 +43,16 @@ export const alignS3Objects = async (req, res) => {
   });
 };
 
-// ! 클라이언트에서 요청해서 받는 로컬라이징 텍스트
+// ! 클라이언트에서 요청해서 받는 로컬라이징 텍스트 (Deprecated)
 export const getClientLocalizingList = (req, res) => {
   logger.info(`getClientLocalizingList`);
 
   res.status(200).json(cache.get("localize"));
+};
+
+// * 패키지 클라이언트 텍스트 정보
+export const getPackageClientTextList = (req, res) => {
+  respondSuccess(res, cache.get("pack_localize"));
 };
 
 // * 앱 공용 리소스 주기.
