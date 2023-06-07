@@ -200,7 +200,7 @@ export const getCacheServerMaster = async () => {
   return serverInfo;
 };
 
-// * 캐시용 로컬라이즈 텍스트 정보
+// * 캐시용 로컬라이즈 텍스트 정보 (Deprecated)
 export const getCacheLocalizedText = async () => {
   // 로컬라이징 텍스트 정보
   const localInfo = await slaveDB(`
@@ -218,6 +218,34 @@ export const getCacheLocalizedText = async () => {
   const localData = {}; // 데이터 포장하기
   localInfo.row.forEach((item) => {
     localData[item.id.toString()] = { ...item };
+  });
+
+  return localData;
+};
+
+// 패키지 시스템에서 사용되는 로컬텍스ㅡ
+export const getPackageLocalizedText = async () => {
+  const localInfo = await slaveDB(`
+  SELECT cpl.text_id
+  , cpl.category
+  , cpl.KO
+  , cpl.EN
+  , cpl.JA
+  , cpl.ZH
+  , cpl.SC
+  , cpl.AR
+  , cpl.MS
+  , cpl.ES
+  , cpl.RU
+  , cpl.ID
+FROM com_package_localize cpl
+WHERE cpl.category IN ('common', 'package')
+ORDER BY cpl.text_id
+; 
+  `);
+  const localData = {}; // 데이터 포장하기
+  localInfo.row.forEach((item) => {
+    localData[item.text_id.toString()] = { ...item };
   });
 
   return localData;
@@ -485,6 +513,10 @@ export const refreshCachePackageEvent = async (req, res) => {
 export const refreshCacheLocalizedText = async (req, res) => {
   const localData = await getCacheLocalizedText();
   cache.set("localize", localData); // 로컬라이징 텍스트 정보 세팅
+
+  // 패키지 로컬라이징 텍스트 정보 세팅
+  const packageLocalData = await getPackageLocalizedText();
+  cache.set("pack_localize", packageLocalData);
 
   // com_server의 버전이 연계되어 있어서 같이 한다.
   const master = await slaveDB(

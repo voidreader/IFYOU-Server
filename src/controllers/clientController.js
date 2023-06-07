@@ -58,6 +58,7 @@ import {
   getAppCommonResources,
   getServerMasterInfo,
   getPlatformNoticePromotion,
+  getPackageClientTextList,
 } from "./serverController";
 import {
   updateUserVoiceCheck,
@@ -2119,6 +2120,10 @@ export const clientHome = (req, res) => {
 
     case "requestOP_CalcPackUser": // 운영업무
       requestOP_CalcPackUser(req, res);
+      return;
+
+    case "getPackageClientTextList": // 패키지 클라이언트 로컬라이징 텍스트
+      getPackageClientTextList(req, res);
       return;
 
     default:
