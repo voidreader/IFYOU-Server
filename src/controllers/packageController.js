@@ -1411,8 +1411,22 @@ export const resetOtomeGameProgress = async (req, res) => {
   logger.info(`resetOtomeGameProgress [${JSON.stringify(req.body)}]`);
 
   const {
-    body: { userkey, project_id, episodeID, dlc_id = -1 },
+    body: { userkey, project_id, episodeID, dlc_id = -1, is_free = true },
   } = req;
+
+  let currentEnergy = await getUserEnergy(userkey);
+
+  // 유료인 경우에 대한 처리 추가
+  if (!is_free) {
+    if (currentEnergy < 10) {
+      respondFail(res, {}, "하트가 부족함", 80142);
+      return;
+    }
+
+    // 하트 10 차감.
+    currentEnergy -= 10;
+    updateUserEnergy(userkey, currentEnergy);
+  }
 
   //능력치 리셋 쿼리 가져오기
   const abilityResetQuery = await createQueryResetAbility({
@@ -1437,6 +1451,7 @@ export const resetOtomeGameProgress = async (req, res) => {
   }
 
   const responseData = {};
+  responseData.energy = currentEnergy;
   responseData.episodeProgress = await getUserEpisodeProgress(req.body); // * 유저 에피소드 진행도
   responseData.sceneProgress = await getUserEpisodeSceneProgress(req.body); // * 유저 사건ID 진행도
   responseData.projectCurrent = await getUserProjectCurrent(req.body);
@@ -2278,3 +2293,60 @@ export const resetDLC = async (req, res) => {
 
   logAction(userkey, "reset_dlc", req.body);
 }; // ? END resetDLC
+
+// * 선택지 진행 저장 2023.06
+export const updateOtomeSelectionRecord = async (req, res) => {
+  const {
+    body: {
+      userkey,
+      project_id,
+      target_scene_id,
+      selection_data,
+      episode_id,
+      selection_group = 0,
+      selection_no = 0,
+    },
+  } = req;
+
+  let query = mysql.format(
+    `call sp_update_user_selection_progress(?,?,?,?,?);`,
+    [userkey, project_id, episode_id, target_scene_id, selection_data]
+  );
+
+  query += mysql.format(
+    `CALL pier.sp_update_user_selection_current(?, ?, ?, ?, ?, ?);`,
+    [
+      userkey,
+      project_id,
+      episode_id,
+      target_scene_id,
+      selection_group,
+      selection_no,
+    ]
+  );
+
+  const result = await transactionDB(query);
+
+  if (!result.state) {
+    logger.error(
+      `updateOtomeSelectionRecord : ${JSON.stringify(result.error)}`
+    );
+    respondFail(res, {}, "저장 실패", 80019);
+    return;
+  }
+
+  // 성공시 진행
+  const responseData = {};
+
+  // selectionCurrent
+  // selectionProgress 저장
+
+  respondSuccess(res, responseData);
+
+  logAction(userkey, "choose", {
+    project_id,
+    episode_id,
+    selection_group,
+    selection_no,
+  });
+};
