@@ -310,7 +310,7 @@ export const loginPackage = async (req, res) => {
     userOS,
     lang,
     "ZZ",
-    ver,
+    ver.toString(),
     deviceid,
     accountInfo.account.userkey,
   ]);
