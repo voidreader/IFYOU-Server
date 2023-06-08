@@ -270,6 +270,8 @@ UPDATE pier.table_account
      , os = ?
      , current_lang = ?
      , current_culture = ?
+     , client_ver = '?'
+     , deviceid = ?
  WHERE userkey = ?;
 `;
 
