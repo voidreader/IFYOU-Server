@@ -52,7 +52,12 @@ export const getClientLocalizingList = (req, res) => {
 
 // * 패키지 클라이언트 텍스트 정보
 export const getPackageClientTextList = (req, res) => {
-  respondSuccess(res, cache.get("pack_localize"));
+  logger.info(`getPackageClientTextList`);
+  const responseData = cache.get("pack_localize");
+
+  // console.log(responseData);
+
+  respondSuccess(res, responseData);
 };
 
 // * 앱 공용 리소스 주기.
