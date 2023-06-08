@@ -220,7 +220,7 @@ export const loginPackage = async (req, res) => {
       tokenMeta = "",
       token64 = "",
       token7 = "",
-      version = 0,
+      ver = "1.0",
     },
   } = req;
 
@@ -310,6 +310,8 @@ export const loginPackage = async (req, res) => {
     userOS,
     lang,
     "ZZ",
+    ver,
+    deviceid,
     accountInfo.account.userkey,
   ]);
 };
