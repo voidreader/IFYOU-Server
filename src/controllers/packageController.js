@@ -2338,6 +2338,46 @@ export const updateOtomeSelectionRecord = async (req, res) => {
   // 성공시 진행
   const responseData = {};
 
+  let loadQuery = ``;
+
+  // selection progress
+  loadQuery += mysql.format(
+    `
+  SELECT a.episode_id 
+  , a.target_scene_id
+  , a.selection_data
+  , 0 is_passed -- 클라이언트에서 사용
+  FROM user_selection_progress a
+  WHERE a.userkey = ?
+  AND a.project_id = ?
+  ORDER BY a.update_date;  
+  `,
+    [userkey, project_id]
+  );
+
+  const loadQueryResult = await DB(loadQuery);
+  if (!loadQueryResult.state) {
+    logger.error(loadQueryResult.error);
+    respondFail(res, {}, "updateOtomeSelectionRecord Load Query Fail", 80019);
+    return;
+  }
+
+  const progress = {};
+  const progressQueryRow = loadQueryResult.row;
+
+  progressQueryRow.forEach((item) => {
+    if (!progress.hasOwnProperty(item.episode_id.toString())) {
+      progress[item.episode_id.toString()] = [];
+    }
+
+    progress[item.episode_id.toString()].push({
+      target_scene_id: item.target_scene_id,
+      selection_data: item.selection_data,
+      is_passed: item.is_passed,
+    });
+  });
+
+  responseData.progress = progress;
   // selectionCurrent
   // selectionProgress 저장
 

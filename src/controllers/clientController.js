@@ -246,6 +246,7 @@ import {
   updateAlterName,
   updateChangeOtomeDress,
   updateMainOtomeDress,
+  updateOtomeSelectionRecord,
   updateUserDLC_Current,
 } from "./packageController";
 import { initializeClient } from "../com/centralControll";
@@ -1958,6 +1959,10 @@ export const patchClient = (req, res) => {
   switch (func) {
     case "updatePackageMission":
       updatePackageMission(req, res);
+      return;
+
+    case "updateOtomeSelectionRecord": // 유저의 선택지 플레이 기록 저장
+      updateOtomeSelectionRecord(req, res);
       return;
 
     default:
