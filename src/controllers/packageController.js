@@ -1421,7 +1421,7 @@ export const resetOtomeGameProgress = async (req, res) => {
   // 유료인 경우에 대한 처리 추가
   if (!is_free) {
     if (currentEnergy < 10) {
-      respondFail(res, {}, "하트가 부족함", 80142);
+      respondFail(res, {}, "10개의 하트가 필요합니다.", 80142);
       return;
     }
 
