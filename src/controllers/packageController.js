@@ -3,8 +3,14 @@ import dotenv from "dotenv";
 import { response } from "express";
 import { DB, logAction, logDB, slaveDB, transactionDB } from "../mysqldb";
 import { logger } from "../logger";
-import { respondDB, respondFail, respondSuccess } from "../respondent";
 import {
+  respondDB,
+  respondError,
+  respondFail,
+  respondSuccess,
+} from "../respondent";
+import {
+  Q_PACKAGE_UNREAD_MAIL_LIST,
   Q_SCRIPT,
   Q_SCRIPT_RESOURCE_BG,
   Q_SCRIPT_RESOURCE_BGM,
@@ -14,6 +20,8 @@ import {
   Q_SCRIPT_RESOURCE_SE,
   Q_SCRIPT_RESOURCE_VOICE,
   Q_UPDATE_CLIENT_ACCOUNT_WITH_GAMEBASE,
+  Q_USER_ENERGY,
+  Q_USER_PACKAGE_PROPERTY,
 } from "../QStore";
 import {
   getUserProjectCurrent,
@@ -47,7 +55,7 @@ import { requestReceiveSingleMail } from "./mailController";
 import { getUserUnreadMailCount } from "./clientController";
 import { getNotice } from "../com/cacheLoader";
 
-// 유저 미수신 메일 리스트(만료일 지나지 않은 것들)
+// 유저 미수신 메일 리스트(만료일 지나지 않은 것들) - DEPRECATED
 const QUERY_NOVEL_USER_UNREAD_MAIL_LIST = `
 SELECT a.mail_no
 , a.userkey
@@ -2391,4 +2399,51 @@ export const updateOtomeSelectionRecord = async (req, res) => {
     selection_group,
     selection_no,
   });
+}; // ? END of otome selection record save
+
+// * 패키지 유저의 미수신 메일 리스트 조회 (2023.06.12)
+export const requestUnreadMailList = async (req, res) => {
+  const {
+    body: { userkey, lang = "KO", project_id = -1 },
+  } = req;
+
+  // 메일함 조회시 아래 내용을 함께 읽어온다.
+  // 1. 미수신 리스트
+  // 2. 미수신 메일의 개수
+  // 3. 현재 계정의 energy (하트)
+  // 4. 유저의 대상 프로젝트 보유 아이템 리스트
+
+  let query = ``;
+  query += mysql.format(Q_PACKAGE_UNREAD_MAIL_LIST, [
+    lang,
+    userkey,
+    project_id,
+  ]); // 미수신 메일리스트
+
+  // 계정 에너지
+  query += mysql.format(Q_USER_ENERGY, [userkey]);
+
+  // 계정이 보유중인 아이템
+  query += mysql.format(Q_USER_PACKAGE_PROPERTY, [userkey, project_id]);
+
+  const result = await DB(query);
+
+  if (!result.state) {
+    logger.error(
+      `requestUnreadMailList error : [${JSON.stringify(result.error)}]`
+    );
+    respondFail(res, 80019, "메일함 리스트 수신 오류", 80019);
+    return;
+  }
+
+  console.log(result.row[1]);
+  // 다중 query라서 결과가 row[n]으로 순서대로 들어온다.
+  const responseData = {
+    mailList: result.row[0],
+    unreadMailCount: result.row[0].length,
+    energy: result.row[1][0].energy,
+    property: result.row[2],
+  };
+
+  respondSuccess(res, responseData);
 };

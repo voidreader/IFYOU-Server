@@ -239,6 +239,7 @@ import {
   requestOtomeEpisodeClearAdReward,
   requestOtomeTimerReward,
   requestPackageStoryInfo,
+  requestUnreadMailList,
   requestUserProfileAbilityOnly,
   resetDLC,
   resetOtomeGameProgress,
@@ -2131,6 +2132,10 @@ export const clientHome = (req, res) => {
       getPackageClientTextList(req, res);
       return;
 
+    case "getNovelPackageUserUnreadMailList": // 패키지 클라이언트 미수신 메일리스트 조회
+      requestUnreadMailList(req, res);
+      return;
+
     default:
       break;
   }
@@ -2458,9 +2463,6 @@ export const clientHome = (req, res) => {
   else if (func === "checkPackageVersion")
     // 패키지 버전 체크
     checkPackageVersion(req, res);
-  else if (func === "getNovelPackageUserUnreadMailList")
-    // 노벨 패키지 메일함 리스트
-    getNovelPackageUserUnreadMailList(req, res);
   else if (func === "requestNovelPackageReceiveSingleMail")
     // 노벨 패키지 단일 메일 수신
     requestNovelPackageReceiveSingleMail(req, res);

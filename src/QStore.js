@@ -877,3 +877,43 @@ FROM user_project_dress upd
 WHERE upd.project_id = ?
 AND upd.userkey = ?;
 `;
+
+// 유저 미수신 메일 리스트(만료일 지나지 않은 것들)
+export const Q_PACKAGE_UNREAD_MAIL_LIST = `
+SELECT a.mail_no
+, a.userkey
+, a.mail_type
+, fn_get_standard_text_id('mail_type', a.mail_type) mail_type_textid
+, a.currency
+, a.quantity
+, a.is_receive
+, a.connected_project
+, fn_get_project_name_new(a.connected_project, ?) connected_project_title
+, TIMESTAMPDIFF(HOUR, now(), a.expire_date) remain_hours
+, TIMESTAMPDIFF(MINUTE, now(), a.expire_date) remain_mins
+, cc.local_code
+, a.purchase_no 
+, fn_get_design_info(cc.icon_image_id, 'url') icon_image_url
+, fn_get_design_info(cc.icon_image_id, 'key') icon_image_key
+, ifnull(a.contents, '') contents
+FROM user_mail a
+LEFT OUTER JOIN com_currency cc ON cc.currency = a.currency 
+WHERE a.userkey = ?
+AND a.is_receive = 0 
+AND a.expire_date > now()
+AND a.connected_project in (-1, ?)
+ORDER BY a.mail_no desc;
+`;
+
+// 계정 에너지 개수 조회
+export const Q_USER_ENERGY = `SELECT a.energy FROM table_account a WHERE a.userkey = ?;`;
+export const Q_USER_PACKAGE_PROPERTY = `
+SELECT DISTINCT up.currency 
+FROM user_property up
+  , com_currency cc 
+WHERE userkey = ?
+AND cc.currency = up.currency
+AND up.current_quantity > 0
+and cc.connected_project IN (-1, ?)
+AND cc.consumable = 0;  
+`;
