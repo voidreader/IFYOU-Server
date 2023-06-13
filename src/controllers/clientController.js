@@ -4,7 +4,6 @@ import { response } from "express";
 import dotenv from "dotenv";
 import { DB, logAction, transactionDB, logDB, slaveDB } from "../mysqldb";
 import {
-  Q_MODEL_RESOURCE_INFO,
   Q_SCRIPT_RESOURCE_BG,
   Q_SCRIPT_RESOURCE_EMOTICON,
   Q_SCRIPT_RESOURCE_ILLUST,
@@ -15,96 +14,38 @@ import {
   Q_SCRIPT_RESOURCE_SE,
 } from "../QStore";
 import {
-  getUserSelectedStory,
-  loginClient,
   clearUserEpisodeSceneProgress,
   insertUserEpisodeSceneHistory,
   updateUserIllustHistory,
   updateUserMissionHistory,
-  changeAccountByGamebase,
-  updateUserEpisodePlayRecord,
   updateUserSceneRecord,
-  accquireUserConsumableCurrency,
-  consumeUserCurrency,
   updateUserMinicutHistory,
-  updateUserScriptMission,
-  updateTutorialStep,
-  updateWithdrawDate,
   getUserProjectSceneHistory,
   getUserEpisodeHistory,
-  getProfileCurrencyOwnList,
   updateUserMinicutHistoryVer2,
   insertUserProperty,
-  requestTutorialReward,
-  updateTutorialSelection,
   resetPlayingEpisode,
-  resetUserEpisodeProgressType2,
-  requestUserTutorialProgress,
-  requestGalleryShareBonus,
-  requestGalleryLobbyOpen,
-  updateUserIntroDone,
-  getUserActiveTimeDeal,
-  purchasePremiumPass,
-  requestSelectionHint,
-  requestRecommendProject,
-  getPremiumReward,
   updateUserProjectSceneHist,
 } from "./accountController";
 import { logger } from "../logger";
 
 import {
-  alignS3Object,
-  getClientLocalizingList,
-  getAppCommonResources,
   getServerMasterInfo,
-  getPlatformNoticePromotion,
   getPackageClientTextList,
 } from "./serverController";
-import {
-  updateUserVoiceCheck,
-  updateUserVoiceHistory,
-} from "./soundController";
-import {
-  getUserUnreadMailList,
-  requestReceiveAllMail,
-  requestReceiveSingleMail,
-} from "./mailController";
-import {
-  userMissionList,
-  userMisionReceive,
-  requestMissionAllReward,
-} from "./missionController";
+
 import { respondDB, respondFail, respondSuccess } from "../respondent";
 import {
-  updateSelectionProgress,
   updateUserProjectCurrent,
-  getSelectionCurrent,
-  getTop3SelectionList,
-  getEndingSelectionList,
-  checkUserIdValidation,
   updateUserNickname,
   requestWaitingEpisodeWithCoin,
   requestWaitingEpisodeWithAD,
   requestRemoveCurrentAD,
-  setProjectProgressOrder,
-  purchaseEpisodeType2,
-  setUserProjectNotification,
-  updateRateHistory,
   getUserProjectCurrent,
   requestUserProjectCurrent,
 } from "../com/userProject";
-import {
-  getAllProductList,
-  getUserPurchaseList,
-  getUserRawPurchaseList,
-  purchaseInappProduct,
-  updatePassTimeDeal,
-  purchaseInappProductByMail,
-  getUserPurchaseListVer2,
-  requestInappProduct,
-  requestIfYouPass,
-} from "./shopController";
-import { getUserPropertyHistory, reportRequestError } from "./logController";
+
+import { reportRequestError } from "./logController";
 import {
   requestSingleGameCoupon,
   requestSingleGameCouponFromWeb,
@@ -218,9 +159,7 @@ import {
   chargeEnergyByAdvertisement,
   checkDailyEnergy,
   checkPackageVersion,
-  chooseChoiceWithEnergy,
   getDetailDLC,
-  getNovelPackageUserUnreadMailList,
   getOtomeEpisodeAdRewardExists,
   getPackageDLC,
   getPackageProduct,
@@ -232,7 +171,6 @@ import {
   purchaseOtomeChoice,
   purchaseOtomeItem,
   purchaseOtomeProduct,
-  purchaseSingleNovelProduct,
   requestNovelPackageReceiveAllMail,
   requestNovelPackageReceiveSingleMail,
   requestOtomeAdReward,
@@ -243,7 +181,6 @@ import {
   requestUserProfileAbilityOnly,
   resetDLC,
   resetOtomeGameProgress,
-  spendEnergyByChoice,
   updateAlterName,
   updateChangeOtomeDress,
   updateMainOtomeDress,
@@ -483,161 +420,6 @@ ORDER BY rand() LIMIT 1;
 
   logAction(userInfo.userkey, "episode_start", userInfo);
 };
-
-// * 에피소드 플레이
-const startEpisodePlay = async (req, res) => {
-  const userInfo = req.body;
-  logger.info(`startEpisodePlay ${JSON.stringify(userInfo)}`);
-
-  const result = {}; // 결과
-
-  let { lang } = userInfo; // 유저가 선택한 언어
-  let purchaseType = ""; // 에피소드 구매 타입
-
-  // 유저가 선택한 언어로 스크립트가 있는지 체크한다.
-  const ScriptLangCheck = await slaveDB(`
-  SELECT episode_id FROM list_script 
-  WHERE episode_id = ${userInfo.episode_id} 
-  AND lang = '${userInfo.lang}'; 
-  `);
-
-  // 유저의 언어로 작성된 스크립트가 없다.
-  if (ScriptLangCheck.row.length <= 0) {
-    // 영어 체크
-    const EnglishScriptCheck = await slaveDB(`
-    SELECT episode_id FROM list_script 
-    WHERE episode_id = ${userInfo.episode_id} 
-    AND lang = 'EN'; 
-    `);
-
-    // 언어 체크 종료. 최종적으로 없으면 KO
-    if (EnglishScriptCheck.row.length > 0) lang = "EN";
-    // 영어 스크립트 있으면 영어로.
-    else lang = "KO";
-  } // ? 언어 체크 종료
-
-  // * 에피소드 구매 기록 조회
-  const purchaseInfo = await DB(
-    `
-  SELECT a.purchase_type 
-  FROM user_episode_purchase a
- WHERE a.userkey = ?
-   AND a.episode_id = ?
-  `,
-    [userInfo.userkey, userInfo.episode_id]
-  );
-
-  // 에피소드 구매 기록이 없으면 Permanent로 처리. (1화에 해당한다.)
-  if (!purchaseInfo.state || purchaseInfo.row.length === 0) {
-    // respondDB(res, 80094, "에피소드 구매 정보가 없습니다.");
-    // logger.error("No episode purchase data");
-    // logger.info("No episode purchase data");
-    purchaseType = "Permanent";
-    //return;
-  } else {
-    purchaseType = purchaseInfo.row[0].purchase_type;
-  }
-
-  logger.info(`current episode purchase type is [${purchaseType}]`);
-
-  // * 스크립트 및 스크립트 리소스 조회
-  let query = ``;
-  query += mysql.format(Q_SCRIPT_SELECT_WITH_DIRECTION, [
-    userInfo.episode_id,
-    lang,
-  ]); // 0. 스크립트
-  query += mysql.format(Q_SCRIPT_RESOURCE_BG, [
-    userInfo.project_id,
-    userInfo.episode_id,
-    lang,
-  ]); // 1. 배경
-  query += mysql.format(Q_SCRIPT_RESOURCE_IMAGE, [
-    userInfo.project_id,
-    userInfo.episode_id,
-    lang,
-  ]); // 2. 이미지
-  query += mysql.format(Q_SCRIPT_RESOURCE_ILLUST, [
-    userInfo.project_id,
-    userInfo.episode_id,
-    lang,
-  ]); // 3. 일러스트
-  query += mysql.format(Q_SCRIPT_RESOURCE_EMOTICON, [
-    userInfo.project_id,
-    userInfo.episode_id,
-    lang,
-  ]); // 4. 이모티콘
-  query += mysql.format(Q_SCRIPT_RESOURCE_BGM, [
-    userInfo.project_id,
-    userInfo.episode_id,
-    lang,
-  ]); // 5. BGM
-  query += mysql.format(Q_SCRIPT_RESOURCE_VOICE, [
-    userInfo.project_id,
-    userInfo.episode_id,
-    lang,
-  ]); // 6. 음성
-  query += mysql.format(Q_SCRIPT_RESOURCE_SE, [
-    userInfo.project_id,
-    userInfo.episode_id,
-    lang,
-  ]); // 7. 효과음
-
-  const combinationResult = await slaveDB(query); // 모인 쿼리 실행
-
-  if (!combinationResult.state) {
-    logger.error(combinationResult.error);
-  }
-
-  // combinationResult.row
-  result.script = combinationResult.row[0];
-  result.background = combinationResult.row[1];
-  result.image = combinationResult.row[2];
-  result.illust = combinationResult.row[3];
-  result.emoticon = combinationResult.row[4];
-  result.bgm = combinationResult.row[5];
-  result.voice = combinationResult.row[6];
-  result.se = combinationResult.row[7];
-
-  // 현재 에피소드에서 활성화된 로딩 중 랜덤하게 하나 가져온다.
-  const loading = await slaveDB(`
-  SELECT a.loading_id
-     , a.loading_name
-     , a.image_id 
-     , fn_get_design_info(a.image_id, 'url') image_url
-     , fn_get_design_info(a.image_id, 'key') image_key
-    FROM list_loading a
-      , list_loading_appear b
-  WHERE a.project_id = ${userInfo.project_id}
-    AND b.loading_id = a.loading_id
-    AND b.episode_id = ${userInfo.episode_id}
-    AND b.is_use = 1
-  ORDER BY rand() LIMIT 1;
-  `);
-
-  result.loading = loading.row;
-  result.loadingDetail = [];
-
-  if (loading.row.length > 0) {
-    const loadingID = loading.row[0].loading_id;
-    const loadingDetail = await slaveDB(`
-      SELECT a.detail_no
-          , a.lang 
-          , a.loading_text 
-        FROM list_loading_detail a
-      WHERE a.loading_id = ${loadingID}
-      AND a.lang = '${lang}'
-      ORDER BY rand();
-    `);
-
-    result.loadingDetail = loadingDetail.row;
-  }
-  // ? 로딩 정보 불러오기 종료
-
-  // * 응답
-  res.status(200).json(result);
-
-  logAction(userInfo.userkey, "episode_start", userInfo);
-}; // ? END of startEpisodePlay
 
 // * 프로젝트의 장르 조회하기
 const getProjectGenre = async (project_id, lang) => {
@@ -1926,6 +1708,114 @@ const requestOP_CalcPackUser = async (req, res) => {
 };
 
 //////////////////////////////////////
+// * 각 브랜치에서 필히! 사용하는 요청만 남기고 모두 정리합시다!!!
+
+// * POST 응답 - 오퍼레이션 유틸맄티 관련
+export const postOperationUtil = (req, res) => {
+  const { func } = req.body;
+
+  if (!func) {
+    logger.error(`no func in patch, ${JSON.stringify(req.body)}`);
+    respondFail(req, {}, "no func", 80019);
+    return;
+  }
+
+  // 운영 관련 업무를 위해서 js를 사용해서 결과를 생성합니다.
+  switch (func) {
+    case "reportRequestError":
+      reportRequestError(req, res);
+      return;
+
+    case "makeInsertQuery": // Insert Query 만들기
+      makeInsertQuery(req, res);
+      return;
+
+    case "makeCopyInsert": // Copy & Insert Query 만들기
+      makeInsertQuery(req, res);
+      return;
+
+    case "makeLangInsert": // Lang 관련 Query 만들기
+      makeInsertQuery(req, res);
+      return;
+
+    case "concatColumns": //
+      concatColumns(req, res);
+      return;
+
+    case "nestedQuery": //
+      nestedQuery(req, res);
+      return;
+
+    case "normalizeResource": //
+      normalizeResource(req, res);
+      return;
+
+    // ! 구글 자동 번역 관련 요청
+    case "translateText": //
+      translateText(req, res);
+      return;
+    case "translateWithGlossary": //
+      translateWithGlossary(req, res);
+      return;
+    case "translateProjectDataWithoutGlossary": //
+      translateProjectDataWithoutGlossary(req, res);
+      return;
+    case "createArabicGlossary": //
+      createArabicGlossary(req, res);
+      return;
+
+    case "createJapanGlossary": //
+      createJapanGlossary(req, res);
+      return;
+    case "createComGlossary": //
+      createComGlossary(req, res);
+      return;
+    case "translateComLocalize": //
+      translateComLocalize(req, res);
+      return;
+    case "deleteGlossary": //
+      deleteGlossary(req, res);
+      return;
+
+    case "translateSingleEpisode": //
+      translateSingleEpisode(req, res);
+      return;
+
+    case "translateSingleEpisodeWithoutGlossary": //
+      translateSingleEpisodeWithoutGlossary(req, res);
+      return;
+
+    case "translateScriptWithGlossary": // 용어집 사용해서 스크립트 번역
+      translateScriptWithGlossary(req, res);
+      return;
+    case "translateScriptWithoutGlossary": // 용어집 없이 스크립트 번역
+      translateScriptWithoutGlossary(req, res);
+      return;
+
+    case "translateProjectDataWithGlossary": // 프로젝트 전체 자동 번역
+      translateProjectDataWithGlossary(req, res);
+      return;
+    case "translateProjectSpecificDataWithGlossary": // 프로젝트 특정 데이터 자동 번역
+      translateProjectSpecificDataWithGlossary(req, res);
+      return;
+    // ? 구글 자동 번역 요청 구역 종료
+
+    case "failResponse": // 무조건 실패 응답
+      failResponse(req, res);
+      return;
+
+    case "PrepareMissionData": // 이프유 유저 미션 데이터 강제 생성하기
+      PrepareMissionData(req, res);
+      return;
+
+    case "UnlockUserAllGalleryImage": // 이프유 유저의 대상 프로젝트 모든 갤러리 오픈
+      UnlockUserAllGalleryImage(req, res);
+      return;
+
+    default:
+      respondFail(res, {}, `Not matched func in patch`, 80019);
+  }
+}; // ? END OF postOperationUtil
 
 // * PUT 응답 받기
 export const putClient = (req, res) => {
@@ -1971,8 +1861,7 @@ export const patchClient = (req, res) => {
   }
 }; // ? END PATCH
 
-// clientHome에서 func에 따라 분배
-// controller에서 또다시 controller로 보내는것이 옳을까..? ㅠㅠ
+// * POST 응답받기 <func에 따라 분배>
 export const clientHome = (req, res) => {
   // console.log(req.body);
   const { func } = req.body;
@@ -1989,36 +1878,30 @@ export const clientHome = (req, res) => {
       initializeClient(req, res);
       return;
 
-    case "startEpisodePlay":
-      startEpisodePlay(req, res);
+    case "getServerMasterInfo": // 서버 마스터 정보 및 광고 기준정보 요청
+      getServerMasterInfo(req, res);
       return;
 
-    case "loginClient":
-      loginClient(req, res);
-      return;
-
-    case "loginPackage":
+    case "loginSinglePackage": // 로그인 처리
       loginPackage(req, res);
       return;
 
-    case "loginSinglePackage":
-      loginPackage(req, res);
-      return;
-    case "getPackageProject":
+    case "getPackageProject": // 프로젝트 마스터 & 디테일 정보 불러오기
       getPackageProject(req, res);
       return;
-    case "getUserSelectedStory":
-      getUserSelectedStory(req, res);
-      return;
-    case "requestPackageStoryInfo":
+
+    case "requestPackageStoryInfo": // 프로젝트 기준정보 및 유저 플레이 기록 불러오기
       requestPackageStoryInfo(req, res);
       return;
+
     case "clearUserEpisodeSceneHistory":
       clearUserEpisodeSceneProgress(req, res);
       return;
+
     case "updateUserEpisodeSceneHistory":
       insertUserEpisodeSceneHistory(req, res);
       return;
+
     case "updateUserEpisodeSceneRecord":
       updateUserSceneRecord(req, res);
       return;
@@ -2084,10 +1967,6 @@ export const clientHome = (req, res) => {
       getSingleGameScriptWithResources(req, res);
       return;
 
-    case "purchaseSingleNovelProduct": // 비주얼 노벨 게임 인앱상품 구매
-      purchaseSingleNovelProduct(req, res);
-      return;
-
     case "purchaseOtomeProduct": // 오토메 게임 인앱상품 구매
       purchaseOtomeProduct(req, res);
       return;
@@ -2136,328 +2015,46 @@ export const clientHome = (req, res) => {
       requestUnreadMailList(req, res);
       return;
 
+    case "updateUserIllustHistory": // 일러스트 해금 처리
+      updateUserIllustHistory(req, res);
+      return;
+
     default:
       break;
   }
   // else if (func === "useCoupon") useCoupon(req, res);
 
-  if (func === "updateUserIllustHistory") updateUserIllustHistory(req, res);
-  else if (func === "updateUserMissionHistory")
-    updateUserMissionHistory(req, res);
-  else if (func === "updateUserEpisodePlayRecord")
-    updateUserEpisodePlayRecord(req, res);
-  else if (func === "changeAccountByGamebase")
-    changeAccountByGamebase(req, res);
-  else if (func === "resetUserEpisodeProgressType2")
-    resetUserEpisodeProgressType2(req, res);
-  else if (func === "accquireUserConsumableCurrency")
-    // 재화 획득
-    accquireUserConsumableCurrency(req, res);
-  // 재화 소모
-  else if (func === "consumeUserCurrency") consumeUserCurrency(req, res);
-  else if (func === "purchaseEpisodeType2") purchaseEpisodeType2(req, res);
-  else if (func === "updateUserVoiceHistory") updateUserVoiceHistory(req, res);
-  // 메일 처리
-  else if (func === "getUserUnreadMailList") getUserUnreadMailList(req, res);
-  else if (func === "requestReceiveSingleMail")
-    requestReceiveSingleMail(req, res);
-  else if (func === "requestReceiveAllMail") requestReceiveAllMail(req, res);
+  if (func === "updateUserMissionHistory") updateUserMissionHistory(req, res);
   else if (func === "updateUserMinicutHistory")
     updateUserMinicutHistory(req, res);
-  else if (func === "mainLoadingImageRandom")
-    getMainLoadingImageRandom(req, res);
-  else if (func === "updateUserScriptMission")
-    updateUserScriptMission(req, res);
-  else if (func === "getUserMissionList") userMissionList(req, res);
-  else if (func === "rewardGradeUsers") rewardGradeUsers(req, res);
-  else if (func === "getUserMisionReward") userMisionReceive(req, res);
-  else if (func === "getClientLocallizingList")
-    getClientLocalizingList(req, res);
-  else if (func === "updateAccountWithGamebaseID")
-    updateAccountWithGamebaseID(req, res);
-  else if (func === "checkAccountExistsByGamebase")
-    checkAccountExistsByGamebase(req, res);
   else if (func === "updateUserProjectCurrent")
     updateUserProjectCurrent(req, res);
-  else if (func === "updateSelectionProgress")
-    updateSelectionProgress(req, res);
-  else if (func === "getAllProductList") getAllProductList(req, res);
-  else if (func === "getUserPurchaseList") getUserPurchaseList(req, res);
-  else if (func === "getUserRawPurchaseList") getUserRawPurchaseList(req, res);
-  else if (func === "updateTutorialStep") updateTutorialStep(req, res);
-  else if (func === "updateTutorialSelection")
-    updateTutorialSelection(req, res);
-  else if (func === "getUserPropertyHistory") getUserPropertyHistory(req, res);
-  else if (func === "getAppCommonResources") getAppCommonResources(req, res);
-  else if (func === "reportRequestError") reportRequestError(req, res);
-  else if (func === "updateWithdrawDate") updateWithdrawDate(req, res);
-  else if (func === "getProjectCreditList") getProjectCreditList(req, res);
-  else if (func === "checkUserIdValidation") checkUserIdValidation(req, res);
-  else if (func === "makeInsertQuery") makeInsertQuery(req, res);
-  else if (func === "makeCopyInsert") makeCopyInsert(req, res);
-  else if (func === "makeLangInsert") makeLangInsert(req, res);
-  else if (func === "concatColumns") concatColumns(req, res);
-  else if (func === "unlockProjectHiddenElements")
-    unlockProjectHiddenElements(req, res);
-  else if (func === "changeAdminAccountStatus")
-    changeAdminAccountStatus(req, res);
-  else if (func === "UnlockUserAllGalleryImage")
-    UnlockUserAllGalleryImage(req, res);
-  else if (func === "getUserBankInfoWithResponse")
-    getUserBankInfoWithResponse(req, res);
-  else if (func === "PrepareMissionData") PrepareMissionData(req, res);
-  else if (func === "nestedQuery") nestedQuery(req, res);
-  else if (func === "failResponse") failResponse(req, res);
-  else if (func === "getProjectEpisodeProgressCount")
-    getProjectEpisodeProgressCount(req, res);
-  else if (func === "userCoinPurchase") userCoinPurchase(req, res);
-  else if (func === "updateUserSelectionCurrent")
-    updateUserSelectionCurrent(req, res);
-  // 선택지 업데이트
-  else if (func === "getTop3SelectionList") getTop3SelectionList(req, res);
-  // 선택지 로그 리스트
-  else if (func === "getEndingSelectionList") getEndingSelectionList(req, res);
-  // 엔딩 선택지 로그 리스트
-  else if (func === "getServerMasterInfo") getServerMasterInfo(req, res);
-  // 서버 마스터 정보 및 광고 기준정보
   else if (func === "updateUserMinicutHistoryVer2")
     updateUserMinicutHistoryVer2(req, res);
-  else if (func === "getIfYouProjectList") getIfYouProjectList(req, res);
-  // 삭제 대상
-  else if (func === "requestPlatformProjectList")
-    requestPlatformProjectList(req, res);
-  // 서버 마스터 정보 및 광고 기준정보
-  else if (func === "getProfileCurrencyOwnList")
-    getProfileCurrencyOwnList(req, res);
-  //소유한 프로필 재화 리스트
-  else if (func === "getProfileCurrencyCurrent")
-    getProfileCurrencyCurrent(req, res);
-  //현재 저장된 프로필 재화 정보
-  else if (func === "userProfileSave") userProfileSave(req, res);
-  //프로필 꾸미기 저장
-  else if (func === "getCoinProductMainList") getCoinProductMainList(req, res);
-  //코인 상점 메인
-  else if (func === "getCoinProductSearch") getCoinProductSearch(req, res);
-  //코인 상점 검색
-  else if (func === "getCoinProductSearchDetail")
-    getCoinProductSearchDetail(req, res);
-  //코인 상점 검색 상세
-  else if (func === "getCoinProductTypeList") getCoinProductTypeList(req, res);
-  //탭별 목록
-  else if (func === "coinProductDetail") coinProductDetail(req, res);
-  //상품 상세
-  else if (func === "coinProductSearchDelete")
-    coinProductSearchDelete(req, res);
-  //검색어 삭제
-  else if (func === "getCoinProductPurchaseList")
-    getCoinProductPurchaseList(req, res);
   // 코인 재화 구매 내역
-  else if (func === "insertUserProperty") insertUserProperty(req, res);
-  // 레벨 리스트
-  else if (func === "updateProjectLike") updateProjectLike(req, res);
-  // 작품 좋아요 등록/해제
   else if (func === "updateUserNickname") updateUserNickname(req, res);
   // 닉네임 변경
-  else if (func === "getCoinExchangeProductList")
-    getCoinExchangeProductList(req, res);
-  // 코인 상품 환전 리스트
-  else if (func === "coinExchangePurchase") coinExchangePurchase(req, res);
-  else if (func === "requestTutorialReward") requestTutorialReward(req, res);
-  else if (func === "livePairScriptUpdate") livePairScriptUpdate(req, res);
-  //라이브 페어 일괄 업데이트
-  else if (func === "insertUserAdHistory") insertUserAdHistory(req, res);
-  //유저별 광고 히스토리
-  else if (func === "getCommingList") getCommingList(req, res);
-  else if (func === "getAttendanceList") attendanceList(req, res);
-  //출석 보상 리스트
-  else if (func === "sendAttendanceReward") sendAttendanceReward(req, res);
-  else if (func === "sendAttendanceRewardOptimized")
-    sendAttendanceRewardOptimized(req, res);
-  //출석 보상
-  else if (func === "userProfileSaveVer2") userProfileSaveVer2(req, res);
-  // 통합 프로필 저장Ver2
-  else if (func === "saveUserStoryProfile") saveUserStoryProfile(req, res);
-  else if (func === "getUserStoryProfileCurrencyList")
-    getUserStoryProfileCurrencyList(req, res);
-  // * 작품별 프로필 저장
-  else if (func === "setStatList") setStatList(req, res);
-  //통계
   else if (func === "firstResetAbility") firstResetAbility(req, res);
   //처음부터 능력치 리셋
   else if (func === "addUserAbility") addUserAbility(req, res);
-  else if (func === "requestWaitingEpisodeWithCoin")
-    requestWaitingEpisodeWithCoin(req, res);
-  else if (func === "requestWaitingEpisodeWithAD")
-    requestWaitingEpisodeWithAD(req, res);
   //능력치 추가
-  else if (func === "purchaseSelection") purchaseSelection(req, res);
   else if (func === "purchaseOtomeChoice") purchaseOtomeChoice(req, res);
-  else if (func === "requestRemoveCurrentAD") requestRemoveCurrentAD(req, res);
   else if (func === "resetPlayingEpisode") resetPlayingEpisode(req, res);
-  //과금 선택지 구매
-  else if (func === "getSelectionCurrent") getSelectionCurrent(req, res);
-  //현재 선택지
-  else if (func === "requestUserTutorialProgress")
-    requestUserTutorialProgress(req, res);
-  else if (func === "getPlatformNoticePromotion")
-    getPlatformNoticePromotion(req, res);
-  else if (func === "requestGalleryShareBonus")
-    requestGalleryShareBonus(req, res);
-  else if (func === "getUserStoryProfileAndAbility")
-    getUserStoryProfileAndAbility(req, res);
-  else if (func === "requestGalleryLobbyOpen")
-    requestGalleryLobbyOpen(req, res);
-  //단계별 튜토리얼 처리
-  else if (func === "requestTotalCoinShop") requestTotalCoinShop(req, res);
-  //토탈 코인 상점 화면
-  else if (func === "setProjectProgressOrder")
-    //에피 진행 순서 누적
-    setProjectProgressOrder(req, res);
-  else if (func === "updateUserVoiceCheck") updateUserVoiceCheck(req, res);
-  else if (func === "requestAchievementMain") requestAchievementMain(req, res);
-  else if (func === "updateUserIntroDone") updateUserIntroDone(req, res);
-  else if (func === "getIFyouWebMainPageInfo")
-    getIFyouWebMainPageInfo(req, res);
-  else if (func === "requestUserGradeInfo") requestAchievementList(req, res);
-  //등급 및 업적 리스트
-  else if (func === "updateUserAchievement") updateUserAchievement(req, res);
-  else if (func === "receiveInquiry") receiveInquiry(req, res);
-  else if (func === "collectProjectRetention")
-    collectProjectRetention(req, res);
-  else if (func === "collectAllProjectRetention")
-    collectAllProjectRetention(req, res);
-  //신규 2022.07.27
-  else if (func === "requestEpisodeFirstClear")
-    requestEpisodeFirstClear(req, res);
-  // 타임딜 생성 처리
-  else if (func === "updatePassTimeDeal") updatePassTimeDeal(req, res);
-  // 유저의 활성화된 타임딜 가져오기
-  else if (func === "getUserActiveTimeDeal") getUserActiveTimeDeal(req, res);
-  else if (func === "purchasePremiumPass") purchasePremiumPass(req, res);
-  else if (func === "requestSelectionHint") requestSelectionHint(req, res);
-  // 선택지 힌트
-  else if (func === "requestMissionAllReward")
-    requestMissionAllReward(req, res);
-  // 미션 전체 클리어 보상
-  else if (func === "requestLocalizingCoinShop")
-    requestLocalizingCoinShop(req, res);
-  //코인샵 다국어
-  else if (func === "normalizeResource") normalizeResource(req, res);
-  else if (func === "requestAttendanceMission")
-    requestAttendanceMission(req, res);
-  //연속 출석 미션
-  else if (func === "receiveAttendanceMissionReward")
-    receiveAttendanceMissionReward(req, res);
-  //연속 출석 미션 보상 받기
-  else if (func === "resetAttendanceMission") resetAttendanceMission(req, res);
-  //연속 출석 미션 보충
-  else if (func === "requestIfyouPlayList") requestIfyouPlayList(req, res);
-  else if (func === "requestIfyouPlayListOptimized")
-    requestIfyouPlayListOptimized(req, res);
-  //이프유 플레이 리스트
-  else if (func === "requestDailyMissionReward")
-    requestDailyMissionReward(req, res);
-  else if (func === "requestDailyMissionRewardOptimized")
-    requestDailyMissionRewardOptimized(req, res);
-  //일일 미션 보상 받기
-  else if (func === "requestDailyMissionCount")
-    increaseDailyMissionCount(req, res);
-  else if (func === "increaseDailyMissionCount")
-    increaseDailyMissionCountOptimized(req, res);
-  //일일미션 누적처리
-  else if (func === "requestCoinExchangeListByCoinShop")
-    requestCoinExchangeListByCoinShop(req, res);
-  //환전 리스트(코인샵)
-  else if (func === "setUserProjectNotification")
-    setUserProjectNotification(req, res);
-  // 유저 프로젝트 알림설정(2022.05.20)
-  else if (func === "updateRateHistory") updateRateHistory(req, res);
-  // 유저 평가팝업 기록 저장 (2022.06.02)
-  else if (func === "refreshCachePlatformEvent")
-    refreshCachePlatformEvent(req, res);
-  // 공지사항, 프로모션 캐시 리프레시
-  else if (func === "refreshCacheLocalizedText")
-    refreshCacheLocalizedText(req, res);
-  // 로컬라이즈 텍스트
-  else if (func === "refreshCacheServerMaster")
-    refreshCacheServerMaster(req, res);
-  // 서버 마스터, 광고기준, 타임딜
-  else if (func === "refreshCacheProduct") refreshCacheProduct(req, res);
-  else if (func === "translateText") translateText(req, res);
-  else if (func === "translateWithGlossary") translateWithGlossary(req, res);
-  else if (func === "translateProjectDataWithoutGlossary")
-    translateProjectDataWithoutGlossary(req, res);
-  else if (func === "createArabicGlossary") createArabicGlossary(req, res);
-  else if (func === "createJapanGlossary") createJapanGlossary(req, res);
-  else if (func === "createComGlossary") createComGlossary(req, res);
-  else if (func === "translateComLocalize") translateComLocalize(req, res);
-  // 인앱상품 정보 캐시 재조회
-  else if (func === "getIntroCharacterList") getIntroCharacterList(req, res);
-  else if (func === "deleteGlossary") deleteGlossary(req, res);
-  else if (func === "translateScriptWithGlossary")
-    translateScriptWithGlossary(req, res);
-  else if (func === "translateScriptWithoutGlossary")
-    translateScriptWithoutGlossary(req, res);
-  else if (func === "updateSelectionConfirm") updateSelectionConfirm(req, res);
-  else if (func === "requestRecommendProject")
-    requestRecommendProject(req, res);
-  // 추천 작품 리스트
-  else if (func === "purchaseInappProduct") purchaseInappProduct(req, res);
-  // 삭제 대상
-  else if (func === "requestInappProduct") requestInappProduct(req, res);
-  // 신규버전
-  else if (func === "translateProjectDataWithGlossary")
-    translateProjectDataWithGlossary(req, res);
-  else if (func === "translateProjectSpecificDataWithGlossary")
-    translateProjectSpecificDataWithGlossary(req, res);
-  else if (func === "increaseMissionAdReward")
-    increaseMissionAdReward(req, res);
-  else if (func === "increaseMissionAdRewardOptimized")
-    increaseMissionAdRewardOptimized(req, res);
-  // 미션 광고 보상 카운트 누적
-  else if (func === "requestAdReward") requestAdReward(req, res);
-  else if (func === "requestAdRewardOptimized")
-    requestAdRewardOptimized(req, res);
-  // 광고 보상 처리
-  else if (func === "translateSingleEpisode") translateSingleEpisode(req, res);
-  else if (func === "translateSingleEpisodeWithoutGlossary")
-    translateSingleEpisodeWithoutGlossary(req, res);
-  else if (func === "refundPreviousInappStar")
-    refundPreviousInappStar(req, res);
-  else if (func === "refreshCacheFixedData") refreshCacheFixedData(req, res);
-  else if (func === "requestOfferwallCredit") requestOfferwallCredit(req, res);
-  else if (func === "requestIfYouPass") requestIfYouPass(req, res);
-  // 이프유패스 구매
   else if (func === "requestUserProjectCurrent")
     requestUserProjectCurrent(req, res);
   else if (func === "requestLocalizingSurvey")
     //설문조사
     requestLocalizingSurvey(req, res);
-  else if (func === "purchaseInappProductByMail")
-    //우편 구매
-    purchaseInappProductByMail(req, res);
-  else if (func === "getUserPurchaseListVer2")
-    //구매 내역(뉴버전)
-    getUserPurchaseListVer2(req, res);
   else if (func === "getPackUserPurchaseList")
     // 패키지 유저 구매내역
     getPackUserPurchaseList(req, res);
-  else if (func === "getPremiumReward")
-    //프리미엄 챌린지 보상
-    getPremiumReward(req, res);
   else if (func === "requestUnlockSpecialEpisode")
     // 스페셜 에피소드 해금
     requestUnlockSpecialEpisode(req, res);
   else if (func === "requestUnlockMission")
     // 미션 해금
     requestUnlockMission(req, res);
-  else if (func === "spendEnergyByChoice") {
-    // ! 선택지 선택 후 에너지 소모 (단일 비주얼 노벨) 삭제대상 2022.12.22
-    spendEnergyByChoice(req, res);
-  } else if (func === "chooseChoiceWithEnergy") {
-    // 신규 에너지로 선택지 선택
-    chooseChoiceWithEnergy(req, res);
-  } else if (func === "chargeEnergyByAdvertisement")
+  else if (func === "chargeEnergyByAdvertisement")
     //광고보고 선택지 충전하기
     chargeEnergyByAdvertisement(req, res);
   else if (func === "checkPackageVersion")
@@ -2472,9 +2069,7 @@ export const clientHome = (req, res) => {
   else if (func === "checkDailyEnergy")
     // 노벨 패키지의 일일 에너지 보상 체크 및 받기
     checkDailyEnergy(req, res);
-  else if (func === "InitializeClient") {
-    initializeClient(req, res); // 패키지 마스터
-  } else {
+  else {
     //  res.status(400).send(`Wrong Func : ${func}`);
     logger.error(`clientHome Error ${func}`);
     respondDB(res, 80033, func);

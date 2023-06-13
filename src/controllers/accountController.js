@@ -52,7 +52,6 @@ import {
 } from "../USERQStore";
 
 import { logger } from "../logger";
-import { getUserVoiceHistory } from "./soundController";
 import {
   checkSideUnlockByScene,
   checkMissionByScence,
@@ -63,14 +62,9 @@ import {
   getUserProjectCurrent,
   getUserProjectSelectionProgress,
 } from "../com/userProject";
-import {
-  getProjectBgmBannerInfo,
-  getProjectFreepassBadge,
-} from "./designController";
 import { getUserBankInfo, getCurrencyQuantity } from "./bankController";
 
 import { gamebaseAPI } from "../com/gamebaseAPI";
-import { getUserStoryProfile } from "./profileController";
 import {
   getUserProjectAbilityCurrent,
   createQueryResetAbility,
@@ -552,68 +546,7 @@ ORDER BY a.episode_type, a.sortkey;
     organized.push(item);
   });
 
-  // ! 2021.09.01 갤러리 이미지 리소스의 첫 등장 에피소드 정보에 따라서 각 에피소드에 넣어준다.
-  /*
-  const galleryImages = await getConnectedGalleryImages(userInfo.project_id);
-
-  // 정렬된 에피소드 목록을 돌면서 연결된 갤러리 이미지를 넣어준다.
-  organized.forEach((item) => {
-    item.galleryImage = []; // 빈 배열을 만들어주기!
-
-    for (let i = 0; i < galleryImages.length; i++) {
-      if (galleryImages[i].appear_episode === item.episode_id) {
-        // 첫 등장 에피소드 ID를 비교해서 일치하면 push!
-        item.galleryImage.push(galleryImages[i]); // push 해준다.
-      }
-    } //
-  });
-  */
-
   return organized;
-};
-
-// * 프로젝트에 연결된 말풍선 세트 ID 조회
-const getProjectBubbleSetVersionID = async (userInfo) => {
-  // * 2022.05.18 말풍선 추가 옵션
-  // 폰트 사이즈 및 정렬 방식, 네임태그 설정에 대한 정보 추가
-  const result = await slaveDB(
-    `
-    SELECT lp.bubble_set_id
-         , cbm.*
-    FROM list_project_master lp
-       , com_bubble_master cbm 
-   WHERE lp.project_id = ?
-     AND cbm.set_id = lp.bubble_set_id;
- `,
-    [userInfo.project_id]
-  );
-
-  // 마스터 정보
-  let bubbleMaster = { bubbleID: 25, bubble_ver: 1 };
-
-  // 리턴
-  if (result.state && result.row.length > 0) {
-    bubbleMaster = result.row[0]; // row 정보를 그대로 가져오고
-
-    // 추가 변수 세팅
-    bubbleMaster.bubbleID = result.row[0].bubble_set_id;
-    bubbleMaster.bubble_ver = result.row[0].bubble_ver;
-
-    return bubbleMaster;
-  } else {
-    logger.error(`NO BUBBLE SET ${JSON.stringify(userInfo)}`);
-    return bubbleMaster;
-  }
-}; // ? END
-
-// 프로젝트 말풍선 세트 정보 조회
-const getProjectBubbleSetDetail = async (userInfo) => {
-  const result = await slaveDB(Q_SELECT_PROJECT_BUBBLE_SET, [
-    userInfo.bubbleID,
-  ]);
-
-  if (result.state) return result.row;
-  else return [];
 };
 
 const initBubbleSetObject = () => {
@@ -2661,155 +2594,6 @@ ORDER BY rand() LIMIT 1;
 ///////////////////////////////////////////////////////////////////////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////////////////////
-
-// * 유저가 선택한 스토리(프로젝트) 정보 가져오기
-// * 작품 상세화면에 진입이 정보를 아주 많이! 가져온다.
-// ! 중요
-// * ## 작품상세정보
-export const getUserSelectedStory = async (req, res) => {
-  const {
-    body: {
-      userkey,
-      project_id,
-      userBubbleVersion = 0,
-      clientBubbleSetID = -1,
-      lang = "KO",
-    },
-  } = req;
-
-  //로그용으로 쌓기 위해 추가
-  logAction(userkey, "project_enter", req.body);
-
-  // * 유저 정보
-  const userInfo = {
-    userkey,
-    project_id,
-    userBubbleVersion,
-    clientBubbleSetID,
-    lang,
-  };
-
-  // 프로젝트에 연결된 BubbleSet ID, Version 정보 추가
-  let ProjectBubbleSetId = parseInt(clientBubbleSetID, 10);
-  const result = await slaveDB(
-    "SELECT * FROM list_project_master WHERE project_id = ?;",
-    [project_id]
-  );
-  if (result.state && result.row.length > 0) {
-    if (ProjectBubbleSetId !== result.row[0].bubble_set_id)
-      ProjectBubbleSetId = result.row[0].bubble_set_id;
-  }
-
-  //버전 셋팅
-  let bubbleMaster = "";
-  const bubbleMasterCache = cache.get("bubble").bubbleMaster;
-  bubbleMasterCache.forEach((item) => {
-    if (item.bubbleID === ProjectBubbleSetId) bubbleMaster = item;
-  });
-  if (bubbleMaster === "") bubbleMaster = { bubbleID: 25, bubble_ver: 1 }; //없으면 디폴트로
-
-  // 프로젝트와 연결된 말풍선 세트 정보를 따로 갖고 있는다. (아래에서 비교)
-  userInfo.bubbleID = bubbleMaster.bubbleID;
-  userInfo.bubble_ver = bubbleMaster.bubble_ver;
-
-  // logger.info(`>>> getUserSelectedStory [${JSON.stringify(userInfo)}]`);
-
-  const storyInfo = {}; // * 결과값
-
-  // * 스토리 프로필 15 버전부터 추가 (2022.02.21)
-  storyInfo.storyProfile = await getUserStoryProfile(req, res, false); // 작품별 프로필
-
-  storyInfo.galleryImages = await getUserGalleryHistory(userInfo); // 갤러리 공개 이미지
-  storyInfo.projectCurrent = await getUserProjectCurrent(userInfo); // 프로젝트 현재 플레이 지점 !
-
-  // * 로딩 정보 추가
-  const currentLoadingData = await getCurrentLoadingData(
-    userInfo.project_id,
-    storyInfo.projectCurrent[0].episode_id,
-    userInfo.lang
-  );
-  storyInfo.loading = currentLoadingData.loading;
-  storyInfo.loadingDetail = currentLoadingData.loadingDetail;
-
-  const projectResources = await getProjectResources(
-    userInfo.project_id,
-    userInfo.lang,
-    userInfo.userkey
-  );
-  if (projectResources == null) {
-    respondDB(res, 80026, "프로젝트 리소스 로딩 오류");
-    return;
-  }
-
-  storyInfo.backgrounds = projectResources.backgrounds;
-  storyInfo.emoticons = projectResources.emoticons;
-
-  storyInfo.detail = projectResources.detail; // 상세정보
-  storyInfo.dressCode = projectResources.dressCode; // 의상정보
-  storyInfo.nametag = projectResources.nametag; // 네임태그
-  storyInfo.bgms = projectResources.bgms; // BGM
-  storyInfo.illusts = projectResources.illusts; // 이미지 일러스트
-  storyInfo.minicuts = projectResources.minicuts; // 미니컷
-  storyInfo.models = projectResources.models; // 캐릭터 모델 정보
-  storyInfo.liveObjects = projectResources.liveObjects; // 라이브 오브젝트
-  storyInfo.liveIllusts = projectResources.liveIllusts; // 라이브 일러스트
-  storyInfo.bubbleSprite =
-    cache.get("bubble").bubbleSprite[userInfo.bubbleID.toString()]; // 프로젝트 말풍선 스프라이트 정보
-  storyInfo.episodeLoadingList = projectResources.episodeLoadingList; // 에피소드 로딩 리스트
-  storyInfo.missions = projectResources.missions; // 프로젝트의 모든 도전과제
-
-  //* 사건 정보
-  storyInfo.sceneProgress = projectResources.sceneProgress; // 유저 사건ID 진행도
-  // console.log(storyInfo.sceneProgress);
-  storyInfo.sceneHistory = projectResources.sceneHistory; // 유저가 한번이라도 오픈한 프로젝트별 사건ID (신규 입력만, 삭제나 변경 없음)
-  //* 에피소드 정보
-  storyInfo.episodeProgress = projectResources.episodeProgress; // ! 유저 에피소드 진행도
-  storyInfo.episodeHistory = projectResources.episodeHistory; // 유저 에피소드 히스토리
-  storyInfo.episodePurchase = projectResources.episodePurchase; // 에피소드 구매 정보
-  storyInfo.sides = projectResources.sides; // 유저의 사이드 에피소드 리스트
-
-  // storyInfo.premiumPrice = await getCurrentProjectPassPrice(userInfo); // 현재 작품의 프리미엄 패스 가격정보
-
-  storyInfo.selectionProgress = await getUserProjectSelectionProgress(userInfo); // 프로젝트 선택지 Progress
-
-  const voiceData = await getUserVoiceHistory(userInfo);
-  storyInfo.voiceHistory = voiceData.voiceHistory; // 화자별로 포장된 보이스
-  storyInfo.rawVoiceHistory = voiceData.rawVoiceHistory; // 리스트 그대로 형태의 보이스
-  storyInfo.episodes = await requestMainEpisodeList(userInfo); // 유저의 정규 에피소드 리스트
-
-  // 작품 기준정보
-  storyInfo.bgmBanner = await getProjectBgmBannerInfo(userInfo); // BGM 배너
-  storyInfo.freepassBadge = await getProjectFreepassBadge(userInfo); // 프리패스 뱃지
-  storyInfo.bubbleMaster = bubbleMaster; // 말풍선 마스터 정보
-
-  // * 말풍선 상세 정보 (버전체크를 통해서 필요할때만 내려준다)
-  // 버전 + 같은 세트 ID인지도 체크하도록 추가.
-  if (
-    userInfo.userBubbleVersion != userInfo.bubble_ver ||
-    userInfo.clientBubbleSetID != userInfo.bubbleID
-  ) {
-    // logger.info(`!!! Response with BubbleSetDetail`);
-    const allBubbleSet =
-      cache.get("bubble").bubbleSet[userInfo.bubbleID.toString()];
-
-    // 말풍선 세트를 Variation, Template 별로 정리합니다.
-    storyInfo.bubbleSet = arrangeBubbleSet(allBubbleSet);
-  } // ? 말풍선 상세정보 끝
-
-  storyInfo.ability = await getUserProjectAbilityCurrent(userInfo); //유저의 현재 능력치 정보
-  storyInfo.rawStoryAbility = await getUserStoryAbilityRawList(req.body); // 스토리에서 획득한 능력치 Raw 리스트
-  storyInfo.selectionPurchase = await getUserSelectionPurchaseInfo(userInfo); // 과금 선택지 정보
-  storyInfo.selectionHistory = await getUserStorySelectionHistory(req.body); // 선택지 히스토리
-
-  storyInfo.endingHint = projectResources.endingHint; //엔딩힌트
-  storyInfo.selectionHintPurchase = projectResources.selectionHintPurchase; //선택지힌트 구매
-  storyInfo.missionAllClear = projectResources.missionAllClear; //미션 올클리어
-  storyInfo.premiumMaster = projectResources.premiumMaster; //프리미엄 패스 마스터
-  storyInfo.premiumDetail = projectResources.premiumDetail; //프리미엄 패스 디테일
-
-  // response
-  res.status(200).json(storyInfo);
-};
 
 // * 유저가 보유한 재화 (꾸미기 가능 재화 한정) 리스트
 export const getProfileCurrencyOwnList = async (req, res) => {

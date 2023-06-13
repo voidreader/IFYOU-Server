@@ -3,6 +3,8 @@ import { response } from "express";
 import { DB, logAction, slaveDB, transactionDB } from "../mysqldb";
 import { logger } from "../logger";
 
+// * webController는 이프유 플랫폼의 웹 사이트에서 호출되는 함수를 제공합니다.
+
 // * 프로젝트의 장르 조회하기
 const getProjectGenre = async (project_id, lang) => {
   const result = await slaveDB(`
