@@ -6,7 +6,6 @@ import { response } from "express";
 import { DB, logAction, logDB, slaveDB, transactionDB } from "../mysqldb";
 import {
   Q_CLIENT_LOGIN_BY_DEVICE,
-  Q_SELECT_PROJECT_BUBBLE_SET,
   Q_SELECT_PROJECT_MODEL_ALL_FILES,
   Q_SELECT_PROJECT_LIVE_OBJECT_ALL_FILES,
   Q_SELECT_PROJECT_LIVE_ILLUST_ALL_FILES,
