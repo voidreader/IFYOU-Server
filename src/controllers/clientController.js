@@ -37,10 +37,6 @@ import {
 import { respondDB, respondFail, respondSuccess } from "../respondent";
 import {
   updateUserProjectCurrent,
-  updateUserNickname,
-  requestWaitingEpisodeWithCoin,
-  requestWaitingEpisodeWithAD,
-  requestRemoveCurrentAD,
   getUserProjectCurrent,
   requestUserProjectCurrent,
 } from "../com/userProject";
@@ -51,87 +47,15 @@ import {
   requestSingleGameCouponFromWeb,
   useCoupon,
 } from "./couponController";
-import { getUserBankInfo, getUserBankInfoWithResponse } from "./bankController";
 
-import {
-  collectAllProjectRetention,
-  collectProjectRetention,
-  getProjectEpisodeProgressCount,
-  setStatList,
-} from "./statController";
-import {
-  getUserStoryProfileCurrencyList,
-  saveUserStoryProfile,
-  userProfileSave,
-  userProfileSaveVer2,
-  getProfileCurrencyCurrent,
-  getUserStoryProfileAndAbility,
-} from "./profileController";
-import {
-  userCoinPurchase,
-  getCoinProductMainList,
-  getCoinProductSearch,
-  getCoinProductSearchDetail,
-  coinProductSearchDelete,
-  getCoinProductTypeList,
-  coinProductDetail,
-  getCoinProductPurchaseList,
-  requestTotalCoinShop,
-  requestLocalizingCoinShop,
-  requestCoinExchangeListByCoinShop,
-} from "./coinController";
+import { getUserProjectLikeList } from "./likeController";
+import { addUserAbility } from "./abilityController";
 
-import { getUserProjectLikeList, updateProjectLike } from "./likeController";
-import {
-  getCoinExchangeProductList,
-  coinExchangePurchase,
-} from "./exchangeController";
-import {
-  attendanceList,
-  sendAttendanceReward,
-  requestAttendanceMission,
-  receiveAttendanceMissionReward,
-  resetAttendanceMission,
-  sendAttendanceRewardOptimized,
-} from "./attendanceController";
-
-import { firstResetAbility, addUserAbility } from "./abilityController";
-import {
-  updateUserSelectionCurrent,
-  purchaseSelection,
-} from "./selectionController";
-import {
-  requestAchievementMain,
-  requestAchievementList,
-  updateUserAchievement,
-} from "./achievementController";
-import { getIFyouWebMainPageInfo, receiveInquiry } from "./webController";
 import {
   requestCompleteDLC_Episode,
   requestCompleteEpisodeOptimized,
-  requestEpisodeFirstClear,
-  requestUnlockMission,
-  requestUnlockSpecialEpisode,
 } from "./playingStoryAPI";
-import {
-  requestIfyouPlayList,
-  requestDailyMissionReward,
-  increaseDailyMissionCount,
-  increaseMissionAdReward,
-  requestAdReward,
-  increaseDailyMissionCountOptimized,
-  requestIfyouPlayListOptimized,
-  requestDailyMissionRewardOptimized,
-  requestAdRewardOptimized,
-  increaseMissionAdRewardOptimized,
-} from "./ifyouController";
-import {
-  refreshCacheLocalizedText,
-  refreshCachePlatformEvent,
-  refreshCacheProduct,
-  refreshCacheServerMaster,
-  refreshCacheFixedData,
-} from "../com/cacheLoader";
+
 import {
   createArabicGlossary,
   createComGlossary,
@@ -147,7 +71,6 @@ import {
   translateSingleEpisodeWithoutGlossary,
   translateText,
   translateWithGlossary,
-  updateSelectionConfirm,
 } from "../com/com";
 import {
   getSurveyMain,
@@ -157,8 +80,6 @@ import {
 } from "./surveyController";
 import {
   chargeEnergyByAdvertisement,
-  checkDailyEnergy,
-  checkPackageVersion,
   getDetailDLC,
   getOtomeEpisodeAdRewardExists,
   getPackageDLC,
@@ -2019,59 +1940,57 @@ export const clientHome = (req, res) => {
       updateUserIllustHistory(req, res);
       return;
 
+    case "purchaseOtomeChoice": // 유료 선택지 구매
+      purchaseOtomeChoice(req, res);
+      return;
+
+    case "resetPlayingEpisode": // 현재 플레이중인 에피소드 리셋
+      resetPlayingEpisode(req, res);
+      return;
+
+    case "addUserAbility": // 유저 호감도 증감 처리
+      addUserAbility(req, res);
+      return;
+
+    case "requestUserProjectCurrent": // 유저의 현재 진행위치 요청
+      requestUserProjectCurrent(req, res);
+      return;
+
+    case "requestLocalizingSurvey": // 설문조사 텍스트 조회
+      requestLocalizingSurvey(req, res);
+      return;
+
+    case "getPackUserPurchaseList": // 패키지 유저 구매내역
+      getPackUserPurchaseList(req, res);
+      return;
+
+    case "requestNovelPackageReceiveAllMail": // 모든 메일 수신
+      requestNovelPackageReceiveAllMail(req, res);
+      return;
+
+    case "requestNovelPackageReceiveSingleMail": // 단일 메일 수신
+      requestNovelPackageReceiveSingleMail(req, res);
+      return;
+
+    case "chargeEnergyByAdvertisement": // 광고 보고 에너지 충전
+      chargeEnergyByAdvertisement(req, res);
+      return;
+
+    case "updateUserMinicutHistoryVer2": // 미니컷 히스토리 해금 정보 업데이트
+      updateUserMinicutHistoryVer2(req, res);
+      return;
+
+    case "updateUserProjectCurrent": // 플레이 진행 상황 저장
+      updateUserProjectCurrent(req, res);
+      return;
+
+    case "updateUserMissionHistory": //
+      updateUserMissionHistory(req, res);
+      return;
+
     default:
+      logger.error(`clientHome Error ${func}`);
+      respondFail(res, {}, "Wrong Request", 80019);
       break;
   }
-  // else if (func === "useCoupon") useCoupon(req, res);
-
-  if (func === "updateUserMissionHistory") updateUserMissionHistory(req, res);
-  else if (func === "updateUserMinicutHistory")
-    updateUserMinicutHistory(req, res);
-  else if (func === "updateUserProjectCurrent")
-    updateUserProjectCurrent(req, res);
-  else if (func === "updateUserMinicutHistoryVer2")
-    updateUserMinicutHistoryVer2(req, res);
-  // 코인 재화 구매 내역
-  else if (func === "updateUserNickname") updateUserNickname(req, res);
-  // 닉네임 변경
-  else if (func === "firstResetAbility") firstResetAbility(req, res);
-  //처음부터 능력치 리셋
-  else if (func === "addUserAbility") addUserAbility(req, res);
-  //능력치 추가
-  else if (func === "purchaseOtomeChoice") purchaseOtomeChoice(req, res);
-  else if (func === "resetPlayingEpisode") resetPlayingEpisode(req, res);
-  else if (func === "requestUserProjectCurrent")
-    requestUserProjectCurrent(req, res);
-  else if (func === "requestLocalizingSurvey")
-    //설문조사
-    requestLocalizingSurvey(req, res);
-  else if (func === "getPackUserPurchaseList")
-    // 패키지 유저 구매내역
-    getPackUserPurchaseList(req, res);
-  else if (func === "requestUnlockSpecialEpisode")
-    // 스페셜 에피소드 해금
-    requestUnlockSpecialEpisode(req, res);
-  else if (func === "requestUnlockMission")
-    // 미션 해금
-    requestUnlockMission(req, res);
-  else if (func === "chargeEnergyByAdvertisement")
-    //광고보고 선택지 충전하기
-    chargeEnergyByAdvertisement(req, res);
-  else if (func === "checkPackageVersion")
-    // 패키지 버전 체크
-    checkPackageVersion(req, res);
-  else if (func === "requestNovelPackageReceiveSingleMail")
-    // 노벨 패키지 단일 메일 수신
-    requestNovelPackageReceiveSingleMail(req, res);
-  else if (func === "requestNovelPackageReceiveAllMail")
-    // 노벨 패키지 모든 메일 수신
-    requestNovelPackageReceiveAllMail(req, res);
-  else if (func === "checkDailyEnergy")
-    // 노벨 패키지의 일일 에너지 보상 체크 및 받기
-    checkDailyEnergy(req, res);
-  else {
-    //  res.status(400).send(`Wrong Func : ${func}`);
-    logger.error(`clientHome Error ${func}`);
-    respondDB(res, 80033, func);
-  }
-};
+}; // ? END clientHome
