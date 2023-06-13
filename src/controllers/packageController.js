@@ -37,13 +37,11 @@ import {
   getCurrentLoadingData,
   requestMainEpisodeList,
   arrangeBubbleSet,
-  getUserStorySelectionHistory,
   getOtomeProjectResources,
   getUserEpisodeProgress,
   getUserEpisodeSceneProgress,
 } from "./accountController";
 import { cache } from "../init";
-import { getUserVoiceHistory } from "./soundController";
 import {
   createQueryResetAbility,
   getOtomeProfileLines,

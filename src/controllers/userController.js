@@ -5,7 +5,7 @@ import { respondDB, respondFail, respondSuccess } from "../respondent";
 import { getUserEnergy, updateUserEnergy } from "./packageController";
 
 // * 2023.05.23
-// 패키키지 유저 계정 관련 로직을 여기에 작성합니다.
+// 패키지 유저 계정 관련 로직을 여기에 작성합니다.
 
 // * 유저 피드백 입력
 export const addUserFeedback = async (req, res) => {

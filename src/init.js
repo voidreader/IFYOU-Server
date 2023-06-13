@@ -3,11 +3,9 @@ import dotenv from "dotenv";
 import HTTPS from "https";
 import fs from "fs";
 import LRU from "lru-cache";
-import { DB } from "./mysqldb";
 import app from "./app";
 import { logger } from "./logger";
 import {
-  refreshCachePlatformEvent,
   refreshCacheServerMaster,
   refreshCacheLocalizedText,
   refreshCacheProduct,

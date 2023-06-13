@@ -8,8 +8,6 @@ import {
 } from "../respondent";
 import { logger } from "../logger";
 import { DB, slaveDB } from "../mysqldb";
-import { getComModelMainBannerClientList } from "./designController";
-import { getLevelListNoResponse } from "./levelController";
 import { cache } from "../init";
 
 const s3 = new aws.S3({
@@ -58,50 +56,6 @@ export const getPackageClientTextList = (req, res) => {
   // console.log(responseData);
 
   respondSuccess(res, responseData);
-};
-
-// * 앱 공용 리소스 주기.
-export const getAppCommonResources = async (req, res) => {
-  const responseData = {};
-
-  // * 2021.09.14 공용 모델 정보 추가
-  // responseData.models = await getComModelMainBannerClientList();
-
-  // * 2021.01.03 재화 아이콘
-  const currencyIcons = await slaveDB(`
-  SELECT DISTINCT a.currency 
-       , fn_get_design_info(a.icon_image_id, 'url') icon_url
-       , fn_get_design_info(a.icon_image_id, 'key') icon_key
-  FROM com_currency a 
- WHERE a.is_use > 0
-   AND a.local_code > -1
-   AND a.icon_image_id > 0
-   AND a.currency_type IN ('consumable', 'nonconsumable')
- ORDER BY a.currency_type ;
-  `);
-
-  console.log(`currencyIcons length : `, currencyIcons.row.length);
-
-  responseData.currency = {};
-
-  currencyIcons.row.forEach((item) => {
-    if (
-      !Object.prototype.hasOwnProperty.call(
-        responseData.currency,
-        item.currency
-      )
-    ) {
-      responseData.currency[item.currency] = {
-        image_url: item.icon_url,
-        image_key: item.icon_key,
-      };
-    }
-  });
-
-  // responseData.currencyIcons = currencyIcons.row;
-  responseData.levelList = []; // 삭제대상
-
-  res.status(200).json(responseData);
 };
 
 // * 서버 마스터 정보 (2021.12.22)
