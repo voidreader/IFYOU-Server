@@ -1974,29 +1974,6 @@ export const updateUserMinicutHistoryVer2 = async (req, res) => {
   res.status(200).json(result);
 };
 
-// ? 유저 미니컷 히스토리 업데이트
-export const updateUserMinicutHistory = async (req, res) => {
-  const {
-    body: { userkey, project_id, minicut_id, minicut_type, lang = "KO" },
-  } = req;
-
-  const updateResult = await DB(
-    `call sp_update_user_minicut_history(?,?,?,?)`,
-    [userkey, minicut_id, minicut_type, project_id]
-  );
-
-  if (!updateResult.state) {
-    logger.error(`updateUserMinicutHistory Error ${updateResult.error}`);
-    respondDB(res, 80020, updateResult.error);
-    return;
-  }
-
-  const result = {};
-  result.illustHistory = await getUserIllustHistory(req.body);
-
-  res.status(200).json(result);
-};
-
 // 유저 일러스트 히스토리 업데이트
 export const updateUserIllustHistory = async (req, res) => {
   logger.info(`updateUserIllustHistory ${JSON.stringify(req.body)}`);
