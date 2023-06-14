@@ -3,7 +3,7 @@
 
 
 ## 📱 프로젝트 소개
-IFyou 플랫폼<https://lessgame.notion.site/IF-you-368bfdfe9e1546ddb67576a62382092a?pvs=4>  게임 서버입니다.
+[IFyou 플랫폼](https://lessgame.notion.site/IF-you-368bfdfe9e1546ddb67576a62382092a?pvs=4)  게임 서버입니다.
 
 
 ## ⏰ 개발 기간
@@ -11,14 +11,14 @@ IFyou 플랫폼<https://lessgame.notion.site/IF-you-368bfdfe9e1546ddb67576a62382
 
 ### 🧑‍🤝‍🧑 Repo 기여자 (프로젝트 참여자)
 - 이형진(본인) : 메인 작업자 
-- 임지은<https://github.com/ije90s> (21.06 - 22.07)
+- [임지은](https://github.com/ije90s) (21.06 - 22.07)
 
 
 ### ⚙️ 개발 환경
 - `Node.js v18.16.0`
 - `CentOS 7.8`
 - **Framework** : Express 4.17.2
-- **Database** : MySQL 8.0.25
+- **Database** : MySQL 8.0.25, ~~Redis~~(비용 이슈로 중간에 제거)
 
 ### 📌 주요 기능
 - 게임 로그인 (NHN 게임베이스에서 유저 인증 후 접속)
