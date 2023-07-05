@@ -1142,20 +1142,55 @@ const getOtomeRewardCount = async (userkey, project_id, localTime) => {
     return responseData;
   }
 
-  const timerResult = await DB(`
+  // 로컬타임에서 '시간'이 중요해서 시간 값을 파싱합니다.
+  // 2023-07-04 23:00:00 의 형태로 들어옵니다.
+  const splitDate = localTime.split(" ");
+  if (splitDate.length < 1) {
+    logger.error("Invalid LocalTime");
+    return response;
+  }
+  // 시간 부분 가져오고.
+  const timeString = splitDate[1];
+  const splitTime = timeString.split(":");
+  if (splitTime.length < 1) {
+    logger.error("Invalid LocalTime #2");
+    return response;
+  }
+
+  const parsedHour = splitTime[0];
+  let conditionQuery = ``;
+  let fullQuery = ``;
+  if (parsedHour < "08") {
+    // 08시 이전 처리
+    // 전날 오전 8시부터 오늘의 오전 8시까지
+    conditionQuery = ` AND a.local_receive_date BETWEEN date_format(DATE_ADD('${localTime}', INTERVAL -1 DAY), '%Y-%m-%d 08:00:00') AND date_format('${localTime}', '%Y-%m-%d 07:59:59')`;
+  } else {
+    // 08시부터
+    // 오늘의 오전 8시부터 내일의 오전 8시까지.
+    conditionQuery = ` AND a.local_receive_date BETWEEN date_format('${localTime}', '%Y-%m-%d 08:00:00') AND date_format(DATE_ADD('${localTime}', INTERVAL 1 DAY), '%Y-%m-%d 07:59:59')`;
+  }
+
+  fullQuery = `
   SELECT ifnull(sum(a.reward_count), 0) reward_count
     FROM user_timer_reward a
   WHERE a.userkey = ${userkey}
     AND a.project_id = ${project_id}
-    AND a.local_receive_date BETWEEN date_format('${localTime}', '%Y-%m-%d 08:00:00') AND concat(date_format('${localTime}', '%Y-%m-%d 23:59:59'));
-  `);
+    ${conditionQuery}
+    ;
+  `;
+
+  const timerResult = await DB(fullQuery);
+  // console.log(fullQuery);
+
+  // AND a.local_receive_date BETWEEN date_format('${localTime}', '%Y-%m-%d 08:00:00') AND concat(date_format('${localTime}', '%Y-%m-%d 23:59:59'));
 
   const adResult = await DB(`
   SELECT count(*) reward_count
   FROM user_ad_reward a
  WHERE a.userkey = ${userkey}
    AND a.project_id = ${project_id}
-   AND a.local_receive_date BETWEEN date_format('${localTime}', '%Y-%m-%d 00:00:00') AND concat(date_format('${localTime}', '%Y-%m-%d 23:59:59'));
+   ${conditionQuery}
+   ;
   `);
 
   responseData.ad_reward_count = adResult.row[0].reward_count;

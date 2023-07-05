@@ -1988,6 +1988,10 @@ export const clientHome = (req, res) => {
       updateUserMissionHistory(req, res);
       return;
 
+    case "UnlockUserAllGalleryImage": // 이프유 유저의 대상 프로젝트 모든 갤러리 오픈
+      UnlockUserAllGalleryImage(req, res);
+      return;
+
     default:
       logger.error(`clientHome Error ${func}`);
       respondFail(res, {}, "Wrong Request", 80019);
