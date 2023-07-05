@@ -268,13 +268,13 @@ export const createQueryResetAbility = async (userInfo) => {
   //에피소드 조회
   const result = await slaveDB(`
   SELECT episode_id FROM list_episode WHERE project_id = ${project_id} AND dlc_id = ${dlc_id}
-    AND episode_type = 'chapter' ORDER BY sortkey, episode_id;`);
+    AND episode_type = 'chapter' ORDER BY chapter_number, episode_id;`);
 
   if (result.state && result.row.length > 0) {
     const currentQuery = `DELETE FROM user_story_ability WHERE userkey = ? AND project_id = ? AND episode_id = ?;`;
     // eslint-disable-next-line no-restricted-syntax
     for (const item of result.row) {
-      if (parseInt(episode_id) === item.episode_id) isMatch = true; //해당 에피소드부터 리셋 처리
+      if (parseInt(episode_id) == item.episode_id) isMatch = true; //해당 에피소드부터 리셋 처리
 
       if (isMatch) {
         deleteQuery += mysql.format(currentQuery, [
