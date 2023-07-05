@@ -179,7 +179,7 @@ export const getUserSelectionPurchaseInfo = async (userInfo) => {
     AND userkey = ? 
     AND a.project_id = ?
     AND b.project_id = a.project_id
-    AND b.dlc_id = ${dlc_id}
+    AND b.dlc_id >= ${dlc_id}
     ORDER BY sortkey, episode_id;`,
     [userkey, project_id]
   );
