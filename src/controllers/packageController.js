@@ -2309,11 +2309,20 @@ export const resetDLC = async (req, res) => {
     body: { userkey, project_id, episode_id, dlc_id = -1 },
   } = req;
 
+  // 능력치 리셋 쿼리 가져오기
+  const abilityResetQuery = await createQueryResetAbility({
+    userkey,
+    project_id,
+    episode_id,
+    dlc_id,
+  });
+
   // 리셋 처리 시작 !!
   const resetResult = await transactionDB(
     `
     CALL sp_reset_user_episode_progress(?, ?, ?, ?);
     CALL sp_init_user_dlc_current(${userkey}, ${project_id}, ${dlc_id});
+    ${abilityResetQuery}
     `,
     [userkey, project_id, episode_id, dlc_id]
   );

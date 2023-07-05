@@ -942,52 +942,72 @@ ORDER BY cast(target_scene_id as UNSIGNED)
   res.status(200).send(concatString);
 };
 
-// 대상 유저의 모든 갤러리 이미지 해금처리
-const UnlockUserAllGalleryImage = async (req, res) => {
+// * 대상 유저의 모든 갤러리 이미지 및 엔딩 오픈 처리
+const UnlockUserMemory = async (req, res) => {
   const {
     body: { userkey, project_id },
   } = req;
 
-  let unlockQuery = ``;
-  unlockQuery += `
-  DELETE FROM user_illust WHERE userkey = ${userkey} AND project_id = ${project_id};
-  DELETE FROM user_minicut WHERE userkey = ${userkey} AND project_id = ${project_id};
-
-  INSERT INTO user_illust (userkey, project_id, illust_id, illust_type) 
-  SELECT ${userkey}, a.project_id, a.illust_id, 'illust'
-    FROM list_illust a
-   WHERE a.project_id = ${project_id}
-     AND a.is_public = 1
-     AND a.appear_episode > 0
-     ;
-  
-  INSERT INTO user_illust (userkey, project_id, illust_id, illust_type) 
-  SELECT ${userkey}, a.project_id, a.live_illust_id, 'live2d'
+  const illustQuery = `
+  SELECT a.live_illust_id illust_id
+      , 'live2d' illust_type
     FROM list_live_illust a
-   WHERE a.project_id = ${project_id}
-     AND a.is_public = 1
-     AND a.appear_episode > 0;  
-
-  INSERT INTO user_minicut (userkey, minicut_id, minicut_type, project_id)
-  SELECT ${userkey}, a.minicut_id , 'minicut', a.project_id 
-    FROM list_minicut a
+    WHERE a.project_id = ${project_id}
+    AND a.is_public  > 0
+    AND a.appear_episode  > 0
+  UNION all
+  SELECT a.illust_id illust_id
+    , 'illust' illust_type
+  FROM list_illust a
   WHERE a.project_id = ${project_id}
-    AND a.appear_episode > 0
-    AND a.is_public = 1;
-    
- 
-  
-  INSERT INTO user_minicut (userkey, minicut_id, minicut_type, project_id)
-  SELECT ${userkey}, a.live_object_id, 'live2d', a.project_id 
-    FROM list_live_object a
-  WHERE a.project_id = ${project_id}
-    AND a.appear_episode > 0
-    AND a.is_public = 1;     
-  
+  AND a.is_public  > 0
+  AND a.appear_episode  > 0
+  ;  
   `;
 
-  const result = await DB(unlockQuery);
-  res.status(200).json(result);
+  const minicutQuery = `
+  SELECT a.live_object_id illust_id
+     , 'live2d' illust_type
+  FROM list_live_object a
+ WHERE a.project_id = ${project_id}
+   AND a.is_public  > 0
+   AND a.appear_episode  > 0
+UNION all
+SELECT a.minicut_id illust_id
+     , 'minicut' illust_type
+  FROM list_minicut a
+ WHERE a.project_id = ${project_id}
+   AND a.is_public  > 0
+   AND a.appear_episode  > 0
+;
+  `;
+
+  const publicIllusts = await DB(illustQuery);
+  const publicMinicuts = await DB(minicutQuery);
+
+  let insertQuery = ``;
+
+  publicIllusts.row.forEach((item) => {
+    insertQuery += mysql.format(
+      `INSERT IGNORE INTO user_illust (userkey, project_id, illust_id, illust_type) VALUES (?, ?, ?, ?);`,
+      [userkey, project_id, item.illust_id, item.illust_type]
+    );
+  });
+
+  publicMinicuts.row.forEach((item) => {
+    insertQuery += mysql.format(
+      `INSERT IGNORE INTO user_minicut (userkey, project_id, minicut_id, minicut_type) VALUES (?, ?, ?, ?);`,
+      [userkey, project_id, item.illust_id, item.illust_type]
+    );
+  });
+
+  const insertResult = await DB(insertQuery);
+  if (!insertResult.state) {
+    respondFail(res, insertResult.error, "error", 80019);
+    return;
+  }
+
+  respondSuccess(res, {});
 };
 
 // * 미션 데이터 준비하기(운영 및 테스트 용도)
@@ -1729,8 +1749,8 @@ export const postOperationUtil = (req, res) => {
       PrepareMissionData(req, res);
       return;
 
-    case "UnlockUserAllGalleryImage": // 이프유 유저의 대상 프로젝트 모든 갤러리 오픈
-      UnlockUserAllGalleryImage(req, res);
+    case "UnlockUserMemory": // 이프유 유저의 대상 프로젝트 모든 갤러리 오픈
+      UnlockUserMemory(req, res);
       return;
 
     default:
@@ -1988,8 +2008,8 @@ export const clientHome = (req, res) => {
       updateUserMissionHistory(req, res);
       return;
 
-    case "UnlockUserAllGalleryImage": // 이프유 유저의 대상 프로젝트 모든 갤러리 오픈
-      UnlockUserAllGalleryImage(req, res);
+    case "UnlockUserMemory": // 이프유 유저의 대상 프로젝트 모든 갤러리 오픈
+      UnlockUserMemory(req, res);
       return;
 
     default:
