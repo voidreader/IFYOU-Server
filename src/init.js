@@ -45,7 +45,7 @@ export const loadingCacheData = async () => {
   await refreshCachePackageEvent(); // 패키지 이벤트
 
   // await refreshCachePlatformEvent(); // 공지사항 및 프로모션
-  await refreshCacheProduct(); // 인앱상품 리스트
+  // await refreshCacheProduct(); // 인앱상품 리스트
 
   await refreshCacheFixedData(); // 변경되지 않는 정보
 
@@ -59,7 +59,7 @@ export const loadingRegularCacheData = async () => {
   await refreshCacheServerMaster(); // 서버 마스터
   await refreshCachePackageEvent(); // 패키지 이벤트
   // await refreshCachePlatformEvent(); // 공지사항 및 프로모션
-  await refreshCacheProduct(); // 인앱상품 리스트
+  // await refreshCacheProduct(); // 인앱상품 리스트
 
   console.log(`Refresh Cache Done! `);
 };

@@ -28,6 +28,7 @@ import {
   getUserProjectSelectionProgress,
 } from "../com/userProject";
 import {
+  getInappProductDetail,
   getProductDetailList,
   getUserPurchaseListVer2,
 } from "./shopController";
@@ -534,7 +535,7 @@ export const chooseChoiceWithEnergy = async (req, res) => {
   logAction(userkey, "energy_choice", req.body);
 }; // ? chooseChoiceWithEnergy END
 
-//! 상품 구매 리스트 - 패키지 유저
+//! 상품 구매 리스트 - 패키지 유저 (Deprecated)
 export const getPackUserPurchaseList = async (req, res, isResponse = true) => {
   const responseData = {};
 
@@ -573,7 +574,7 @@ export const getPackUserPurchaseList = async (req, res, isResponse = true) => {
   }
 };
 
-// * 패키지 프로덕트 조회
+// * 패키지 프로덕트 조회 [Deprecated]
 export const getPackageProduct = async (req, res) => {
   const {
     body: { lang, pack },
@@ -2489,3 +2490,265 @@ export const requestUnreadMailList = async (req, res) => {
 
   respondSuccess(res, responseData);
 };
+
+// * 패키지 인앱 상품 리스트 조회 (2023.07)
+export const getPackageInappProduct = async (req, res) => {
+  const {
+    body: { lang, project_id },
+  } = req;
+
+  logger.info(`getPackageInappProduct : [${JSON.stringify(req.body)}]`);
+
+  const result = await slaveDB(
+    `    
+    SELECT a.product_master_id 
+    , a.product_id 
+    , fn_get_design_info(lang.banner_id, 'url') product_url
+    , fn_get_design_info(lang.banner_id, 'key') product_key
+    , fn_get_design_info(lang.detail_image_id, 'url') product_detail_url
+    , fn_get_design_info(lang.detail_image_id, 'key') product_detail_key
+    , lang.title product_name
+    , ifnull(a.bonus_name, '') bonus_name 
+    , a.product_type 
+    , fn_get_standard_name('product_type', a.product_type) product_type_name 
+    , DATE_FORMAT(a.from_date, '%Y-%m-%d %T') from_date
+    , DATE_FORMAT(a.to_date, '%Y-%m-%d %T') to_date
+    , a.max_count
+    , case when a.to_date = '9999-12-31' THEN 0 ELSE 1 END is_event
+    , a.is_public
+    , a.project_id
+    FROM com_product_master a
+       , com_product_lang lang
+    WHERE a.is_public > 0
+    AND lang.master_id = a.product_master_id 
+    AND lang.lang  = '${lang}'
+    AND now() BETWEEN a.from_date AND a.to_date
+    AND a.project_id = ${project_id}
+    ORDER BY product_type, a.from_date DESC, a.product_id;
+    `
+  );
+
+  //* 유효한 상품 리스트와 디테일 가져오기
+  const responseData = {};
+  responseData.productMaster = result.row;
+  responseData.productDetail = {};
+
+  const productInfo = {};
+  const promise = [];
+
+  responseData.productMaster.forEach(async (item) => {
+    const key = item.product_master_id.toString();
+
+    // * product_master_id로 키를 만들어주기
+    if (!Object.hasOwnProperty.call(productInfo, key)) {
+      productInfo[key] = [];
+    }
+
+    // * 상품의 product_type에 따른 디테일 정보를 배열에 푸시해주기(프리미엄 패스 제외)
+    if (item.product_type !== "premium_pass") {
+      promise.push(getInappProductDetail(item.product_master_id));
+    }
+  });
+
+  await Promise.all(promise)
+    .then((values) => {
+      // * promise에 넣어둔 모든 getInappProductDetail 실행이 종료되면, 결과가 한번에 들어온다.
+      values.forEach((arr) => {
+        //* productInfo의 key랑 arr[i].master_id 가 똑같으면,
+        arr.forEach((item) => {
+          productInfo[item.master_id.toString()].push(item);
+        });
+      });
+    })
+    .catch((err) => {
+      console.log(err);
+    });
+
+  responseData.productDetail = productInfo;
+  respondSuccess(res, responseData);
+};
+
+//! 상품 구매 리스트 - 패키지 유저
+export const getUserInappPurchaseList = async (req, res, isResponse = true) => {
+  const responseData = {};
+
+  const {
+    body: { userkey, project_id },
+  } = req;
+
+  const result = await DB(
+    `
+  SELECT up.purchase_no
+  , up.product_id 
+  , up.receipt
+  , up.state
+  , DATE_FORMAT(up.purchase_date, '%Y-%m-%d %T') purchase_date
+  , lpm.product_master_id
+  FROM user_purchase up
+     , com_product_master lpm 
+  WHERE userkey = ${userkey}
+    AND lpm.product_id = up.product_id 
+    AND up.purchase_date BETWEEN lpm.from_date AND lpm.to_date
+    AND lpm.project_id  = ${project_id}
+  ORDER BY purchase_no DESC;
+  `
+  );
+  responseData.normal = result.row;
+
+  responseData.oneday_pass = [];
+
+  responseData.premium_pass = [];
+
+  if (isResponse) {
+    respondSuccess(res, responseData);
+  } else {
+    return responseData;
+  }
+}; // ? getUserInappPurchaseList
+
+// * 오토메 게임에서의 인앱상품 구매
+export const purchasePackageInappProduct = async (req, res) => {
+  const {
+    body: {
+      userkey = 0,
+      product_id = "",
+      product_master_id = 0,
+      receipt = "",
+      price = 0, // 가격
+      currency = "KRW", // 화폐
+      paymentSeq = "XXX", //  거래 식별자 1
+      purchaseToken = "XXX", // 거래 식별자 2
+      os = 0,
+      project_id,
+    },
+  } = req;
+
+  const responseData = { product_id, purpose: "purchase" };
+
+  // response에 어떤 목적으로 구매했는지 전달.
+
+  if (purchaseToken == "editor" || purchaseToken == "restore") {
+    responseData.purpose = purchaseToken;
+  }
+  logger.info(`purchaseInappProduct ${JSON.stringify(req.body)}`);
+
+  // if (receipt) {
+  //   const newString = receipt.replace(`\\\\`, "");
+  //   // console.log(newString);
+  //   const receiptJSON = JSON.parse(newString);
+
+  //   if (receiptJSON !== null) {
+  //     logger.info(`receipt JSON : ${JSON.stringify(receiptJSON)}`);
+
+  //     if (receiptJSON.hasOwnProperty("Payload")) {
+  //       logger.info(`Payload JSON : ${JSON.stringify(receiptJSON.Payload)}`);
+  //       const payload = receiptJSON.Payload;
+  //       const payloadJSON = rec
+  //     }
+  //   }
+  // }
+
+  logAction(userkey, `${paymentSeq} purchase call`, {
+    product_id,
+    receipt,
+    paymentSeq,
+  });
+
+  // user_purchase 입력을 먼저 한다. purchase_no를 따야함.
+  const insertPurchase = await DB(
+    `
+  INSERT INTO user_purchase(userkey, product_id, receipt, price, product_currency, payment_seq, purchase_token, state, product_master_id) 
+  VALUES (${userkey}, ?, ?, ?, ?, ?, ?, 2, ?);
+  `,
+    [
+      product_id,
+      receipt.length > 2000 ? "" : receipt,
+      price,
+      currency,
+      paymentSeq,
+      purchaseToken,
+      product_master_id,
+    ]
+  );
+
+  if (!insertPurchase.state) {
+    logger.error(
+      `requestInappProduct : [${JSON.stringify(insertPurchase.error)}]`
+    );
+
+    respondFail(res, {}, "insertPurchase.error", 80026);
+    return;
+  }
+
+  const purchase_no = insertPurchase.row.insertId; // purchase_no 가져오기.
+
+  // 상품 구성품 가져오기
+  const productInfo = await slaveDB(
+    `
+    SELECT b.currency 
+         , b.quantity 
+         , b.first_purchase
+         , b.is_main 
+     FROM com_product_master a
+         , com_product_detail b
+     WHERE a.product_master_id = ${product_master_id}
+       AND b.master_id = a.product_master_id
+       AND b.is_main >= 0
+       AND now() BETWEEN a.from_date AND a.to_date;
+  `
+  );
+
+  // 에너지 토탈 값 가져오기
+  let totalEnergy = 0;
+  productInfo.row.forEach((item) => {
+    if (item.currency === "energy") {
+      totalEnergy += parseInt(item.quantity, 10);
+    }
+  });
+
+  // 루프 돌면서 아이템 메일함 지급
+  let mailQuery = ``;
+
+  if (totalEnergy > 0) {
+    mailQuery += mysql.format(
+      `CALL sp_send_user_mail(${userkey}, ?, ?, ?, ?, 365);`,
+      ["inapp", "energy", totalEnergy, project_id]
+    );
+  }
+
+  productInfo.row.forEach((item) => {
+    if (item.currency !== "energy") {
+      mailQuery += mysql.format(
+        `CALL sp_send_user_mail(${userkey}, ?, ?, ?, ?, 365);`,
+        ["inapp", item.currency, item.quantity, project_id]
+      );
+    }
+  });
+
+  if (mailQuery) {
+    const sendMailResult = await transactionDB(mailQuery);
+
+    if (!sendMailResult.state) {
+      logger.error(sendMailResult.error);
+      respondFail(res, {}, "인앱상품 발송 실패", 80019);
+      return;
+    }
+  }
+
+  // 발송했으면,
+  responseData.unreadMailCount = await getUserUnreadMailCount(userkey); // 미수신 메일
+  responseData.userPurchaseHistory = await getUserInappPurchaseList(
+    req,
+    res,
+    false
+  );
+
+  logger.info(
+    `${paymentSeq} purchase_complete :: ${JSON.stringify(
+      responseData.product_id
+    )}`
+  );
+
+  respondSuccess(res, responseData);
+  logAction(userkey, "purchase_complete", { userkey, product_id });
+}; // ? END

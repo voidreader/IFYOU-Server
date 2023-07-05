@@ -83,15 +83,18 @@ import {
   getDetailDLC,
   getOtomeEpisodeAdRewardExists,
   getPackageDLC,
+  getPackageInappProduct,
   getPackageProduct,
   getPackageProject,
   getPackUserPurchaseList,
   getSingleGameScriptWithResources,
+  getUserInappPurchaseList,
   loginPackage,
   purchaseDLC,
   purchaseOtomeChoice,
   purchaseOtomeItem,
   purchaseOtomeProduct,
+  purchasePackageInappProduct,
   requestNovelPackageReceiveAllMail,
   requestNovelPackageReceiveSingleMail,
   requestOtomeAdReward,
@@ -1867,8 +1870,11 @@ export const clientHome = (req, res) => {
     case "updateAlterName": // 오토메 이름 수정
       updateAlterName(req, res);
       return;
-    case "purchaseOtomeItem": // 오토메 아이템 구매하기
+    case "purchaseOtomeItem": // 오토메 아이템 구매하기 [Deprecated]
       purchaseOtomeItem(req, res);
+      return;
+    case "purchasePackageInappProduct": // 오토메 아이템 구매하기 신규!
+      purchasePackageInappProduct(req, res);
       return;
 
     case "getPackageDLC": // 패키지 DLC 정보
@@ -1912,8 +1918,12 @@ export const clientHome = (req, res) => {
       purchaseOtomeProduct(req, res);
       return;
 
-    case "getPackageProduct": // 단일 게임 패키지 조회
+    case "getPackageProduct": // 단일 게임 패키지 조회 (Deprecated)
       getPackageProduct(req, res);
+      return;
+
+    case "getPackageInappProduct": // 단일 게임 패키지 조회
+      getPackageInappProduct(req, res);
       return;
 
     case "getOtomeEpisodeAdRewardExists": // 오토메 에피소드 클리어 광고보상 유무 체크
@@ -1980,8 +1990,12 @@ export const clientHome = (req, res) => {
       requestLocalizingSurvey(req, res);
       return;
 
-    case "getPackUserPurchaseList": // 패키지 유저 구매내역
+    case "getPackUserPurchaseList": // 패키지 유저 구매내역 [Deprecated]
       getPackUserPurchaseList(req, res);
+      return;
+
+    case "getUserInappPurchaseList": // 패키지 유저 구매내역 신규버전!
+      getUserInappPurchaseList(req, res);
       return;
 
     case "requestNovelPackageReceiveAllMail": // 모든 메일 수신
