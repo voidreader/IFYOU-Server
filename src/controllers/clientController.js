@@ -808,12 +808,16 @@ const updateAccountWithGamebaseID = async (req, res) => {
 // * 쿼리 만들기
 export const makeInsertQuery = async (req, res) => {
   const {
-    body: { target },
+    body: { target, schema = "pier" },
   } = req;
 
+  // 컬럼명과 데이터 타입을 가져온다.
   const columns = await DB(
-    `SELECT COLUMN_NAME FROM information_schema.COLUMNS c WHERE TABLE_NAME =?;`,
-    [target]
+    `SELECT COLUMN_NAME, DATA_TYPE
+    FROM information_schema.COLUMNS c WHERE TABLE_NAME =? AND TABLE_SCHEMA = ?
+    ORDER BY ORDINAL_POSITION;
+    ;`,
+    [target, schema]
   );
 
   let insertQuery = `INSERT INTO ${target} (`;
@@ -829,15 +833,67 @@ export const makeInsertQuery = async (req, res) => {
 
   insertQuery += `) VALUES (`;
 
-  for (let i = 0; i < colCount; i++) {
-    if (i === 0) insertQuery += `?`;
-    else insertQuery += `, ?`;
-  }
+  // for (let i = 0; i < colCount; i++) {
+  //   if (i === 0) insertQuery += `?`;
+  //   else insertQuery += `, ?`;
+  // }
+
+  colIndex = 0;
+  let valueColumn = ``;
+  columns.row.forEach((item) => {
+    valueColumn = "";
+    // 숫자타입일 경우
+    if (
+      item.DATA_TYPE == "int" ||
+      item.DATA_TYPE == "tinyint" ||
+      item.DATA_TYPE == "bigint" ||
+      item.DATA_TYPE == "float"
+    ) {
+      valueColumn = valueColumn.concat("${", item.COLUMN_NAME, "}");
+    } else {
+      valueColumn = valueColumn.concat("'${", item.COLUMN_NAME, "}'"); // 스트링은 작은따옴표로 감싸준다.
+    }
+
+    if (colIndex === 0) insertQuery += valueColumn;
+    else insertQuery += `, ${valueColumn}`;
+
+    colIndex += 1;
+  }); // ? END
 
   insertQuery += `);`;
 
   res.status(200).send(insertQuery);
 };
+
+// * 쿼리 만들기
+export const makeSelectQuery = async (req, res) => {
+  const {
+    body: { target, schema = "pier" },
+  } = req;
+
+  // 컬럼명과 데이터 타입을 가져온다.
+  const columns = await DB(
+    `SELECT COLUMN_NAME, DATA_TYPE
+    FROM information_schema.COLUMNS c WHERE TABLE_NAME =? AND TABLE_SCHEMA = ?
+    ORDER BY ORDINAL_POSITION;
+    ;`,
+    [target, schema]
+  );
+
+  let selectQuery = `SELECT `;
+  let colIndex = 0;
+
+  columns.row.forEach((item) => {
+    if (colIndex === 0) selectQuery += `${item.COLUMN_NAME}`;
+    else selectQuery += `\n, ${item.COLUMN_NAME}`;
+
+    colIndex += 1;
+  });
+
+  selectQuery += `\nFROM ${target}`;
+
+  res.status(200).send(selectQuery);
+}; // ? END OF Select Query
 
 // 테이블 카피하기
 export const makeCopyInsert = async (req, res) => {
@@ -2024,6 +2080,13 @@ export const clientHome = (req, res) => {
 
     case "UnlockUserMemory": // 이프유 유저의 대상 프로젝트 모든 갤러리 오픈
       UnlockUserMemory(req, res);
+      return;
+
+    case "makeInsertQuery": // Insert Query 만들기
+      makeInsertQuery(req, res);
+      return;
+    case "makeSelectQuery": // Select Query 만들기
+      makeSelectQuery(req, res);
       return;
 
     default:
