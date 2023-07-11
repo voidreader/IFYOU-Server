@@ -19,6 +19,7 @@ export const getUserStoryAbilityRawList = async (userInfo) => {
      , a.add_value 
      , le.episode_type 
      , le.chapter_number 
+     , le.dlc_id
   FROM user_story_ability a
      , com_ability ca
      , list_episode le
