@@ -725,7 +725,7 @@ export const getUserGalleryHistory = async (userInfo) => {
       AND a.is_public > 0
   ) z, list_episode le 
   WHERE z.appear_episode = le.episode_id
-  ORDER BY le.sortkey, z.illust_name;  
+  ORDER BY le.dlc_id, le.sortkey, z.illust_name;  
   `
   );
 
