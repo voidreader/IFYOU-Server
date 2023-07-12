@@ -262,7 +262,7 @@ INSERT INTO pier.table_account
 VALUES(?, NULL, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, 0, ?, ?);
 `;
 
-export const Q_UPDATE_CLIENT_ACCOUNT_WITH_GAMEBASE = `
+export const Q_UPDATE_CLIENT_ACCOUNT_WITH_INFO = `
 UPDATE pier.table_account 
    SET country = ?
      , valid = ?

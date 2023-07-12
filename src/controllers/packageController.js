@@ -19,7 +19,7 @@ import {
   Q_SCRIPT_RESOURCE_IMAGE,
   Q_SCRIPT_RESOURCE_SE,
   Q_SCRIPT_RESOURCE_VOICE,
-  Q_UPDATE_CLIENT_ACCOUNT_WITH_GAMEBASE,
+  Q_UPDATE_CLIENT_ACCOUNT_WITH_INFO,
   Q_USER_ENERGY,
   Q_USER_PACKAGE_PROPERTY,
 } from "../QStore";
@@ -223,6 +223,8 @@ export const loginPackage = async (req, res) => {
       packageid,
       os,
       lang = "EN",
+      country = "ZZ",
+      culture = "",
       ugsid = null,
       tokenMeta = "",
       token64 = "",
@@ -248,6 +250,8 @@ export const loginPackage = async (req, res) => {
   }
 
   let result = null;
+  let current_culture = culture; // 문화권 값
+
   const accountInfo = {};
 
   result = await DB(
@@ -274,6 +278,7 @@ export const loginPackage = async (req, res) => {
       , ifnull(ta.alter_name, '') alter_name
       , ifnull(upm.twitter_mission, 0) twitter_mission
       , ifnull(upm.review_mission, 0) review_mission
+      , ifnull(current_culture, 'KR') current_culture
       FROM table_account ta 
     LEFT OUTER JOIN user_package_mission upm ON upm.userkey = ta.userkey
      WHERE ta.package = ?
@@ -291,6 +296,7 @@ export const loginPackage = async (req, res) => {
     accountInfo.account = result.row[0];
   }
 
+  // * uid 생성에 대한 추가 처리
   if (accountInfo.account.uid === null || accountInfo.account.uid === "") {
     const uid = `${accountInfo.account.pincode}`;
     await DB(`
@@ -304,6 +310,23 @@ export const loginPackage = async (req, res) => {
     accountInfo.account.nickname = uid;
   }
 
+  // 국가, 언어 기준으로 문화권 설정 처리
+  const cultureResult = await slaveDB(`
+  SELECT cc.culture_id culture 
+  FROM com_culture cc 
+  WHERE cc.lang = '${lang}' OR cc.country_code = UPPER('${country}') LIMIT 1;
+  `);
+
+  if (cultureResult.state && cultureResult.row.length > 0) {
+    current_culture = cultureResult.row[0].culture;
+  } else {
+    current_culture = "ZZ";
+  }
+
+  // 문화권 설정 끝.
+  accountInfo.account.current_culture = current_culture;
+  accountInfo.current_culture = current_culture;
+
   // 에너지 정보 추가
   accountInfo.energy = accountInfo.account.energy;
 
@@ -311,12 +334,12 @@ export const loginPackage = async (req, res) => {
   respondSuccess(res, accountInfo);
 
   // 마지막 접속일자, 언어정보 등 갱신처리
-  DB(Q_UPDATE_CLIENT_ACCOUNT_WITH_GAMEBASE, [
+  DB(Q_UPDATE_CLIENT_ACCOUNT_WITH_INFO, [
     "ZZ",
     1,
     userOS,
     lang,
-    "ZZ",
+    current_culture,
     ver.toString(),
     deviceid,
     accountInfo.account.userkey,
