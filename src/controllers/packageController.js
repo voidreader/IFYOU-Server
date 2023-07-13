@@ -1766,6 +1766,7 @@ export const getPackageDLC = async (req, res) => {
   , fn_get_design_info(b.banner_id, 'url') banner_url
   , fn_get_design_info(b.banner_id, 'key') banner_key
   , (SELECT EXISTS (SELECT z.userkey FROM user_dlc z WHERE z.userkey = ${userkey} AND z.dlc_id = a.dlc_id) FROM DUAL) has_dlc
+  , a.exception_culture
   FROM dlc_master a
     , dlc_detail b
   WHERE a.project_id = ${project_id}
