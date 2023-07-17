@@ -1807,6 +1807,8 @@ const getDLC_EpisodeList = async (userInfo) => {
     , fn_get_count_scene_in_history(${userInfo.userkey}, a.episode_id, '${userInfo.lang}', 'played') played_scene_count
     , CASE WHEN a.episode_type = 'ending' THEN fn_check_user_ending(${userInfo.userkey}, a.episode_id) 
     ELSE 0 END ending_open
+    , fn_get_design_info(a.popup_image_id, 'url') popup_image_url
+    , fn_get_design_info(a.popup_image_id, 'key') popup_image_key
     , ifnull(ueh.episode_id, 0) is_clear
     , ifnull(a.speaker, '') speaker
     , a.dlc_id
