@@ -263,6 +263,8 @@ export const addUserAbility = async (req, res) => {
 export const createQueryResetAbility = async (userInfo) => {
   const { userkey, project_id, episode_id, dlc_id = -1 } = userInfo;
 
+  logger.info(`createQueryResetAbility : ${JSON.stringify(userInfo)}`);
+
   let isMatch = false;
   let deleteQuery = ``;
 
@@ -270,6 +272,8 @@ export const createQueryResetAbility = async (userInfo) => {
   const result = await slaveDB(`
   SELECT episode_id FROM list_episode WHERE project_id = ${project_id} AND dlc_id = ${dlc_id}
     AND episode_type = 'chapter' ORDER BY chapter_number, episode_id;`);
+
+  console.log(result.row);
 
   if (result.state && result.row.length > 0) {
     const currentQuery = `DELETE FROM user_story_ability WHERE userkey = ? AND project_id = ? AND episode_id = ?;`;

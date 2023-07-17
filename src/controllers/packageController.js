@@ -2344,18 +2344,26 @@ export const resetDLC = async (req, res) => {
     dlc_id,
   });
 
+  console.log(abilityResetQuery);
+
+  const deleteAbilityResult = await DB(abilityResetQuery);
+  if (!deleteAbilityResult.state) {
+    logger.error(`resetDLC Error 1 ${deleteAbilityResult.error}`);
+    respondFail(res, {}, "error in reset #1", 80019);
+    return;
+  }
+
   // 리셋 처리 시작 !!
   const resetResult = await transactionDB(
     `
     CALL sp_reset_user_episode_progress(?, ?, ?, ?);
     CALL sp_init_user_dlc_current(${userkey}, ${project_id}, ${dlc_id});
-    ${abilityResetQuery}
     `,
     [userkey, project_id, episode_id, dlc_id]
   );
 
   if (!resetResult.state) {
-    logger.error(`resetDLC Error 1 ${resetResult.error}`);
+    logger.error(`resetDLC Error 2 ${resetResult.error}`);
     respondFail(res, {}, "error in reset", 80019);
     return;
   }
