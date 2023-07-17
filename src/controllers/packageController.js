@@ -2368,6 +2368,9 @@ export const resetDLC = async (req, res) => {
     req.body
   ); // 프로젝트 선택지 Progress
 
+  responseData.ability = await getUserProjectAbilityCurrent(req.body);
+  responseData.rawStoryAbility = await getUserStoryAbilityRawList(req.body);
+
   respondSuccess(res, responseData);
 
   logAction(userkey, "reset_dlc", req.body);
