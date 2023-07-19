@@ -1771,7 +1771,7 @@ const MakeInsertOnDuplicateDeployQuery = async (req, res) => {
 // * 임시 기능 이미지 선택지 관련 내용 주기
 const requestImageChoices = async (req, res) => {
   const {
-    body: { userkey },
+    body: { userkey, choice_count = -1 },
   } = req;
 
   const result = await DB(`
@@ -1788,7 +1788,10 @@ const requestImageChoices = async (req, res) => {
   `);
 
   const responseData = {};
-  const limitNumber = Math.floor(Math.random() * 3) + 2; // 2~4
+  let limitNumber = choice_count;
+
+  // 0보다 작으면 랜덤 1~4
+  if (limitNumber < 0) limitNumber = Math.floor(Math.random() * 3) + 1; // 1~4
 
   responseData.choices = [];
   for (let i = 0; i < limitNumber; i++) {
