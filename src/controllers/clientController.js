@@ -1768,6 +1768,36 @@ const MakeInsertOnDuplicateDeployQuery = async (req, res) => {
   res.status(200).send(`${insertQuery}\n${params}`);
 };
 
+// * 임시 기능 이미지 선택지 관련 내용 주기
+const requestImageChoices = async (req, res) => {
+  const {
+    body: { userkey },
+  } = req;
+
+  const result = await DB(`
+      SELECT lem.emoticon_owner
+      , les.emoticon_slave_id
+      , les.image_name
+      , les.image_url 
+      , les.image_key 
+    FROM list_emoticon_master lem 
+    , list_emoticon_slave les 
+    WHERE lem.project_id = 57
+    and les.emoticon_master_id = lem.emoticon_master_id 
+    ORDER BY rand() LIMIT 4;  
+  `);
+
+  const responseData = {};
+  const limitNumber = Math.floor(Math.random() * 3) + 2; // 2~4
+
+  responseData.choices = [];
+  for (let i = 0; i < limitNumber; i++) {
+    responseData.choices.push(result.row[i]);
+  }
+
+  respondSuccess(res, responseData);
+};
+
 //////////////////////////////////////
 // * 각 브랜치에서 필히! 사용하는 요청만 남기고 모두 정리합시다!!!
 
@@ -2152,6 +2182,10 @@ export const clientHome = (req, res) => {
 
     case "MakeInsertOnDuplicateDeployQuery": // insert on duplicate 구문 만들기
       MakeInsertOnDuplicateDeployQuery(req, res);
+      return;
+
+    case "requestImageChoices": // requestImageChoices
+      requestImageChoices(req, res);
       return;
 
     default:
