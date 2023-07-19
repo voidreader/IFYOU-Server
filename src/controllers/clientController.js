@@ -1707,6 +1707,67 @@ const requestOP_CalcPackUser = async (req, res) => {
   respondSuccess(res, {});
 };
 
+const MakeInsertOnDuplicateDeployQuery = async (req, res) => {
+  const {
+    body: { target_table },
+  } = req;
+
+  const targetInfo = await DB(`
+    SELECT dtd.table_name, column_name, is_key
+      FROM deploy_table_def dtd
+    WHERE dtd.table_name = '${target_table}'
+    ORDER BY dtd.is_key desc
+   ;`);
+
+  let insertQuery = `INSERT INTO ${target_table}(`;
+  let params = ``;
+
+  // insert 부분 만들기
+  for (let i = 0; i < targetInfo.row.length; i++) {
+    const item = targetInfo.row[i];
+
+    insertQuery += item.column_name;
+
+    if (i < targetInfo.row.length - 1) insertQuery += ", ";
+  }
+
+  insertQuery += `) VALUES (`;
+  params += `[`;
+
+  // param 부분 만들기
+  for (let i = 0; i < targetInfo.row.length; i++) {
+    const item = targetInfo.row[i];
+
+    insertQuery += `?`;
+    params += `item.${item.column_name}`;
+
+    if (i < targetInfo.row.length - 1) {
+      insertQuery += ", ";
+      params += ", ";
+    }
+  }
+
+  insertQuery += `) ON DUPLICATE KEY UPDATE `;
+
+  // update 부분 만들기
+  for (let i = 0; i < targetInfo.row.length; i++) {
+    const item = targetInfo.row[i];
+
+    // unique key가 아닌 컬럼만 처리한다.
+    if (item.is_key > 0) {
+      continue;
+    }
+    insertQuery += `${item.column_name} = ?`;
+    params += `, item.${item.column_name}`;
+    if (i < targetInfo.row.length - 1) insertQuery += ", ";
+  }
+
+  insertQuery += `;`;
+  params += `]`;
+
+  res.status(200).send(`${insertQuery}\n${params}`);
+};
+
 //////////////////////////////////////
 // * 각 브랜치에서 필히! 사용하는 요청만 남기고 모두 정리합시다!!!
 
@@ -2087,6 +2148,10 @@ export const clientHome = (req, res) => {
       return;
     case "makeSelectQuery": // Select Query 만들기
       makeSelectQuery(req, res);
+      return;
+
+    case "MakeInsertOnDuplicateDeployQuery": // insert on duplicate 구문 만들기
+      MakeInsertOnDuplicateDeployQuery(req, res);
       return;
 
     default:
