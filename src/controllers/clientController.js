@@ -2191,6 +2191,10 @@ export const clientHome = (req, res) => {
       requestImageChoices(req, res);
       return;
 
+    case "reportRequestError":
+      reportRequestError(req, res);
+      return;
+
     default:
       logger.error(`clientHome Error ${func}`);
       respondFail(res, {}, "Wrong Request", 80019);
