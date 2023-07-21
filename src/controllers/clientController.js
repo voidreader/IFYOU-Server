@@ -1801,6 +1801,40 @@ const requestImageChoices = async (req, res) => {
   respondSuccess(res, responseData);
 };
 
+// * 텀블벅 후원자 DLC 강제 언락
+const requestSponsorDLCUnlock = async (req, res) => {
+  const project_id = 142;
+  const dlc_id = 6;
+
+  // 105~116 쿠폰 쓴사람 조회
+  const users = await DB(`
+  SELECT DISTINCT uc.userkey 
+  FROM user_coupon uc 
+  WHERE uc.coupon_id BETWEEN 105 AND 116;
+  `);
+
+  logger.info(`requestSponsorDLCUnlock 대상 유저 : ${users.row.length}`);
+
+  let query = ``;
+  users.row.forEach((item) => {
+    query += mysql.format(`CALL sp_init_user_dlc_current(?, ?, ?);`, [
+      item.userkey,
+      project_id,
+      dlc_id,
+    ]);
+  });
+
+  const result = await transactionDB(query);
+
+  if (!result.state) {
+    logger.error(`requestSponsorDLCUnlock : [${JSON.stringify(result.error)}]`);
+    respondFail(res, {}, "실패", 80019);
+    return;
+  }
+
+  respondSuccess(res, { "해금 유저": users.row.length });
+};
+
 //////////////////////////////////////
 // * 각 브랜치에서 필히! 사용하는 요청만 남기고 모두 정리합시다!!!
 
@@ -2193,6 +2227,10 @@ export const clientHome = (req, res) => {
 
     case "reportRequestError":
       reportRequestError(req, res);
+      return;
+
+    case "requestSponsorDLCUnlock":
+      requestSponsorDLCUnlock(req, res);
       return;
 
     default:
