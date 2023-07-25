@@ -1795,6 +1795,10 @@ const requestImageChoices = async (req, res) => {
 
   responseData.choices = [];
   for (let i = 0; i < limitNumber; i++) {
+    const price = Math.floor(Math.random() * 100) + 1;
+    if (price <= 40) result.row[i].price = price;
+    else result.row[i].price = 0;
+
     responseData.choices.push(result.row[i]);
   }
 
