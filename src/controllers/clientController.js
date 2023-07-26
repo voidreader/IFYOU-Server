@@ -1805,6 +1805,16 @@ const requestImageChoices = async (req, res) => {
   respondSuccess(res, responseData);
 };
 
+// * 임시 메소드 (연습용)
+const requestChooiceImageChoices = async (req, res) => {
+  const {
+    body: { userkey, emoticon_slave_id },
+  } = req;
+
+  const responseData = { userkey, emoticon_slave_id };
+  respondSuccess(res, responseData);
+};
+
 // * 텀블벅 후원자 DLC 강제 언락
 const requestSponsorDLCUnlock = async (req, res) => {
   const project_id = 142;
@@ -2235,6 +2245,10 @@ export const clientHome = (req, res) => {
 
     case "requestSponsorDLCUnlock":
       requestSponsorDLCUnlock(req, res);
+      return;
+
+    case "requestChooiceImageChoices":
+      requestChooiceImageChoices(req, res);
       return;
 
     default:
