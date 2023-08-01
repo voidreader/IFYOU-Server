@@ -172,68 +172,6 @@ export const requestUserProjectCurrent = async (req, res) => {
   respondSuccess(res, currentInfo);
 };
 
-// * 유저의 프로젝트내 현재 위치 업데이트
-export const requestUpdateProjectCurrent = async ({
-  userkey,
-  project_id,
-  episodeID,
-  scene_id = null,
-  script_no = 0,
-  is_final = 0, // 막다른 길
-  callby = "",
-}) => {
-  let episode_id = episodeID;
-
-  logger.info(
-    `requestUpdateProjectCurrent ${userkey}/${project_id}/${episodeID}/${scene_id}/${script_no}/${is_final}/${callby}`
-  );
-
-  // 에피소드 ID가 없는 경우.
-  if (!episodeID) {
-    logger.error(
-      `No EpisodeID ${userkey}/${project_id}/${episodeID}/${scene_id}/${script_no}/${is_final}/${callby}`
-    );
-
-    // 현재 project_current의 정보를 불러온다.
-    const userCurrent = await DB(`SELECT a.episode_id 
-    FROM user_project_current a
-   WHERE a.userkey = ${userkey}
-     AND a.project_id = ${project_id}
-     AND a.is_special = 0;`);
-
-    if (userCurrent.state && userCurrent.row.length > 0) {
-      episode_id = userCurrent.row[0].episode_id;
-    }
-  } // 에피소드 정보가 없는 경우에 대한 처리
-
-  // 프로젝트 ID가 없는 경우..!?
-
-  const result = await DB(
-    `
-      CALL sp_update_user_project_current(?,?,?,?,?,?);
-      `,
-    [userkey, project_id, episode_id, scene_id, script_no, is_final]
-  );
-
-  if (!result.state) {
-    logger.error(`${userkey}/${project_id} : ${result.error}`);
-    return [];
-  }
-
-  // console.log(result.row[0][0]);
-  let projectCurrent;
-
-  if (result.row[0].length > 0) projectCurrent = result.row[0];
-  else projectCurrent = [];
-
-  projectCurrent.forEach((item) => {
-    const openDate = new Date(item.next_open_time);
-    item.next_open_tick = openDate.getTime();
-  });
-
-  return projectCurrent;
-};
-
 // ! 대체 (2022.11.21) requestUpdateProjectCurrent
 export const ProcessUpdateUserProjectCurrent = async (userInfo) => {
   userInfo.episode_id = userInfo.episodeID; // 파라매터 잘못써서.. ㅠ
@@ -292,7 +230,6 @@ export const ProcessUpdateUserProjectCurrent = async (userInfo) => {
 export const updateUserProjectCurrent = async (req, res) => {
   logger.info(`updateUserProjectCurrent : ${JSON.stringify(req.body)}`);
 
-  //const result = await requestUpdateProjectCurrent(req.body);
   const result = await ProcessUpdateUserProjectCurrent(req.body);
   res.status(200).json(result);
 

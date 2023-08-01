@@ -19,11 +19,9 @@ import {
   updateUserIllustHistory,
   updateUserMissionHistory,
   updateUserSceneRecord,
-  updateUserMinicutHistory,
   getUserProjectSceneHistory,
   getUserEpisodeHistory,
   updateUserMinicutHistoryVer2,
-  insertUserProperty,
   resetPlayingEpisode,
   updateUserProjectSceneHist,
 } from "./accountController";

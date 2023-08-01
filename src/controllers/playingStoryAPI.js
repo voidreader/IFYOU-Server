@@ -185,7 +185,6 @@ export const requestCompleteEpisodeOptimized = async (req, res) => {
   // * useRecord는 엔딩 메뉴에서 플레이한 경우 false로 전달받는다.
   let projectCurrent;
   if (useRecord) {
-    // projectCurrent = await requestUpdateProjectCurrent(updateParam);
     projectCurrent = await ProcessUpdateUserProjectCurrent(updateParam);
   } else {
     projectCurrent = await getUserProjectCurrent(req.body); // useRecord false 인경우는 갱신없음.
