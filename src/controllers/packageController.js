@@ -2667,6 +2667,15 @@ export const purchasePackageInappProduct = async (req, res) => {
   if (purchaseToken == "editor" || purchaseToken == "restore") {
     responseData.purpose = purchaseToken;
   }
+
+  // android 이면서, order 가 GPA.이 없는 경우.
+  if (os == 0 && !receipt.includes("GPA.")) {
+    respondFail(res, {}, "올바르지 않은 영수증 정보", 80019);
+    logger.error(`invalid receipt ${userkey} `);
+    logAction(userkey, "invalid_receipt", { userkey, receipt });
+    return;
+  }
+
   logger.info(`purchaseInappProduct ${JSON.stringify(req.body)}`);
 
   // if (receipt) {
