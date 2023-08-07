@@ -406,7 +406,7 @@ WHERE ls.project_id = ?
 AND ls.episode_id = ?
 AND ls.lang = ?
 AND lm.project_id = ls.project_id 
-AND ls.template IN ('image', 'message_image')
+AND ls.template IN ('image', 'message_image', 'image_selection')
 AND ls.script_data = lm.image_name;
 `;
 
