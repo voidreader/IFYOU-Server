@@ -953,7 +953,11 @@ export const requestNovelPackageReceiveAllMail = async (req, res) => {
 
   for await (const item of result.row) {
     req.body.mail_no = item.mail_no;
-    await readNovelPackageUserSingleMail(req, res, null);
+
+    // ad_charge는 모두 읽기로 하지 않음.
+    if (item.mail_type != "ad_charge") {
+      await readNovelPackageUserSingleMail(req, res, null);
+    }
   }
 
   getNovelPackageUserUnreadMailList(req, res);
