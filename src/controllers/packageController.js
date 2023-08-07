@@ -2239,6 +2239,8 @@ export const requestOtomeEpisodeClearAdReward = async (req, res) => {
   let query = ``;
   const responseData = {};
 
+  // 임시로 여기는 저장하지 않게 변경(광고 매출 증진효과 확인중 2023.08.07)
+  /*
   query += mysql.format(
     `
   INSERT INTO user_episode_ad_reward(userkey, project_id, episode_id, quantity) 
@@ -2246,6 +2248,7 @@ export const requestOtomeEpisodeClearAdReward = async (req, res) => {
   `,
     [userkey, project_id, episode_id]
   );
+  */
 
   const currentEnergy = await getUserEnergy(userkey);
   responseData.energy = currentEnergy + 10;
