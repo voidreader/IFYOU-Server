@@ -1,6 +1,5 @@
 import { response } from "express";
 import schedule from "node-schedule";
-import { getProductDetailList } from "../controllers/shopController";
 import { cache, loadingCacheData, loadingRegularCacheData } from "../init";
 import { logger } from "../logger";
 import { DB, slaveDB } from "../mysqldb";
@@ -92,80 +91,6 @@ SELECT DISTINCT cbg.set_id
  AND cbg.set_id = ?
  AND cbs.bubble_sprite_id > 0; 
 `;
-
-// * 인앱상품 캐시 데이터 조회(이프유)
-export const getCacheProduct = async (lang) => {
-  const result = await slaveDB(
-    `    
-    SELECT a.product_master_id 
-    , a.product_id 
-    , fn_get_design_info(lang.banner_id, 'url') product_url
-    , fn_get_design_info(lang.banner_id, 'key') product_key
-    , fn_get_design_info(lang.detail_image_id, 'url') product_detail_url
-    , fn_get_design_info(lang.detail_image_id, 'key') product_detail_key
-    , lang.title product_name
-    , ifnull(a.bonus_name, '') bonus_name 
-    , a.product_type 
-    , fn_get_standard_name('product_type', a.product_type) product_type_name 
-    , DATE_FORMAT(a.from_date, '%Y-%m-%d %T') from_date
-    , DATE_FORMAT(a.to_date, '%Y-%m-%d %T') to_date
-    , a.max_count
-    , case when a.to_date = '9999-12-31' THEN 0 ELSE 1 END is_event
-    , a.is_public
-    , a.package
-    FROM list_product_master a
-        , list_product_lang lang
-    WHERE a.is_public > 0
-    AND lang.master_id = a.product_master_id 
-    AND lang.lang  = '${lang}'
-    AND now() BETWEEN a.from_date AND a.to_date
-    AND a.package = 'ifyou'
-    ORDER BY product_type, a.from_date DESC, a.product_id;
-    `
-  );
-
-  //* 유효한 상품 리스트와 디테일 가져오기
-  const responseData = {};
-  responseData.productMaster = result.row;
-  responseData.productDetail = {};
-
-  const productInfo = {};
-  const promise = [];
-
-  responseData.productMaster.forEach(async (item) => {
-    const key = item.product_master_id.toString();
-
-    // * product_master_id로 키를 만들어주기
-    if (!Object.hasOwnProperty.call(productInfo, key)) {
-      productInfo[key] = [];
-    }
-
-    // * 상품의 product_type에 따른 디테일 정보를 배열에 푸시해주기(프리미엄 패스 제외)
-    // * 프리미엄 패스는 getUserSelectedStory()에서 호출
-    if (item.product_type !== "premium_pass") {
-      promise.push(
-        getProductDetailList(item.product_master_id, item.product_type)
-      );
-    }
-  });
-
-  await Promise.all(promise)
-    .then((values) => {
-      // * promise에 넣어둔 모든 getProductDetailList 실행이 종료되면, 결과가 한번에 들어온다.
-      values.forEach((arr) => {
-        //* productInfo의 key랑 arr[i].master_id 가 똑같으면,
-        arr.forEach((item) => {
-          productInfo[item.master_id.toString()].push(item);
-        });
-      });
-    })
-    .catch((err) => {
-      console.log(err);
-    });
-
-  responseData.productDetail = productInfo;
-  return responseData;
-};
 
 // * 캐시용 서버 마스터 정보
 export const getCacheServerMaster = async () => {
@@ -556,32 +481,6 @@ export const refreshCacheServerMaster = async (req, res) => {
 
     cache.set("baseCurrency", baseCurrency); // 기본 재화 정보
   }
-
-  if (res) res.status(200).send("Done");
-};
-
-// * 인앱 상품 정보 캐시
-export const refreshCacheProduct = async (req, res) => {
-  const productKO = await getCacheProduct("KO");
-  const productEN = await getCacheProduct("EN");
-  const productJA = await getCacheProduct("JA");
-  const productAR = await getCacheProduct("AR");
-
-  const productMS = await getCacheProduct("MS");
-  const productES = await getCacheProduct("ES");
-  const productRU = await getCacheProduct("RU");
-
-  const product = {
-    KO: productKO,
-    EN: productEN,
-    JA: productJA,
-    AR: productAR,
-    MS: productMS,
-    ES: productES,
-    RU: productRU,
-  };
-
-  cache.set("product", product);
 
   if (res) res.status(200).send("Done");
 };

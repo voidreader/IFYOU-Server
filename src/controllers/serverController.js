@@ -10,37 +10,6 @@ import { logger } from "../logger";
 import { DB, slaveDB } from "../mysqldb";
 import { cache } from "../init";
 
-const s3 = new aws.S3({
-  accessKeyId: process.env.AWS_KEY,
-  secretAccessKey: process.env.AWS_SECRET_KEY,
-});
-
-// S3 정리 로직..
-export const alignS3Objects = async (req, res) => {
-  const awsParamas = {
-    Bucket: "carpestore",
-    // Delimiter: "/",
-    Prefix: "assets/",
-  };
-
-  const s3Object = [];
-  const insertQuery = `INSERT INTO list_s3(s3_key, s3_class) VALUES (? ,?)`;
-
-  s3.listObjectsV2(awsParamas, (err, data) => {
-    if (err) {
-      logger.error(`alignS3Objects Error ${err}`);
-    }
-
-    data.Contents.forEach((element) => {
-      s3Object.push(element);
-      DB(insertQuery, [element.Key, element.StorageClass]);
-    });
-
-    console.log(`total count : ${s3Object.length}`);
-    res.status(200).send("OK");
-  });
-};
-
 // ! 클라이언트에서 요청해서 받는 로컬라이징 텍스트 (Deprecated)
 export const getClientLocalizingList = (req, res) => {
   logger.info(`getClientLocalizingList`);
@@ -67,71 +36,6 @@ export const getServerMasterInfo = (req, res) => {
   responseData.ad = cache.get("ad");
   responseData.timedeal = cache.get("timedeal");
   responseData.baseCurrency = cache.get("baseCurrency");
-
-  res.status(200).json(responseData);
-};
-
-// * 플랫폼에서 진행중인 공지사항 프로모션 정보 조회
-export const getPlatformNoticePromotion = async (req, res) => {
-  const {
-    body: {
-      userkey = 0,
-      build = "pier.make.story",
-      country = "KR",
-      lang = "KO",
-      os = 0,
-      culture = "ZZ",
-    },
-  } = req;
-
-  const responseData = {};
-  let userOS = "all";
-
-  // 안드로이드 ,아이폰 분류 처리
-  if (os === 0) userOS = "Android";
-  else userOS = "iOS";
-
-  // * 장르
-  const genre = await DB(
-    `
-  SELECT DISTINCT fn_get_localize_text(ls.text_id, ?) genre_name
-       , fn_get_localize_text(ls.text_id, 'KO') origin_name
-    FROM list_project_genre genre
-      , list_project_master ma
-      , list_standard ls 
-  WHERE ma.project_id = genre.project_id
-    AND ma.is_public > 0
-    AND ls.standard_class = 'genre'
-    AND ls.code = genre.genre_code 
-    AND ma.service_package LIKE CONCAT('%', ?, '%')
-    AND ma.project_type = 0
-    ORDER BY ls.sortkey
-  ;`,
-    [lang, build]
-  ); // ? 장르
-
-  // 캐시에서 프로모션 가져오기 (os, 문화권 필터링)
-  responseData.promotion = cache.get("promotion").filter((item) => {
-    console.log(item);
-    return (
-      (item.os.includes("all") || item.os.includes(userOS)) &&
-      !item.exception_culture.includes(culture)
-    );
-  });
-
-  // 캐시에서 공지사항 가져오기 (os, 문화권 필터링)
-  responseData.notice = cache.get("notice").filter((item) => {
-    return (
-      (item.os.includes("all") || item.os.includes(userOS)) &&
-      !item.exception_culture.includes(culture)
-    );
-  });
-
-  // 장르
-  responseData.genre = genre.row;
-
-  // 인트로 (캐시)
-  responseData.intro = cache.get("intro");
 
   res.status(200).json(responseData);
 };

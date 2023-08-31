@@ -19,7 +19,6 @@ const corsOption = {
 
 app.use(helmet({ contentSecurityPolicy: false }));
 app.use(cors(corsOption));
-app.set("view engine", "pug");
 
 app.use(cookieParser());
 app.use(express.urlencoded({ limit: "50mb", extended: true }));

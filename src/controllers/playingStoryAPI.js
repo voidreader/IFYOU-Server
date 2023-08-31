@@ -20,10 +20,6 @@ import {
   ProcessUpdateUserProjectCurrent,
   requestUpdateProjectCurrent,
 } from "../com/userProject";
-import {
-  checkMissionByEpisode,
-  checkSideUnlockByEpisode,
-} from "./storyController";
 
 import { getUserBankInfo } from "./bankController";
 import { UQ_ACCQUIRE_CURRENCY } from "../USERQStore";
