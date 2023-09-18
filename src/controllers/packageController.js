@@ -797,7 +797,7 @@ export const checkDailyEnergy = async (req, res) => {
 
 // * 오토메 유저 의상 커스텀 세팅 정보
 const getUserDress = async (userkey, project_id) => {
-  if (project_id != 142) return [];
+  if (project_id != 142 && project_id != 159) return [];
 
   const userDressResult = await DB(`
   SELECT upd.speaker
@@ -811,7 +811,7 @@ const getUserDress = async (userkey, project_id) => {
   // 프로젝트에 유저 데이터가 없는 경우 디폴트 데이터 입력 처리
   if (userDressResult.row.length <= 0) {
     // 입력처리 (프로젝트마다..)
-    if (project_id == 142) {
+    if (project_id == 142 || project_id == 159) {
       await DB(`
       INSERT INTO user_project_dress (userkey, project_id, speaker, current_currency, is_main, default_dress_id) 
       VALUES (${userkey}, ${project_id}, '디비', 'error_db_base', 1, -1);
@@ -1479,7 +1479,7 @@ export const purchaseOtomeItem = async (req, res) => {
    SELECT ccp.sale_price
       FROM com_currency cc 
         , com_coin_product ccp 
-    WHERE cc.connected_project = 142
+    WHERE cc.connected_project = ${project_id}
       AND ccp.currency = cc.currency
       AND ccp.currency = '${currency}';
    `);

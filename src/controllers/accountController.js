@@ -191,7 +191,7 @@ LEFT OUTER JOIN user_episode_hist ueh ON ueh.userkey = ${userInfo.userkey} AND u
 WHERE a.project_id = ${userInfo.project_id}
   AND a.dlc_id = -1
   AND a.episode_type IN ('chapter', 'ending')
-ORDER BY a.episode_type, a.sortkey;  
+ORDER BY a.episode_type, a.chapter_number, a.episode_id;  
 `);
 
   const mainEpisodes = []; // 메인 에피소드
