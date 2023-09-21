@@ -451,7 +451,7 @@ export const requestSingleGameCouponFromWeb = async (req, res) => {
     body: { userkey, coupon_code, project_id = -1, pincode },
   } = req;
 
-  res.headers["Access-Control-Allow-Origin"] = "*";
+  // res.headers["Access-Control-Allow-Origin"] = "*";
 
   logger.info(
     `requestSingleGameCouponFromWeb : [${JSON.stringify(req.body)}] `

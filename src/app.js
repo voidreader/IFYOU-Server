@@ -12,13 +12,13 @@ import routes from "./routes";
 
 const app = express();
 
-// const corsOption = {
-//   origin: "*",
-//   credentials: true,
-// };
+const corsOption = {
+  origin: "*",
+  credentials: true,
+};
 
-app.use(helmet({ contentSecurityPolicy: false }));
-app.use(cors());
+// app.use(helmet({ contentSecurityPolicy: false }));
+app.use(cors(corsOption));
 
 app.use(cookieParser());
 app.use(express.urlencoded({ limit: "50mb", extended: true }));
