@@ -151,7 +151,6 @@ export const requestMainEpisodeList = async (userInfo) => {
   , a.project_id 
   , a.episode_type
   , TRIM(fn_get_episode_title_lang(a.episode_id, '${userInfo.lang}')) title 
-  , fn_check_episode_lang_exists(a.episode_id, '${userInfo.lang}') lang_exists
   , a.episode_status 
   , a.currency
   , a.price 
@@ -169,20 +168,12 @@ export const requestMainEpisodeList = async (userInfo) => {
   , a.first_reward_quantity
   , a.sortkey 
   , a.chapter_number
-  , fn_check_episode_in_progress(${userInfo.userkey}, a.episode_id) in_progress
-  , fn_check_episode_in_history(${userInfo.userkey}, a.episode_id) in_history
-  , fn_get_design_info(a.square_image_id, 'url') title_image_url
-  , fn_get_design_info(a.square_image_id, 'key') title_image_key
   , fn_get_design_info(a.popup_image_id, 'url') popup_image_url
   , fn_get_design_info(a.popup_image_id, 'key') popup_image_key
   , TRIM(fn_get_episode_summary_lang(a.episode_id, '${userInfo.lang}')) summary
-  , fn_get_count_scene_in_history(${userInfo.userkey}, a.episode_id, '${userInfo.lang}', 'total') total_scene_count
-  , fn_get_count_scene_in_history(${userInfo.userkey}, a.episode_id, '${userInfo.lang}', 'played') played_scene_count
   , CASE WHEN a.episode_type = 'ending' THEN fn_check_user_ending(${userInfo.userkey}, a.episode_id) 
          ELSE 0 END ending_open
   , a.next_open_min
-  , CASE WHEN ifnull(a.publish_date, '2020-01-01') > now() THEN 1 ELSE 0 END is_serial -- 
-  , date_format(ifnull(a.publish_date, '2020-01-01'), '%Y-%m-%d %T') publish_date
   , ifnull(ueh.episode_id, 0) is_clear
   , ifnull(a.speaker, '') speaker
   , a.dlc_id
