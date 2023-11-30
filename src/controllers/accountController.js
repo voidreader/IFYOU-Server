@@ -168,6 +168,10 @@ export const requestMainEpisodeList = async (userInfo) => {
   , a.first_reward_quantity
   , a.sortkey 
   , a.chapter_number
+  , 0 in_progress
+  , 0 in_history
+  , 0 total_scene_count
+  , 0 played_scene_count
   , fn_get_design_info(a.popup_image_id, 'url') popup_image_url
   , fn_get_design_info(a.popup_image_id, 'key') popup_image_key
   , TRIM(fn_get_episode_summary_lang(a.episode_id, '${userInfo.lang}')) summary
