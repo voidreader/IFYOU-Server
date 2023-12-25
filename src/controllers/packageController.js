@@ -2626,6 +2626,8 @@ export const recoverFailPurchase = async (req, res) => {
   order by purchase_no desc;
   `);
   
+  logger.info(`missing inapp target : ${targets.row.length}`);
+  
   // eslint-disable-next-line no-restricted-syntax
   for await (const target of targets.row) {
     const {userkey} = target;
@@ -2683,6 +2685,9 @@ export const recoverFailPurchase = async (req, res) => {
         return;
       }
     }
+    
+    
+    logger.info(`${userkey} recover inapp purchase process done`);
     
     
   } // ? end of for await 
