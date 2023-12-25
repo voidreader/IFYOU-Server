@@ -2450,6 +2450,7 @@ export const purchasePackageInappProduct = async (req, res) => {
   } = req;
 
   const responseData = { product_id, purpose: "purchase" };
+  let target_master_id  = product_master_id;
 
   // response에 어떤 목적으로 구매했는지 전달.
 
@@ -2482,6 +2483,28 @@ export const purchasePackageInappProduct = async (req, res) => {
   //     }
   //   }
   // }
+  
+  if(target_master_id == 0) {
+    
+    const getMasterResult = await DB(`
+    SELECT a.product_master_id
+    FROM com_product_master a
+    WHERE a.is_public > 0
+    AND now() BETWEEN a.from_date AND a.to_date
+    AND a.product_id = ?
+    AND a.project_id = ?;
+    `, [product_id, project_id]);
+    
+    if(!getMasterResult.state || getMasterResult.row.length == 0) {
+      logger.error(`Wrong product id ${JSON.stringify(req.body)}`);
+      respondFail(res, '', 'wrong parameter about purchase', 80019);
+      return;
+    }
+    
+    target_master_id = getMasterResult.row[0].product_master_id;
+    
+  }
+  
 
   logAction(userkey, `${paymentSeq} purchase call`, {
     product_id,
@@ -2502,7 +2525,7 @@ export const purchasePackageInappProduct = async (req, res) => {
       currency,
       paymentSeq,
       purchaseToken,
-      product_master_id,
+      target_master_id,
     ]
   );
 
@@ -2526,7 +2549,7 @@ export const purchasePackageInappProduct = async (req, res) => {
          , b.is_main 
      FROM com_product_master a
          , com_product_detail b
-     WHERE a.product_master_id = ${product_master_id}
+     WHERE a.product_master_id = ${target_master_id}
        AND b.master_id = a.product_master_id
        AND b.is_main >= 0
        AND now() BETWEEN a.from_date AND a.to_date;
