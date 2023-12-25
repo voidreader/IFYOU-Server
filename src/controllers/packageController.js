@@ -2610,3 +2610,81 @@ export const purchasePackageInappProduct = async (req, res) => {
   respondSuccess(res, responseData);
   logAction(userkey, "purchase_complete", { userkey, product_id });
 }; // ? END
+
+
+export const recoverFailPurchase = async (req, res) => {
+  
+  
+  const targets = await DB(`
+  select cpm.product_master_id as target_master_id, up.*
+    from user_purchase up
+      , table_account ta 
+      , com_product_master cpm 
+    where up.product_master_id  = 0
+      and ta.userkey = up.userkey 
+      and cpm.product_id = up.product_id
+  order by purchase_no desc;
+  `);
+  
+  // eslint-disable-next-line no-restricted-syntax
+  for await (const target of targets.row) {
+    const {userkey} = target;
+    const project_id = 142;
+    
+    const productInfo = await slaveDB(
+      `
+      SELECT b.currency 
+           , b.quantity 
+           , b.first_purchase
+           , b.is_main 
+       FROM com_product_master a
+           , com_product_detail b
+       WHERE a.product_master_id = ${target.target_master_id}
+         AND b.master_id = a.product_master_id
+         AND b.is_main >= 0
+         AND now() BETWEEN a.from_date AND a.to_date;
+    `
+    );
+    
+    
+      // 에너지 토탈 값 가져오기
+    let totalEnergy = 0;
+    productInfo.row.forEach((item) => {
+      if (item.currency === "energy") {
+        totalEnergy += parseInt(item.quantity, 10);
+      }
+    });
+
+    // 루프 돌면서 아이템 메일함 지급
+    let mailQuery = ``;
+
+    if (totalEnergy > 0) {
+      mailQuery += mysql.format(
+        `CALL sp_send_user_mail(${userkey}, ?, ?, ?, ?, 365);`,
+        ["inapp", "energy", totalEnergy, project_id]
+      );
+    }
+
+    productInfo.row.forEach((item) => {
+      if (item.currency !== "energy") {
+        mailQuery += mysql.format(
+          `CALL sp_send_user_mail(${userkey}, ?, ?, ?, ?, 365);`,
+          ["inapp", item.currency, item.quantity, project_id]
+        );
+      }
+    });
+
+    if (mailQuery) {
+      const sendMailResult = await transactionDB(mailQuery);
+
+      if (!sendMailResult.state) {
+        logger.error(sendMailResult.error);
+        respondFail(res, {}, "인앱상품 발송 실패", 80019);
+        return;
+      }
+    }
+    
+    
+  } // ? end of for await 
+  
+} // ? END

@@ -76,6 +76,7 @@ import {
   purchaseOtomeItem,
   purchaseOtomeProduct,
   purchasePackageInappProduct,
+  recoverFailPurchase,
   requestNovelPackageReceiveAllMail,
   requestNovelPackageReceiveSingleMail,
   requestOtomeAdReward,
@@ -882,6 +883,11 @@ export const putClient = (req, res) => {
   switch (func) {
     case "userFeedback": // 유저 피드백 입력
       addUserFeedback(req, res);
+      break;
+      
+      
+    case "recoverFailPurchase": // 유저 피드백 입력
+      recoverFailPurchase(req, res);
       break;
 
     default:
