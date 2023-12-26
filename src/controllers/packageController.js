@@ -1023,6 +1023,7 @@ export const requestPackageStoryInfo = async (req, res) => {
       clientBubbleSetID = -1,
       lang = "KO",
       localTime = "",
+      culture = "XX",
     },
   } = req;
 
@@ -1037,6 +1038,7 @@ export const requestPackageStoryInfo = async (req, res) => {
     clientBubbleSetID,
     lang,
     localTime,
+    culture,
   };
 
   // 프로젝트에 연결된 BubbleSet ID, Version 정보 추가
@@ -1146,7 +1148,19 @@ export const requestPackageStoryInfo = async (req, res) => {
   storyInfo.episodePurchase = projectResources.episodePurchase; // 에피소드 구매 정보
 
   // 프로젝트별 공지사항
-  storyInfo.notice = getNotice(project_id);
+  const allNotice = getNotice(project_id);
+  
+  if(allNotice && allNotice.length > 0) {
+    storyInfo.notice = allNotice.filter((item) => 
+      !item.exception_culture.includes(culture)
+    )
+  }
+  else {
+    storyInfo.notice = [];  
+  }
+  
+  // storyInfo.notice = getNotice(project_id);
+  // storyInfo.notice = 
 
   // 응답
   respondSuccess(res, storyInfo);
