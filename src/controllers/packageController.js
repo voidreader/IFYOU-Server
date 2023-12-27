@@ -1356,8 +1356,8 @@ export const requestOtomeAdReward = async (req, res) => {
 
   todayRewardCount = todayQueryResult.row[0].cnt;
 
-  // 광고 보상 횟수가 5회를 넘지 못하게 처리
-  if (todayRewardCount >= 5) {
+  // 광고 보상 횟수가 10회를 넘지 못하게 처리
+  if (todayRewardCount >= 10) {
     respondFail(res, responseData, "limit ad reward", 80139);
     return;
   }
