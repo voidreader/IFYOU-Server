@@ -2775,7 +2775,8 @@ export const loginSinglePackage = async (req, res) => {
   const ugsConditionQuery = ` AND ta.gamebaseid = '${ugsid}' `;
   const deviceConditionQuery = `
      AND ta.deviceid  = '${deviceid}' 
-    ORDER BY ta.userkey limit 1
+    ORDER BY ta.lastlogintime desc 
+    limit 1
   `;
 
   const result = null;
