@@ -71,6 +71,7 @@ import {
   getSingleGameScriptWithResources,
   getUserInappPurchaseList,
   loginPackage,
+  loginSinglePackage,
   purchaseDLC,
   purchaseOtomeChoice,
   purchaseOtomeItem,
@@ -941,7 +942,7 @@ export const clientHome = (req, res) => {
       return;
 
     case "loginSinglePackage": // 로그인 처리
-      loginPackage(req, res);
+      loginSinglePackage(req, res);
       return;
 
     case "getPackageProject": // 프로젝트 마스터 & 디테일 정보 불러오기
