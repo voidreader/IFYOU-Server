@@ -1450,7 +1450,7 @@ export const requestOtomeTimerReward = async (req, res) => {
 // * 게임 대체 이름 적용 (오토메)
 export const updateAlterName = async (req, res) => {
   const {
-    body: { userkey, alterName = "" },
+    body: { userkey, alterName = "GUEST" },
   } = req;
 
   logger.info(`updateAlterName : [${JSON.stringify(req.body)}]`);
@@ -1461,10 +1461,10 @@ export const updateAlterName = async (req, res) => {
   const checkResult = await slaveDB(`
   SELECT cpw.prohibited_words
     FROM com_prohibited_words cpw 
-  WHERE '${alterName}' LIKE concat('%', cpw.prohibited_words, '%');  
-  `);
+  WHERE ? LIKE concat('%', cpw.prohibited_words, '%');  
+  `, [alterName]);
 
-  if (checkResult.row.length > 0) {
+  if (checkResult.state && checkResult.row.length > 0) {
     logger.info(`updateAlterName bad word!!!`);
     respondFail(res, responseData, "altername", 80141);
     return;
