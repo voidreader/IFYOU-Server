@@ -2877,3 +2877,179 @@ export const loginSinglePackage = async (req, res) => {
   
   
 }; // ? END login
+
+
+
+export const loginSinglePackageVer2 = async (req, res) => {
+  // 2022.11.11 유니티 게임서비스 ID 추가
+  const {
+    body: {
+      deviceid,
+      packageid,
+      os,
+      lang = "EN",
+      country = "ZZ",
+      culture = "",
+      ugsid = null,
+      tokenMeta = "",
+      token64 = "",
+      token7 = "",
+      ver = "1.0",
+    },
+  } = req;
+
+  logger.info(`### loginSinglePackageVer2 : ${JSON.stringify(req.body)}`);
+
+  // 안드로이드 ,아이폰 분류 처리
+  let userOS = "";
+  if (os === 0) userOS = "Android";
+  else if (os === 1) userOS = "iOS";
+  else userOS = "Android";
+  
+  let isDeviceLogin = false;
+
+  
+  const preQuery = `
+  SELECT ta.userkey  
+    , ta.deviceid 
+    , ta.nickname 
+    , ta.admin 
+    , ta.gamebaseid 
+    , concat('#', ta.pincode, '-', ta.userkey) pincode 
+    , fn_get_user_unread_mail_count(ta.userkey) unreadMailCount
+    , ta.tutorial_step
+    , ta.uid
+    , ta.ad_charge
+    , ta.current_level
+    , ta.current_experience
+    , ta.account_link
+    , ta.intro_done
+    , ifnull(ta.allpass_expiration, '2022-01-01') allpass_expiration
+    , datediff(now(), ta.last_rate_date) diff_rate
+    , ta.rate_result
+    , ifyou_pass_day
+    , ta.energy
+    , ifnull(ta.alter_name, '') alter_name
+    , ifnull(upm.twitter_mission, 0) twitter_mission
+    , ifnull(upm.review_mission, 0) review_mission
+    , ifnull(current_culture, 'KR') current_culture
+    FROM table_account ta 
+  LEFT OUTER JOIN user_package_mission upm ON upm.userkey = ta.userkey
+  WHERE ta.package = ? 
+  `;
+  
+  // 유니티 게임서비스 ID 여부에 따라 분기
+  const ugsConditionQuery = ` AND ta.gamebaseid = '${ugsid}' `;
+  const deviceConditionQuery = `
+     AND ta.deviceid  = '${deviceid}' 
+    ORDER BY ta.lastlogintime desc 
+    limit 1
+  `;
+
+  const result = null;
+  let current_culture = culture; // 문화권 값
+
+  const accountInfo = {};
+  
+  const ugsQueryResult = await DB(`
+  ${preQuery}
+  ${ugsConditionQuery}
+  `, [packageid]);
+  
+  if(!ugsQueryResult.state) {
+    logger.error(` loginSinglePackageVer2 error : ${JSON.stringify(ugsQueryResult.error)}`);
+    respondFail(res, {}, 'login fail', 80019);
+    return;
+  }
+  
+  if(ugsQueryResult.row.length == 0) {
+    
+    // ugs id로 일치하는 계정이 없다면, deviceid로 체크 
+    const deviceQueryResult = await DB(`
+    ${preQuery}
+    ${deviceConditionQuery}
+    `, [packageid]);
+    
+    if(deviceQueryResult.row.length == 0) {
+      // 신규 계정 처리 
+      registerPackageAccount(req, res);
+      return;
+    }
+    
+    // 디바이스ID로 계정을 찾았음. 
+    accountInfo.account = deviceQueryResult.row[0];
+    isDeviceLogin = true; 
+    
+  }
+  else { // ugs로 로그인 가능. 
+    accountInfo.account = ugsQueryResult.row[0];
+  }
+  
+  
+ 
+  // logger.info(`After account find query : ${isDeviceLogin}`);
+
+
+
+  // * uid 생성에 대한 추가 처리
+  if (accountInfo.account.uid === null || accountInfo.account.uid === "") {
+    const uid = `${accountInfo.account.pincode}`;
+    await DB(`
+    UPDATE table_account
+       SET uid = '${uid}'
+         , nickname = '${uid}'
+     WHERE userkey = ${accountInfo.account.userkey};
+    `);
+
+    accountInfo.account.uid = uid;
+    accountInfo.account.nickname = uid;
+  }
+
+  // 국가, 언어 기준으로 문화권 설정 처리
+  const cultureResult = await slaveDB(`
+  SELECT cc.culture_id culture 
+  FROM com_culture cc 
+  WHERE cc.lang = '${lang}' OR cc.country_code = UPPER('${country}') LIMIT 1;
+  `);
+
+  if (cultureResult.state && cultureResult.row.length > 0) {
+    current_culture = cultureResult.row[0].culture;
+  } else {
+    current_culture = "ZZ";
+  }
+
+  // 문화권 설정 끝.
+  accountInfo.account.current_culture = current_culture;
+  accountInfo.current_culture = current_culture;
+
+  // 에너지 정보 추가
+  accountInfo.energy = accountInfo.account.energy;
+
+  // 응답처리
+  respondSuccess(res, accountInfo);
+
+  // 마지막 접속일자, 언어정보 등 갱신처리
+  DB(Q_UPDATE_CLIENT_ACCOUNT_WITH_INFO, [
+    "ZZ",
+    1,
+    userOS,
+    lang,
+    current_culture,
+    ver.toString(),
+    deviceid,
+    accountInfo.account.userkey,
+  ]);
+  
+  // 
+  if(isDeviceLogin) {
+    DB(`
+    UPDATE pier.table_account 
+     SET gamebaseid = ?
+   WHERE userkey = ?;
+    `, [ugsid, accountInfo.account.userkey]);
+  }
+  
+  
+}; // ? END login
+
+

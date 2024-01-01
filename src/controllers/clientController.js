@@ -72,6 +72,7 @@ import {
   getUserInappPurchaseList,
   loginPackage,
   loginSinglePackage,
+  loginSinglePackageVer2,
   purchaseDLC,
   purchaseOtomeChoice,
   purchaseOtomeItem,
@@ -942,7 +943,7 @@ export const clientHome = (req, res) => {
       return;
 
     case "loginSinglePackage": // 로그인 처리
-      loginSinglePackage(req, res);
+      loginSinglePackageVer2(req, res);
       return;
 
     case "getPackageProject": // 프로젝트 마스터 & 디테일 정보 불러오기
