@@ -458,12 +458,12 @@ export const requestSingleGameCouponFromWeb = async (req, res) => {
   );
 
   if (!userkey || !pincode) {
-    respondFail(res, {}, "유저 정보가 입력되지 않음", 6052);
+    respondFail(res, {}, "Please input the valid UID", 6052);
     return;
   }
 
   if (!coupon_code) {
-    respondFail(res, {}, "쿠폰코드가 입력되지 않음", 80053);
+    respondFail(res, {}, "Please input the valid coupon code", 80053);
     return;
   }
 
@@ -482,7 +482,7 @@ export const requestSingleGameCouponFromWeb = async (req, res) => {
     respondFail(
       res,
       {},
-      "UID가 올바르지 않습니다. 유저 정보를 찾을 수 없습니다",
+      "UID is not valid. Can't find the UID info.",
       80056
     );
     return;
@@ -507,7 +507,7 @@ export const requestSingleGameCouponFromWeb = async (req, res) => {
   );
 
   if (couponInfo.row.length === 0) {
-    respondFail(res, {}, "쿠폰 정보가 없습니다.", 80053);
+    respondFail(res, {}, "This is not a valid coupon code.", 80053);
     return;
   }
 
@@ -526,7 +526,7 @@ export const requestSingleGameCouponFromWeb = async (req, res) => {
 
   // 사용횟수 체크
   if (userLimit.row.length >= parseInt(use_limit, 10)) {
-    respondFail(res, {}, "쿠폰 사용 횟수 초과", 80054);
+    respondFail(res, {}, "The number of uses has been exceeded.", 80054);
     return;
   }
 
@@ -534,7 +534,7 @@ export const requestSingleGameCouponFromWeb = async (req, res) => {
   if (coupon_type === "keyword") {
     //* 쿠폰 초과 사용 확인
     if (parseInt(remain_keyword_count, 10) <= 0) {
-      respondFail(res, {}, "마감된 쿠폰입니다", 80055);
+      respondFail(res, {}, "This coupon code has expired.", 80055);
       return;
     }
   } else {
@@ -544,7 +544,7 @@ export const requestSingleGameCouponFromWeb = async (req, res) => {
     );
 
     if (usedCoupon.row.length > 0) {
-      respondFail(res, {}, "이미 사용된 쿠폰입니다", 80052);
+      respondFail(res, {}, "This coupon code has already been used.", 80052);
       return;
     }
   }
