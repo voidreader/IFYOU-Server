@@ -5,7 +5,7 @@ import {
   logAction,
   logDB,
   transactionDB,
-  logAllPass,
+  
   logAD,
 } from "../mysqldb";
 import {

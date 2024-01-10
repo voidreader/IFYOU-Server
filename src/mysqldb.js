@@ -17,10 +17,10 @@ const dbConfing = {
 
 // 로그 DB config
 const logdbConfig = {
-  host: process.env.MYSQL_HOST,
-  port: process.env.MYSQL_PORT,
-  user: process.env.MYSQL_USER,
-  password: process.env.MYSQL_PWD,
+  host: process.env.LOG_MYSQL_HOST,
+  port: process.env.LOG_MYSQL_PORT,
+  user: process.env.LOG_MYSQL_USER,
+  password: process.env.LOG_MYSQL_PWD,
   database: "gamelog",
   connectionLimit: process.env.MYSQL_CONN_LIMIT,
   waitForConnections: process.env.NMYSQL_WAIT_CONN,
@@ -172,32 +172,25 @@ export const transactionDB = async (sql, params) => {
 };
 
 // * 유저 앱 안에서의 모든 행동 기록
-export const logAction = (userkey, action_type, log_data) => {
+export const logAction = (userkey, action_type, log_data, project_id = 142) => {
   // console.log(log_data);
   // console.log(JSON.stringify(log_data));
   if (JSON.stringify(log_data).length > 520) {
     logDB(
-      `INSERT INTO log_action (userkey, action_type, log_data) 
-    VALUES(?, ?, ?);`,
-      [userkey, action_type, JSON.stringify(log_data).substr(0, 520)]
+      `INSERT INTO log_action (userkey, action_type, log_data, project_id) 
+    VALUES(?, ?, ?, ?);`,
+      [userkey, action_type, JSON.stringify(log_data).substr(0, 520), project_id]
     );
   } else {
     logDB(
-      `INSERT INTO log_action (userkey, action_type, log_data) 
-    VALUES(?, ?, ?);`,
-      [userkey, action_type, JSON.stringify(log_data)]
+      `INSERT INTO log_action (userkey, action_type, log_data, project_id) 
+    VALUES(?, ?, ?, ?);`,
+      [userkey, action_type, JSON.stringify(log_data), project_id]
     );
   }
 };
 
-// * 올패스 기간 동안 플레이 완료 수집
-export const logAllPass = (userkey, project_id, episode_id) => {
-  logDB(
-    `INSERT INTO log_allpass_play (userkey, project_id, episode_id) 
-    VALUES(?, ?, ?);`,
-    [userkey, project_id, episode_id]
-  );
-};
+
 
 // * 광고 기록.
 export const logAD = (
