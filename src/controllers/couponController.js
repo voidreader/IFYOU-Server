@@ -341,7 +341,7 @@ export const requestSingleGameCoupon = async (req, res) => {
     }
   } else {
     //* 쿠폰 사용 확인(동일 시리얼 번호)
-    const usedCoupon = await slaveDB(
+    const usedCoupon = await DB(
       `SELECT * FROM user_coupon WHERE coupon_id = ${coupon_id} AND coupon_code = '${coupon_code}';`
     );
 
@@ -372,7 +372,6 @@ export const requestSingleGameCoupon = async (req, res) => {
      , fn_get_dlc_name(a.dlc_id, '${lang}') dlc_name
   FROM dlc_master a
  WHERE a.project_id = ${project_id}
-   AND a.dlc_type = 'coupon'
    AND a.dlc_id = ${unlock_dlc_id};
   `);
 
@@ -570,7 +569,6 @@ export const requestSingleGameCouponFromWeb = async (req, res) => {
      , fn_get_dlc_name(a.dlc_id, '${lang}') dlc_name
   FROM dlc_master a
  WHERE a.project_id = ${project_id}
-   AND a.dlc_type = 'coupon'
    AND a.dlc_id = ${unlock_dlc_id};
   `);
 
@@ -599,6 +597,8 @@ export const requestSingleGameCouponFromWeb = async (req, res) => {
 
     index += 1;
   });
+  
+  logger.info(`coupon DLC CHEKC in web : `, couponDLC.row);
 
   // 연결된 DLC가 있으면 해금처리하기
   if (couponDLC.row.length > 0) {
