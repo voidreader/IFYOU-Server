@@ -6,7 +6,7 @@
 [IFyou 플랫폼](https://lessgame.notion.site/IF-you-368bfdfe9e1546ddb67576a62382092a?pvs=4)  게임 서버입니다.
 
 - Database 스키마는 database 폴더에 업로드 되었습니다. (mysqldump)
-데이터베이스 오브젝트 리스트는 [링크 문서 참고](https://lessgame.notion.site/MySQL-Object-e980c0dec5414aa9896067c8a8e1876b?pvs=4)
+- 데이터베이스 오브젝트 리스트는 [링크 문서 참고](https://lessgame.notion.site/MySQL-Object-e980c0dec5414aa9896067c8a8e1876b?pvs=4)
 
 
 ## ⏰ 개발 기간
